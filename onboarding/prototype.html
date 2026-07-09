@@ -390,8 +390,17 @@ import { createShcClient, ShcError } from "./lib/shc-client.mjs";
 import { openWebSsh } from "./lib/webssh-client.mjs";
 import { generateSshKeyPair, probeEd25519 } from "./lib/ssh-keygen.mjs";
 import { generateQrSvg } from "./lib/qr.mjs";
+import { sendRecoveryDm } from "./lib/nostr-dm.mjs";
+import { installNostrSignerMock, installRelayMock, isNostrMockMode } from "./lib/nostr-mock.mjs";
 
 installShcMock();
+if (isNostrMockMode()) {
+  // Relay mock is safe to install unconditionally in mock mode. The signer
+  // mock only patches methods that aren't already provided by an existing
+  // window.nostr, so a real signer injected via addInitScript still wins.
+  installNostrSignerMock();
+  installRelayMock();
+}
 const shc = createShcClient();
 
 // Bootstrap URL — main branch of the public torii-suite repo. Every VPS runs
@@ -422,9 +431,16 @@ const state = {
   checkoutUrl: null,
   vmSummary: null,     // latest /vm/{id}/summary
   buildLog: [],        // WebSSH stdout/stderr lines
-  buildStatus: "idle", // idle | ordering | waiting_pay | provisioning | bootstrapping | done | failed
+  buildStatus: "idle", // idle | ordering | waiting_pay | provisioning | bootstrapping | dm_publishing | done | failed
   buildError: null,
   keyExpiresAt: null,  // from register api_key.expires_at
+
+  // v0.1.4 additions — captured so the recovery DM can carry the full
+  // bundle, and so screen 8 can render real publish status.
+  shcEmail: null,      // computed npub-derived email (stable per tab)
+  shcPassword: null,   // computed npub-derived password (stable per tab)
+  shcApiKey: null,     // raw api_key.key from /auth/register
+  dmPublish: null,     // { scheme, eventId, okCount, results } or { error }
 };
 
 // Small helper so screens can log lifecycle events without touching the DOM.
@@ -537,6 +553,12 @@ async function runOrderingFlow() {
   //    which is fine because the API key is DM'd to the npub for recovery.
   const email = `${state.npubHex.slice(0, 16)}@torii.anon.invalid`;
   const password = state.npubHex.slice(0, 32) + "!Aa1"; // meets typical policy
+  // Persist so the recovery DM can carry the SHC login. Written before the
+  // register call so a re-run that hits the getSession() early-out still has
+  // matching values in state (the credentials themselves are deterministic
+  // per-npub, so this is safe even without a fresh register call).
+  state.shcEmail = email;
+  state.shcPassword = password;
   if (!shc.getSession()) {
     const reg = await shc.register({
       email,
@@ -545,6 +567,7 @@ async function runOrderingFlow() {
       lastName: state.name.slice(0, 24),
     });
     state.keyExpiresAt = reg?.api_key?.expires_at || null;
+    state.shcApiKey = reg?.api_key?.key || null;
   }
 
   // 4. Load the catalog and pick a plan.
@@ -674,8 +697,63 @@ async function runProvisioning() {
     });
   });
 
+  // Bootstrap done — now try to send the recovery DM. This is best-effort:
+  // on failure we still flip to "done" and screen 8 shows the secrets inline
+  // as a manual-copy fallback (see dmPublish.error branch in screenDone).
+  state.buildStatus = "dm_publishing";
+  render();
+  await publishRecoveryDm();
+
   state.buildStatus = "done";
   render();
+}
+
+// v0.1.4 — encrypted DM to the user's own npub containing the recovery
+// bundle (SSH private key, SHC API key, hostname, IP). Self-DM only, so
+// no ephemeral wrapper key is needed. Prefers NIP-17 seal (kind 13) if the
+// signer exposes nip44; falls back to NIP-04 kind-4 otherwise.
+async function publishRecoveryDm() {
+  if (!state.npubHex || !state.sshKeys || !state.vmSummary) {
+    state.dmPublish = { error: "missing state for recovery DM (npub / ssh / vm)" };
+    return;
+  }
+  const payload = {
+    hostname: `${state.name}.torii.host`,
+    vpsIp: state.vmSummary?.ips?.[0]?.ip || "(unknown)",
+    osUser: state.vmSummary?.os_user || "debian",
+    sshFingerprint: state.sshKeys.fingerprint,
+    sshPrivateKey: state.sshKeys.privateKey,
+    shcEmail: state.shcEmail,
+    shcPassword: state.shcPassword,
+    shcApiKey: state.shcApiKey,
+    shcApiKeyExpires: state.keyExpiresAt,
+  };
+  appendLog("info", "[nostr] preparing encrypted DM to your npub…");
+  try {
+    const result = await sendRecoveryDm(payload, {
+      recipientPubkey: state.npubHex,
+      onRelayResult: (r) => {
+        // Stream partial ACKs into buildLog and dmPublish so screen 8
+        // shows relays lighting up one by one instead of an all-at-once flip.
+        const prev = state.dmPublish?.results || [];
+        state.dmPublish = {
+          ...(state.dmPublish || {}),
+          results: [...prev, r],
+        };
+        appendLog(r.ok ? "info" : "err",
+          `[nostr] ${r.ok ? "ok" : "fail"} ${r.relay}` + (r.error ? ` — ${r.error}` : ""));
+      },
+    });
+    state.dmPublish = result;
+    appendLog("info",
+      `[nostr] DM sent via ${result.scheme} — ${result.okCount}/${result.results.length} relays accepted · event ${result.eventId.slice(0, 12)}…`);
+  } catch (err) {
+    // Recovery DM is best-effort. Log, store the error, and let screen 8
+    // fall back to showing the raw secrets inline for manual copy.
+    const msg = humanError(err);
+    state.dmPublish = { error: msg };
+    appendLog("err", `[nostr] DM failed: ${msg}`);
+  }
 }
 
 /* ============================================================
@@ -1062,13 +1140,76 @@ function screenDone() {
     : "unknown";
   const fp = state.sshKeys?.fingerprint || "(no key)";
 
+  // v0.1.4 — render real DM publish status. Three branches:
+  //   1. dmPublish.eventId  → success  (green, event id + N/M relay ACKs)
+  //   2. dmPublish.error    → failure  (amber, inline secrets fallback)
+  //   3. neither            → in-flight (spinner-ish, partial ACK list)
+  const dm = state.dmPublish;
+  const dmSuccess = dm && dm.eventId && !dm.error;
+  const dmError   = dm && dm.error;
+  const dmInflight = !dm || (!dmSuccess && !dmError);
+
+  let dmBlockHtml = "";
+  if (dmSuccess) {
+    const ok = dm.okCount;
+    const total = dm.results?.length ?? 0;
+    const shortId = dm.eventId.slice(0, 12);
+    // scheme values from sendRecoveryDm(): "nip44" (uses NIP-17 seal) or "nip04".
+    const scheme = dm.scheme === "nip44" ? "NIP-17 sealed" : "NIP-04";
+    dmBlockHtml = `
+      <div class="disclosure" style="border-color: hsl(var(--success)); color: hsl(var(--fg));">
+        <strong>recovery DM sent</strong> — ${scheme} · ${ok}/${total} relays accepted
+        <div style="margin-top:6px; font-family: var(--font-mono); font-size:0.72rem; color: hsl(var(--muted-foreground));">
+          event ${shortId}…
+        </div>
+        <div style="margin-top:6px; font-size:0.75rem;">
+          Open your nostr signer app and confirm you can read this DM before
+          closing the tab. It is the only long-term copy of your VPS secrets.
+        </div>
+      </div>
+    `;
+  } else if (dmError) {
+    // Fallback: inline secrets so the user can copy them manually before
+    // closing the tab. This is the whole point of the best-effort model.
+    const priv = state.sshKeys?.privateKey || "(no ssh key)";
+    const apiKey = state.shcApiKey || "(no api key)";
+    dmBlockHtml = `
+      <div class="disclosure" style="border-color: hsl(var(--warning)); color: hsl(var(--fg));">
+        <strong>recovery DM failed</strong> — ${dm.error}
+        <div style="margin-top:8px; font-size:0.78rem;">
+          Copy these values into your password manager before closing this
+          tab. They will not be shown again.
+        </div>
+        <div style="margin-top:10px;">
+          <div class="label" style="font-size:0.7rem; color: hsl(var(--muted-foreground));">SHC operate API key</div>
+          <textarea readonly style="width:100%; font-family: var(--font-mono); font-size:0.75rem; background: hsl(var(--surface-2)); border:1px solid hsl(var(--border)); border-radius:6px; padding:8px; margin-top:4px;" rows="2">${apiKey}</textarea>
+        </div>
+        <div style="margin-top:10px;">
+          <div class="label" style="font-size:0.7rem; color: hsl(var(--muted-foreground));">OpenSSH private key</div>
+          <textarea readonly style="width:100%; font-family: var(--font-mono); font-size:0.68rem; background: hsl(var(--surface-2)); border:1px solid hsl(var(--border)); border-radius:6px; padding:8px; margin-top:4px;" rows="6">${priv}</textarea>
+        </div>
+      </div>
+    `;
+  } else if (dmInflight) {
+    const partial = dm?.results?.length ?? 0;
+    dmBlockHtml = `
+      <div class="disclosure">
+        <strong>sending recovery DM…</strong> encrypting to your npub and
+        publishing to relays.
+        <div style="margin-top:6px; font-size:0.75rem; color: hsl(var(--muted-foreground));">
+          ${partial} relay${partial === 1 ? "" : "s"} responded so far.
+        </div>
+      </div>
+    `;
+  }
+
   return `
     <div class="eyebrow">ready</div>
     <h1>Your Torii is live.</h1>
     <p class="lede">
       You're already logged in — your npub owns the box. Below are the
-      secrets your browser generated. The nostr DM below is the only
-      long-term copy: when you close this tab, everything else disappears.
+      secrets your browser generated. The nostr DM is the only long-term
+      copy: when you close this tab, everything else disappears.
     </p>
 
     <a class="done-cta" href="https://${domain}/" target="_blank" rel="noopener">
@@ -1089,17 +1230,11 @@ function screenDone() {
       <span class="label">SHC operate API key</span>
       scoped: operate · expires: ${keyExpiry}
       <div style="margin-top:6px; font-size:0.7rem; color: hsl(var(--muted-foreground));">
-        The key value has been DM'd to your npub, encrypted. It is not
-        shown here to avoid a browser-history leak.
+        The key value is in your encrypted DM — see below.
       </div>
     </div>
 
-    <div class="disclosure">
-      A nostr DM encrypted to your npub is on its way. It contains: the SHC
-      login, the operate API key, and the OpenSSH private key for your VPS.
-      When you close this tab, that DM is the only long-term copy —
-      confirm you can read it in your signer app before closing.
-    </div>
+    ${dmBlockHtml}
 
     <div style="margin-top:20px;">
       <button class="btn btn-ghost" id="restartBtn" style="width:100%;">start over</button>
@@ -1281,6 +1416,11 @@ function wireScreenEvents() {
         buildStatus: "idle",
         buildError: null,
         keyExpiresAt: null,
+        // v0.1.4 additions — cleared so a fresh recovery bundle is minted.
+        shcEmail: null,
+        shcPassword: null,
+        shcApiKey: null,
+        dmPublish: null,
       });
       // Reset the SHC client so a fresh account can be minted on the next run.
       try { shc.clearCredentials?.(); } catch { /* ignore */ }
