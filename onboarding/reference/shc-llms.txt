@@ -1,0 +1,100 @@
+# SHC User API
+
+> Customer-scoped REST API for Sovereign Hybrid Compute (SHC). Buy, operate, and bill virtual
+> machines on SHC's self-hosted infrastructure. Every request is scoped to one authenticated
+> customer; VM identifiers are always the Blesta **service_id**, never an internal host or VMID.
+
+Base URL: `https://blesta.sovereignhybridcompute.com/user-api/v2`
+Auth: HTTP Basic (your Blesta login; 2FA accounts add header `X-User-Api-OTP`) OR a customer
+  API key (`Authorization: Bearer shc_live_...`, minted at `/account/api-keys` with Basic+OTP). A key
+  has two ANDed axes: a METHOD scope (`read`=GET only / `operate`=writes minus money+billing+credentials
+  / `full`=all minus credential mgmt) and an OPTIONAL area subset (omit = materialized to your account's full permitted-area set, never stored unrestricted; each endpoint's
+  area is `x-required-area` in openapi). Areas: client_invoices, client_quotations, client_services,
+  client_transactions, client_contacts, client_accounts, client_emails, _credits, _managed, support.
+Machine spec: `https://blesta.sovereignhybridcompute.com/user-api/openapi.json` (OpenAPI 3.1, 106 paths).
+Human docs: `https://blesta.sovereignhybridcompute.com/user-api/docs/`
+
+## Response shape
+- Success: `{"data": ...}`
+- Paginated list: `{"items":[...],"pagination":{"total","limit","offset","has_more"}}`
+- Error: `{"error":{"code","message","request_id","details"}}`
+- Every response carries an `X-Request-Id`; quote it when reporting an issue.
+- Stable error codes: validation_failed, not_found, unauthorized, forbidden, conflict,
+  rate_limited, payment_required, idempotency_key_in_use, service_not_cancelable, internal_error,
+  service_unavailable, tos_required, confirmation_required, email_exists, method_not_allowed,
+  payload_too_large, unsupported_media_type.
+
+## Concepts an agent must know
+- Status is split into precise fields, not one blob: `service_status` (active/suspended/canceled/…),
+  `runtime_status` (running/stopped/paused/unknown), `provisioning_state` (pending/provisioning/ready/…),
+  `invoice_status` (open/past_due/paid/…). A VM is NOT SSH-able just because `service_status==active` —
+  wait for `provisioning_state==ready` (typically 30–90s after an order).
+- Times are ISO-8601 with explicit offsets; a zero datetime surfaces as `null` — branch on null.
+- Writes accept an `Idempotency-Key` (16–128 chars); same key + same body replays the original result.
+- Async work (backup/snapshot/restore/reinstall) returns a `job_id` — poll `GET /vm/{id}/jobs/{jobId}`.
+- One-call overview: `GET /vm/{id}/summary` returns identity + the status fields + recent jobs +
+  `has_active_job` in a single response — prefer it over separate detail/jobs calls when checking
+  "is it ready / is anything running?".
+- Placement is deliberately hidden: the API never returns the host node or internal VMID.
+- Payments are settled in Bitcoin via BTCPay (`POST /payment/{invoiceId}/checkout`).
+
+## Endpoint groups
+- Account: `GET/PATCH /account`, `PATCH /account/contact`, `POST /account/password`, scoped API keys
+  (`GET/POST /account/api-keys`, `DELETE /account/api-keys/{id}`), `GET /account/activity` (merged
+  native-activity report — own sign-ins + account changes + payments, most-recent-first, paginated;
+  event `type`s: login, login_failed, contact_change, setting_change, transaction; never exposes
+  placement, staff identity, or the old/new values of changed fields).
+- Ordering: `GET /ordering/catalog`, `POST /ordering/preview`, `POST /ordering/submit`.
+- OS/template selection: read `available_config_options` from `GET /ordering/catalog` (returned by default); the OS template `option_id` differs by VPS line (Dev VPS = 174, NVMe/HDD/SSD = 126) -- do not assume. Windows BYOL (Server 2022/2025 Core+Desktop, Win11 Pro) is available on all lines; Windows Server needs disk >= 32 GB, Windows 11 >= 64 GB.
+- VM lifecycle: `GET /vm`, `GET /vm/{id}`, `GET /vm/{id}/summary` (one-call overview),
+  start/stop/restart/reinstall, `POST /vm/{id}/cancel`.
+- Data: backups, snapshots, jobs, ISO, firewall, ssh-key, file-restore.
+- Billing: `GET /invoices`, `GET /transactions`, `GET /billing/balance`, `GET /invoices/{id}/pdf`.
+- Affiliate: `GET /affiliate` (account/stats/balance/referral-link), `POST /affiliate/enroll`,
+  `GET|PUT /affiliate/payout-destination` (BTC on-chain + Lightning), `GET|POST /affiliate/payouts`
+  (request creates a pending Blesta request only — sends no money), `GET /affiliate/referrals`. All
+  self-scoped to the caller's own affiliate; area `client_accounts`; BTC-native amounts (8 dp).
+- Support: tickets, quotations, knowledge base, managed accounts.
+
+## MCP
+- Local (downloadable): this `shc-user-api-mcp` bundle — a stdio MCP server that exposes every
+  endpoint as a tool. Read-only by default; set `SHC_API_ALLOW_WRITES=1` to enable writes.
+- Hosted (SHC-run): `https://blesta.sovereignhybridcompute.com/user-api/mcp` (Streamable HTTP).
+- Curated by default: `tools/list` returns a focused core set to keep tool-selection cheap; request the
+  full catalog with header `X-MCP-Tools: all` (hosted) or env `SHC_MCP_TOOLS=all` (local). The core set
+  is the single source of truth in the spec — each core operation is tagged `x-shc-core: true` in
+  openapi.json. The 23 core tools: getAccount, getBillingBalance, listInvoices, getInvoice, listApiKeys,
+  listVirtualMachines, getVirtualMachine, getVirtualMachineSummary, getVirtualMachineDetail,
+  startVirtualMachine, stopVirtualMachine, restartVirtualMachine, reinstallVirtualMachine,
+  listVirtualMachineJobs, getVirtualMachineJob, listVirtualMachineBackups, createVirtualMachineBackup,
+  getOrderingCatalog, createVirtualMachineOrder, cancelVirtualMachine, getServiceUpgradeOptions, previewServiceUpgrade, upgradeService.
+- Behaviors/limits (non-obvious): API keys max 25 active + expire after 90d (max 730) — a 401 on a working key means expired/revoked, mint a new one (`expires_at`/`last_used_at` are returned). Jobs: `status==completed` may still carry `error_message` (=failure); poll `status`, not `progress` (can stay 0); >4h running is force-failed. Power verbs: 200=command accepted, not state reached (re-read `runtime_status`); stop/reset are hard, shutdown/restart graceful. Ordering: a desktop `gui_choice` needs >=16GB disk + >=4GB RAM (else 422); a submit 409 can mean out-of-stock; `/ordering/catalog` is heavy by default (`?view=lean` for slim). `confirmation_id`: 10-min TTL, bound to the exact request. `POST /ssh-key` stores but does NOT inject into a running VM (use `/vm/{id}/ssh-keys/apply-live`). On 429 honor `Retry-After`.
+- Resources: `resources/templates/list` exposes `vm://{service_id}/summary` and `vm://{service_id}` as
+  read-only JSON resources (read a VM's state without a tool call).
+- Prompts: `prompts/list` offers vetted blueprints — `vm-status-check`, `account-overview`,
+  `provision-standard-vm`.
+
+## Operate it with an AI agent (skills + MCP)
+
+You don't have to call these endpoints by hand -- SHC is agent-native:
+- Flagship MCP server: https://mcp.sovereignhybridcompute.com/ -- Streamable HTTP; connect any MCP
+  client with `Authorization: Bearer shc_live_...` (operate key). 116 tools wrap this API; every spend
+  and every destructive op is gated behind a server-issued confirm token; operate-keys cannot spend.
+- Operator skill-pack: https://blesta.sovereignhybridcompute.com/agent-skills/llms.txt -- load-on-demand
+  operator skills (get-access, deploy an app, point a domain, harden SSH, nightly backup) + the operator
+  discipline. Start at the router: https://blesta.sovereignhybridcompute.com/agent-skills/router.json
+- Deploy-app recipe menu (canonical, machine-readable): https://blesta.sovereignhybridcompute.com/agent-skills/skills/shc-deploy-app/recipes.json -- recipes resolve by
+  app name/alias and each prints STATUS: ready|provisioning|failed + SERVICE_URL + a one-step human NEXT_ACTION.
+  btcpay is live; lnbits/phoenixd/mempool/electrum-server/lightning-node/alby-hub/nextcloud/immich/vaultwarden/
+  jellyfin/forgejo/ghost/caddy are beta; any open-source selfh.st app works via the same verified-deploy loop.
+  These run over SSH on your VPS -- they are NOT user-api HTTP endpoints.
+
+## Request-body contracts & the MCP argument convention (v2.4.1)
+Every operation that accepts a request body publishes its exact fields + a realistic example in
+openapi.json. How an MCP tool's arguments map onto the request (path/query params at the top level in
+camelCase; the whole body under a single `body` object with snake_case fields; the one `Idempotency-Key`
+header exception; additionalProperties:false, no case coercion) is stated in the root
+`x-mcp-argument-convention` spec extension and in:
+  https://blesta.sovereignhybridcompute.com/user-api/docs/mcp-argument-convention.md
+Contracts are additive-only within a minor; integrators may pin. Changelog:
+  https://blesta.sovereignhybridcompute.com/user-api/CHANGELOG.md

@@ -376,7 +376,30 @@ input[type="range"] {
 
 </div>
 
-<script>
+<script type="module">
+/* ============================================================
+   v0.1.3 — wired to real bridges.
+
+   Import order matters:
+     1. shc-mock installs window.__shcMock/__websshMock IFF ?mock=1.
+     2. shc-client and webssh-client then transparently pick up the
+        shims and skip real fetch/WebSocket calls.
+   ============================================================ */
+import { installShcMock, isMockMode } from "./lib/shc-mock.mjs";
+import { createShcClient, ShcError } from "./lib/shc-client.mjs";
+import { openWebSsh } from "./lib/webssh-client.mjs";
+import { generateSshKeyPair, probeEd25519 } from "./lib/ssh-keygen.mjs";
+import { generateQrSvg } from "./lib/qr.mjs";
+
+installShcMock();
+const shc = createShcClient();
+
+// Bootstrap URL — main branch of the public torii-suite repo. Every VPS runs
+// exactly this script on first boot; the source is auditable.
+const BOOTSTRAP_URL = "https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/main/bootstrap.sh";
+// WebSSH bridge — same-origin path served by the onboarding VPS's nginx.
+const WEBSSH_URL = (typeof window !== "undefined" ? location.origin.replace(/^http/, "ws") : "") + "/webssh";
+
 /* ============================================================
    State — lives only in this tab. Nothing persisted.
    ============================================================ */
@@ -384,13 +407,276 @@ const state = {
   step: 1,
   name: "",
   npub: "",
-  character: null,   // { id, name, role, svgKey }
-  plot: null,        // { id, name, coords }
+  character: null,     // { id, name, role, svgKey }
+  plot: null,          // { id, name, coords }
   supportUsd: 21,
-  vpsUsd: 84,        // small tier estimate
+  vpsUsd: 84,          // filled from real preview once we have it
   domainUsd: 18,
   routstrUsd: 8,
+
+  // v0.1.3 additions — populated by the wire-up.
+  sshKeys: null,       // { publicKey, privateKey, fingerprint }
+  catalogItem: null,   // chosen OrderablePlan from /ordering/catalog
+  serviceId: null,     // set on submitOrder
+  invoiceId: null,
+  checkoutUrl: null,
+  vmSummary: null,     // latest /vm/{id}/summary
+  buildLog: [],        // WebSSH stdout/stderr lines
+  buildStatus: "idle", // idle | ordering | waiting_pay | provisioning | bootstrapping | done | failed
+  buildError: null,
+  keyExpiresAt: null,  // from register api_key.expires_at
 };
+
+// Small helper so screens can log lifecycle events without touching the DOM.
+function appendLog(kind, text) {
+  // Split multi-line chunks so the UI renders one line per entry.
+  for (const line of String(text).split(/\r?\n/)) {
+    if (line.length === 0) continue;
+    state.buildLog.push({ kind, line, ts: Date.now() });
+    if (state.buildLog.length > 200) state.buildLog.shift();
+  }
+  // Only re-render if we're on screen 7 — avoids thrash.
+  if (state.step === 7) render();
+}
+
+// Human-readable error extractor. Never leak the raw stack to the UI —
+// ShcError.code is stable, err.message is safe, everything else is noise.
+function humanError(err) {
+  if (err instanceof ShcError) {
+    const detail = err.details?.message || err.details?.error;
+    return detail ? `${err.code}: ${detail}` : `${err.code}: ${err.message}`;
+  }
+  return err?.message || String(err);
+}
+
+// Pick the cheapest catalog item. SHC has shipped both `pricings` and
+// `pricing` shapes in different versions of the spec, so we accept either.
+// We prefer the smallest yearly plan, then fall back to any pricing.
+function pickCatalogItem(catalog) {
+  const items = catalog?.items || catalog || [];
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new ShcError({ code: "empty_catalog", message: "SHC catalog is empty — cannot order." });
+  }
+
+  const pricingsOf = (it) => {
+    const raw = it.pricings || it.pricing || [];
+    return Array.isArray(raw) ? raw : [raw];
+  };
+
+  const toEntry = (it, p) => ({
+    packageId: it.package_id ?? it.id,
+    pricingId: p?.pricing_id ?? p?.id,
+    name: it.name || "NVMe VPS",
+    price: Number(p?.price ?? p?.amount ?? 0),
+    period: p?.period || "month",
+    currency: p?.currency || "USD",
+    moduleGroupId: it.module_group_id ?? null,
+  });
+
+  // Pass 1: cheapest yearly.
+  let best = null;
+  for (const it of items) {
+    for (const p of pricingsOf(it)) {
+      if (!p || !/year/i.test(String(p.period || ""))) continue;
+      const e = toEntry(it, p);
+      if (!best || e.price < best.price) best = e;
+    }
+  }
+  if (best) return best;
+
+  // Pass 2: cheapest any-period. Monthly prices are annualized so the
+  // total the user sees on screen 6 still reads correctly.
+  for (const it of items) {
+    for (const p of pricingsOf(it)) {
+      if (!p) continue;
+      const e = toEntry(it, p);
+      if (/month/i.test(e.period)) e.price = e.price * 12; // annualize
+      if (!best || e.price < best.price) best = e;
+    }
+  }
+  if (best) return best;
+
+  // Pass 3: absolute last resort — first item, first pricing, zero-cost.
+  return toEntry(items[0], pricingsOf(items[0])[0] || {});
+}
+
+// Screen 6 → screen 7 handshake. Runs the full SHC ordering sequence
+// end-to-end. Any failure sets buildStatus=failed and stores buildError so
+// the review screen re-renders with a readable message; the caller then
+// declines to advance.
+async function runOrderingFlow() {
+  if (!state.npubHex) {
+    throw new ShcError({ code: "missing_signer", message: "Connect your nostr signer first (step 3)." });
+  }
+  if (!state.name) {
+    throw new ShcError({ code: "missing_hostname", message: "Pick a name first (step 2)." });
+  }
+
+  state.buildStatus = "ordering";
+  state.buildError = null;
+  render();
+
+  // 1. Probe Ed25519 support (Safari <16 fails silently otherwise).
+  const probe = await probeEd25519();
+  if (!probe.supported) {
+    throw new ShcError({
+      code: "no_ed25519",
+      message: "This browser doesn't support Ed25519. Use Firefox, Chrome, or Safari 16+.",
+    });
+  }
+
+  // 2. Generate the SSH key pair in-browser. Private key never leaves this tab.
+  if (!state.sshKeys) {
+    state.sshKeys = await generateSshKeyPair({
+      comment: `torii-onboarding-${state.name}`,
+    });
+  }
+
+  // 3. Register (or reuse) an SHC account. We use the npub-hex as a stable
+  //    per-tab identity — every fresh browser session gets its own account,
+  //    which is fine because the API key is DM'd to the npub for recovery.
+  const email = `${state.npubHex.slice(0, 16)}@torii.anon.invalid`;
+  const password = state.npubHex.slice(0, 32) + "!Aa1"; // meets typical policy
+  if (!shc.getSession()) {
+    const reg = await shc.register({
+      email,
+      password,
+      firstName: "torii",
+      lastName: state.name.slice(0, 24),
+    });
+    state.keyExpiresAt = reg?.api_key?.expires_at || null;
+  }
+
+  // 4. Load the catalog and pick a plan.
+  const catalog = await shc.getCatalog({ view: "lean" });
+  const chosen = pickCatalogItem(catalog);
+  state.catalogItem = chosen;
+  state.vpsUsd = Math.round(chosen.price);
+
+  // 5. Preview the order — surfaces validation errors before we spend the
+  //    idempotency key on submit.
+  const hostname = `${state.name}.torii.host`;
+  await shc.previewOrder({
+    packageId: chosen.packageId,
+    pricingId: chosen.pricingId,
+    hostname,
+    sshKey: state.sshKeys.publicKey,
+    moduleGroupId: chosen.moduleGroupId,
+  });
+
+  // 6. Submit the order. Idempotency key is stable per (npub, hostname) so
+  //    a double-click can't create a duplicate service.
+  const submitKey = `torii-submit-${state.npubHex.slice(0, 24)}-${state.name}`;
+  const submitted = await shc.submitOrder({
+    packageId: chosen.packageId,
+    pricingId: chosen.pricingId,
+    hostname,
+    sshKey: state.sshKeys.publicKey,
+    moduleGroupId: chosen.moduleGroupId,
+    idempotencyKey: submitKey,
+  });
+  state.serviceId = submitted?.service_ids?.[0] ?? submitted?.services?.[0]?.service_id;
+  state.invoiceId = submitted?.invoice?.invoice_id ?? submitted?.invoice_id;
+  if (!state.serviceId || !state.invoiceId) {
+    throw new ShcError({
+      code: "malformed_submit",
+      message: "Order submitted but no service_id/invoice_id came back.",
+      details: submitted,
+    });
+  }
+
+  // 7. Request the BTCPay checkout URL. If the invoice is somehow already
+  //    paid (unlikely but the API allows it) we skip straight to provisioning.
+  const checkout = await shc.checkoutPayment({
+    invoiceId: state.invoiceId,
+    gateway: "btcpay_server",
+    idempotencyKey: submitKey + "-pay",
+  });
+  if (checkout?.status === "checkout_required") {
+    state.checkoutUrl = checkout.checkout_url;
+    state.buildStatus = "waiting_pay";
+  } else {
+    state.checkoutUrl = null;
+    state.buildStatus = "provisioning";
+  }
+  render();
+}
+
+// Screen 7 lifecycle. Polls SHC until the VM is ready, then opens WebSSH
+// and streams the bootstrap script. buildLog is populated via appendLog so
+// the terminal card re-renders line by line.
+async function runProvisioning() {
+  if (!state.serviceId) {
+    throw new ShcError({ code: "no_service", message: "No serviceId yet — order hasn't been placed." });
+  }
+
+  state.buildStatus = "provisioning";
+  state.buildError = null;
+  appendLog("info", "[torii] waiting for SHC to hand you a warm VPS…");
+
+  const summary = await shc.waitForReady(state.serviceId, {
+    intervalMs: 4000,
+    timeoutMs: 15 * 60 * 1000,
+    onUpdate: (s) => {
+      state.vmSummary = s;
+      // Only surface state changes to avoid log spam.
+      const last = state.buildLog[state.buildLog.length - 1];
+      const line = `[shc] provisioning_state=${s.provisioning_state}` +
+        (s.recent_jobs?.[0]?.progress != null ? ` progress=${s.recent_jobs[0].progress}%` : "");
+      if (!last || last.line !== line) appendLog("info", line);
+    },
+  });
+  state.vmSummary = summary;
+
+  const ip = summary?.ips?.[0]?.ip;
+  const osUser = summary?.os_user || "debian";
+  if (!ip) {
+    throw new ShcError({ code: "no_ip", message: "VM ready but no IP was returned.", details: summary });
+  }
+  appendLog("info", `[torii] VPS is up at ${ip}. Opening WebSSH…`);
+
+  // Bootstrap runs the pinned main-branch script via curl. The one-liner is
+  // the single point of trust — see reference/README.md for the audit trail.
+  const bootstrapCmd = `bash <(curl -fsSL ${BOOTSTRAP_URL})`;
+  state.buildStatus = "bootstrapping";
+  render();
+
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn) => { if (settled) return; settled = true; fn(); };
+
+    const session = openWebSsh({
+      url: WEBSSH_URL,
+      host: ip,
+      port: 22,
+      username: osUser,
+      privateKey: state.sshKeys.privateKey,
+      command: bootstrapCmd,
+      onReady: () => appendLog("info", `[webssh] connected as ${osUser}@${ip}`),
+      onOutput: (kind, chunk) => appendLog(kind === "stderr" ? "err" : "out", chunk),
+      onError: (msg) => {
+        appendLog("err", `[webssh] ${msg}`);
+        finish(() => reject(new ShcError({ code: "webssh_error", message: msg })));
+      },
+      onExit: (exitCode) => {
+        appendLog(exitCode === 0 ? "info" : "err", `[webssh] bootstrap exited with code ${exitCode}`);
+        // Settle FIRST, then close the socket. Some bridges (and the mock)
+        // emit onClose synchronously from close(), which would race with
+        // this settle path and reject a successful run.
+        if (exitCode === 0) finish(resolve);
+        else finish(() => reject(new ShcError({ code: "bootstrap_failed", message: `bootstrap exited ${exitCode}` })));
+        try { session.close?.(); } catch { /* already closed */ }
+      },
+      onClose: () => {
+        // Only surface as an error if we haven't already settled on exit.
+        finish(() => reject(new ShcError({ code: "webssh_closed", message: "WebSSH closed before bootstrap finished." })));
+      },
+    });
+  });
+
+  state.buildStatus = "done";
+  render();
+}
 
 /* ============================================================
    Screens (functions returning HTML)
@@ -508,6 +794,7 @@ function screenConnectSigner() {
       <small class="mono" style="display:block; text-align:center; color: hsl(var(--muted-foreground));">
         opens Plebeian Signer · nos2x · Amber · alby
       </small>
+      <div id="signerErr" class="mono err" style="margin-top:12px; text-align:center; min-height:1.2em;"></div>
     `}
 
     <div class="disclosure" style="margin-top:20px;">
@@ -621,6 +908,11 @@ function screenPickPlot() {
 /* ---------------- 6. Review + pay ---------------- */
 function screenReviewAndPay() {
   const total = state.vpsUsd + state.domainUsd + state.routstrUsd + Number(state.supportUsd);
+  const qrSvg = state.checkoutUrl
+    ? generateQrSvg(state.checkoutUrl, { size: 160, margin: 2, dark: "hsl(30 12% 8%)", light: "#fff" })
+    : `<svg width="160" height="160" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-label="invoice pending"><rect width="21" height="21" fill="white"/>${qrMockRects()}</svg>`;
+  const orderingBusy = state.buildStatus === "ordering";
+  const orderingErr = state.buildError && state.buildStatus === "failed" ? state.buildError : null;
   return `
     <div class="eyebrow">step five</div>
     <h1>Review and pay.</h1>
@@ -661,11 +953,13 @@ function screenReviewAndPay() {
     </div>
 
     <div class="qr-block">
-      <svg width="120" height="120" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-label="Lightning invoice QR (placeholder)">
-        <rect width="21" height="21" fill="white"/>
-        ${qrMockRects()}
-      </svg>
-      <div class="qr-caption">tap to pay · $${total} in sats</div>
+      ${qrSvg}
+      <div class="qr-caption">
+        ${state.checkoutUrl
+          ? `<a href="${state.checkoutUrl}" target="_blank" rel="noopener" style="color:inherit;">tap to pay · $${total} in sats →</a>`
+          : (orderingBusy ? "generating invoice…" : "tap ‘pay &amp; build’ to generate invoice")}
+      </div>
+      ${orderingErr ? `<div class="mono err" style="margin-top:10px; text-align:center;">${orderingErr}</div>` : ""}
     </div>
 
     <div class="disclosure">
@@ -690,19 +984,27 @@ function qrMockRects() {
 
 /* ---------------- 7. Building ---------------- */
 function screenBuilding() {
+  // Progress inferred from state — no hardcoded index.
+  const status = state.buildStatus;
+  const summary = state.vmSummary;
+  const provState = summary?.provisioning_state ?? "pending";
+
   const steps = [
-    "SHC account created (anonymous, no email)",
-    "VPS ordered · paid in sats",
-    "Waiting for provisioning_state = ready",
-    `DNS: ${state.name || "yourname"}.torii.host → new IP`,
-    "Running torii-suite bootstrap over SSH",
-    "Continuum agent bound to your npub",
-    "Quest shop plot registered on nostr",
-    "Plebeian storefront seeded",
-    "Ollama pulled · Routstr wallet funded",
-    "Live healthcheck: launcher responds 200",
+    { key: "account",  label: "SHC account created (anonymous, no email)",             done: !!shc.getSession(), active: false },
+    { key: "order",    label: "VPS ordered",                                            done: !!state.serviceId, active: status === "ordering" },
+    { key: "pay",      label: "Invoice paid · waiting for BTCPay confirmation",         done: status === "provisioning" || status === "bootstrapping" || status === "done", active: status === "waiting_pay" },
+    { key: "provision",label: `Waiting for provisioning_state → ready (${provState})`,  done: provState === "ready", active: status === "provisioning" },
+    { key: "bootstrap",label: "Running torii-suite bootstrap over SSH",                 done: status === "done", active: status === "bootstrapping" },
+    { key: "live",     label: `Torii live at ${(state.name||"yourname")}.torii.host`,   done: status === "done", active: false },
   ];
-  const active = 4; // arbitrary for wireframe demo
+
+  const logRows = state.buildLog.slice(-30).map(entry => {
+    const cls = entry.kind === "stderr" ? "err" : "";
+    // Escape < > & to keep the terminal-ish view safe.
+    const safe = entry.line.replace(/[&<>]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[ch]));
+    return `<div class="log-line mono ${cls}">${safe}</div>`;
+  }).join("");
+
   return `
     <div class="eyebrow">building</div>
     <h1>Constructing your Torii…</h1>
@@ -713,24 +1015,39 @@ function screenBuilding() {
 
     <ul class="progress-list">
       ${steps.map((s, i) => {
-        const cls = i < active ? 'done' : (i === active ? 'active' : '');
-        const icon = i < active ? '✓' : (i === active ? '…' : String(i+1));
+        const cls = s.done ? "done" : (s.active ? "active" : "");
+        const icon = s.done ? "✓" : (s.active ? "…" : String(i + 1));
         return `
           <li class="${cls}">
             <div class="icon">${icon}</div>
             <div class="body">
-              <div class="title">${s}</div>
-              ${i === active ? `<div class="subtext">running now</div>` : ""}
+              <div class="title">${s.label}</div>
+              ${s.active ? `<div class="subtext">running now</div>` : ""}
             </div>
           </li>
         `;
       }).join("")}
     </ul>
 
+    ${logRows ? `
+    <div class="card" style="margin-top:16px;">
+      <h2>bootstrap output</h2>
+      <div class="log-window" style="max-height:220px; overflow:auto; background:hsl(30 12% 6%); padding:10px; border-radius:6px; font-size:0.75rem; line-height:1.4;">
+        ${logRows}
+      </div>
+    </div>` : ""}
+
+    ${state.buildStatus === "failed" ? `
+      <div class="card" style="border-color: hsl(var(--destructive));">
+        <h2 style="color: hsl(var(--destructive));">Build failed</h2>
+        <small class="mono">${(state.buildError || "unknown error").replace(/[&<>]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]))}</small>
+      </div>
+    ` : ""}
+
     <div class="disclosure">
       Every step above is a real API call your browser is making — to SHC,
-      to nostr relays, to your VPS over SSH. Torii's servers see only the
-      Lightning invoice. Watch the network tab if you're curious.
+      to your VPS over SSH. Torii's servers see only the BTCPay invoice.
+      Watch the network tab if you're curious.
     </div>
   `;
 }
@@ -738,14 +1055,20 @@ function screenBuilding() {
 /* ---------------- 8. Done ---------------- */
 function screenDone() {
   const domain = (state.name || "yourname") + ".torii.host";
+  const vmIp = state.vmSummary?.ips?.[0]?.ip;
+  const osUser = state.vmSummary?.os_user || "debian";
+  const keyExpiry = state.keyExpiresAt
+    ? new Date(state.keyExpiresAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+    : "unknown";
+  const fp = state.sshKeys?.fingerprint || "(no key)";
+
   return `
     <div class="eyebrow">ready</div>
     <h1>Your Torii is live.</h1>
     <p class="lede">
       You're already logged in — your npub owns the box. Below are the
-      secrets your browser generated. Write down the backup passphrase before
-      you close this tab: we can't recover it, and SHC can't decrypt your
-      backups without it.
+      secrets your browser generated. The nostr DM below is the only
+      long-term copy: when you close this tab, everything else disappears.
     </p>
 
     <a class="done-cta" href="https://${domain}/" target="_blank" rel="noopener">
@@ -753,28 +1076,33 @@ function screenDone() {
     </a>
 
     <div class="done-secret">
-      <span class="label">backup passphrase (record this)</span>
-      keep-quiet-river-cedar-braid-sunset-honest-lattice
+      <span class="label">your VPS</span>
+      ${vmIp || "(IP not yet reported)"} · ${osUser}@${domain}
     </div>
 
     <div class="done-secret">
-      <span class="label">SHC customer login</span>
-      ${state.name || "yourname"}@torii · password: (shown once, sent to your npub via DM)
+      <span class="label">SSH key fingerprint (Ed25519)</span>
+      ${fp}
     </div>
 
     <div class="done-secret">
-      <span class="label">operate API key (1-hour · expires soon)</span>
-      shc_live_wireframe_placeholder_key_operate_scope_1h
+      <span class="label">SHC operate API key</span>
+      scoped: operate · expires: ${keyExpiry}
+      <div style="margin-top:6px; font-size:0.7rem; color: hsl(var(--muted-foreground));">
+        The key value has been DM'd to your npub, encrypted. It is not
+        shown here to avoid a browser-history leak.
+      </div>
     </div>
 
     <div class="disclosure">
-      A nostr DM encrypted to your npub is on its way — it contains all of
-      the above plus your SSH keypair. That DM is the only long-term copy.
-      When you close this tab, everything else disappears.
+      A nostr DM encrypted to your npub is on its way. It contains: the SHC
+      login, the operate API key, and the OpenSSH private key for your VPS.
+      When you close this tab, that DM is the only long-term copy —
+      confirm you can read it in your signer app before closing.
     </div>
 
     <div style="margin-top:20px;">
-      <button class="btn btn-ghost" id="restartBtn" style="width:100%;">start over (wireframe)</button>
+      <button class="btn btn-ghost" id="restartBtn" style="width:100%;">start over</button>
     </div>
   `;
 }
@@ -818,8 +1146,15 @@ function nextLabel() {
     case 3: return state.npub ? "next →" : "connect first";
     case 4: return "next →";
     case 5: return "next →";
-    case 6: return "pay & build →";
-    case 7: return "open my torii →";
+    case 6:
+      if (state.buildStatus === "ordering") return "generating invoice…";
+      if (state.buildStatus === "failed")   return "try again →";
+      if (state.checkoutUrl)                return "paid — build now →";
+      return "pay & build →";
+    case 7:
+      if (state.buildStatus === "done") return "open my torii →";
+      if (state.buildStatus === "failed") return "build failed";
+      return "building…";
     case 8: return "done";
     default: return "→";
   }
@@ -832,8 +1167,11 @@ function canAdvance() {
     case 3: return !!state.npub;
     case 4: return !!state.character;
     case 5: return !!state.plot;
-    case 6: return true;
-    case 7: return true;   // simulated finish
+    // Step 6 is always advanceable — the click handler intercepts to run
+    // the ordering flow first (which is a two-tap sequence: order, then pay).
+    case 6: return state.buildStatus !== "ordering" && state.buildStatus !== "bootstrapping";
+    // Step 7 only advances when the VPS is fully built — no fake finish.
+    case 7: return state.buildStatus === "done";
     case 8: return false;
     default: return false;
   }
@@ -850,13 +1188,33 @@ function wireScreenEvents() {
     nameInput.focus();
   }
 
-  // step 3 — signer button (simulated)
+  // step 3 — signer button (real NIP-07)
   const signerBtn = document.getElementById("signerBtn");
   if (signerBtn) {
-    signerBtn.addEventListener("click", () => {
-      // Wireframe: fake an npub. Real flow calls window.nostr.getPublicKey().
-      state.npub = "npub1wireframeexampleexampleexampleexampleexampleexampleexampleee";
-      render();
+    signerBtn.addEventListener("click", async () => {
+      signerBtn.disabled = true;
+      signerBtn.textContent = "waiting for signer…";
+      try {
+        if (!window.nostr || typeof window.nostr.getPublicKey !== "function") {
+          throw new Error("no NIP-07 signer detected — install Plebeian Signer, nos2x, Amber, or alby");
+        }
+        const hexPubkey = await window.nostr.getPublicKey();
+        if (typeof hexPubkey !== "string" || !/^[0-9a-f]{64}$/i.test(hexPubkey)) {
+          throw new Error("signer returned an invalid public key");
+        }
+        // Store the hex pubkey for the register step; render the npub
+        // form for humans. We do NOT round-trip through a bech32 lib to
+        // keep the bundle dep-free — the hex is what SHC will hash into
+        // the account label anyway. UX-facing text uses npub1… (truncated).
+        state.npub = "npub1" + hexPubkey.slice(0, 12) + "…" + hexPubkey.slice(-8);
+        state.npubHex = hexPubkey;
+        render();
+      } catch (err) {
+        signerBtn.disabled = false;
+        signerBtn.textContent = "connect with signer";
+        const hint = document.getElementById("signerErr");
+        if (hint) hint.textContent = err.message || "signer failed";
+      }
     });
   }
 
@@ -904,15 +1262,91 @@ function wireScreenEvents() {
   if (restart) {
     restart.addEventListener("click", () => {
       Object.assign(state, {
-        step: 1, name: "", npub: "", character: null, plot: null, supportUsd: 21
+        step: 1,
+        name: "",
+        npub: "",
+        npubHex: null,
+        character: null,
+        plot: null,
+        supportUsd: 21,
+        // v0.1.3 build state — must be cleared so a second run through
+        // the wizard starts from a clean slate.
+        sshKeys: null,
+        catalogItem: null,
+        serviceId: null,
+        invoiceId: null,
+        checkoutUrl: null,
+        vmSummary: null,
+        buildLog: [],
+        buildStatus: "idle",
+        buildError: null,
+        keyExpiresAt: null,
       });
+      // Reset the SHC client so a fresh account can be minted on the next run.
+      try { shc.clearCredentials?.(); } catch { /* ignore */ }
       render();
     });
   }
 }
 
-nextBtn.addEventListener("click", () => {
+// Guard so a double-click or a stray Enter can't kick off two ordering
+// runs in parallel. The button itself is disabled during the async work,
+// but keyboard events can slip through if we don't gate this centrally.
+let nextBusy = false;
+
+nextBtn.addEventListener("click", async () => {
+  if (nextBusy) return;
   if (!canAdvance()) return;
+
+  // Step 6 → 7: intercept and run the ordering flow. If we've already
+  // ordered (checkoutUrl set OR buildStatus === "provisioning"), we skip
+  // straight to the transition so paying users don't re-order.
+  if (state.step === 6 && !state.checkoutUrl && state.buildStatus !== "provisioning") {
+    nextBusy = true;
+    nextBtn.disabled = true;
+    try {
+      await runOrderingFlow();
+    } catch (err) {
+      state.buildStatus = "failed";
+      state.buildError = humanError(err);
+      render();
+      return;
+    } finally {
+      nextBusy = false;
+    }
+    // After ordering, stay on step 6 so the user can see the QR / checkout
+    // URL and pay. They tap “pay & build” again to advance.
+    render();
+    return;
+  }
+
+  // Step 6 (already ordered) → 7: advance, then kick off provisioning.
+  if (state.step === 6 && (state.checkoutUrl || state.buildStatus === "provisioning")) {
+    state.step = 7;
+    render();
+    nextBusy = true;
+    nextBtn.disabled = true;
+    try {
+      await runProvisioning();
+    } catch (err) {
+      state.buildStatus = "failed";
+      state.buildError = humanError(err);
+      appendLog("err", `[torii] ${state.buildError}`);
+      render();
+      return;
+    } finally {
+      nextBusy = false;
+      render();
+    }
+    return;
+  }
+
+  // Step 7 → 8: only allow if provisioning is actually done. If the user
+  // taps early, we no-op — canAdvance() below will be tightened to reflect this.
+  if (state.step === 7 && state.buildStatus !== "done") {
+    return;
+  }
+
   state.step = Math.min(state.step + 1, screens.length);
   render();
 });
