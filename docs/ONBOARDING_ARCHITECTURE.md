@@ -8,8 +8,9 @@ The core design decision: **nothing but a Lightning invoice touches Torii
 servers**. Every long-lived secret lives on the user's device or in their
 NIP-07 signer. Torii-hosted infrastructure is limited to a stateless static
 site, a stateless SSH-over-WebSocket bridge, and a stateless DNS zone
-controller. Any of them could be self-hosted by a paranoid user; none of them
-have anything worth stealing.
+controller. All three of them are open-source, run on plain Linux VPS with no
+KYC or centralized-service dependencies, and can be self-hosted by any
+paranoid user; none of them have anything worth stealing.
 
 ---
 
@@ -65,12 +66,15 @@ Wireframe: [`../onboarding/prototype.html`](../onboarding/prototype.html).
                               │  the ONLY Torii-hosted pieces:
                               ▼
 ┌───────────────────────────────────────────────────────────────────┐
-│  torii-suite static site (S3 or Cloudflare Pages)                 │
+│  torii-suite static site (served from a plain nginx on any VPS)   │
 │    → serves the onboarding SPA                                    │
 │    → zero state, zero secrets, zero logs                          │
 │                                                                   │
-│  Stateless CORS-and-SSH-tunnel bridge                             │
+│  Stateless CORS proxy                                             │
 │    → wraps SHC API calls that don't set CORS                      │
+│    → keeps no logs, holds no keys, ~50 lines of Node              │
+│                                                                   │
+│  Stateless SSH-over-WebSocket bridge                              │
 │    → wraps outbound SSH-to-user-VPS as a websocket                │
 │    → keeps no logs, holds no keys                                 │
 │                                                                   │
@@ -90,30 +94,44 @@ long-lived credential.
 ## The four hard technical bits
 
 These are the pieces that make the browser-side approach non-trivial. Each
-has a stated shipping path:
+has a stated shipping path.
 
-### H1. CORS on the SHC API
+### H1. CORS proxy
 
 SHC's user API doesn't set `Access-Control-Allow-Origin` for arbitrary web
-origins, so the browser can't call it directly. Two options:
+origins, so the browser can't call it directly. The fix is a tiny stateless
+HTTP forwarder — the browser calls the proxy, the proxy calls SHC, adds the
+missing header on the way back.
 
-- **A. Torii ships a stateless dumb proxy** at `api-proxy.torii.host` that
-  adds CORS and forwards. It logs nothing, holds no state, is one file of
-  code. Users who don't trust the proxy can self-host it — publish the source.
-- **B. Petition SHC to whitelist `*.torii.host` and `onboard.torii.host`.**
-  This is the correct long-term answer. Path A ships first as a fallback.
+- **Lives at:** [`../bridges/cors-proxy/`](../bridges/cors-proxy/) (planned;
+  scaffold lands in a follow-up PR).
+- **What it is:** ~50 lines of Node.js. Zero state, zero logs, no persistence
+  layer. It cannot store a credential because it has nowhere to put one.
+- **Where it runs:** a plain Linux VPS. The reference deployment lives on the
+  same host as the torii-suite static site — no separate provider, no PaaS,
+  no CDN. Users who want to self-host it clone `torii-suite`, run
+  `installers/install-bridges.sh`, and point their onboarding SPA at their
+  own instance via a config setting.
+- **Retire path.** If SHC ever whitelists `*.torii.host` origins directly,
+  this bridge disappears. Until then it's scaffolding.
 
-### H2. WebSSH — websocket-to-SSH bridge
+### H2. WebSSH — SSH-over-WebSocket bridge
 
-The browser can't open a raw TCP SSH connection. Torii ships a small
-`ssh-bridge.torii.host` that terminates a websocket on one side and opens an
-SSH session on the other. The user's ephemeral SSH keypair is used; the
-bridge holds no keys and logs no session content. Source is published so the
-user can self-host or verify.
+The browser can't open a raw TCP SSH connection. The bridge terminates a
+WebSocket on one side and opens an SSH session to the user's fresh VPS on
+the other. The ephemeral SSH keypair generated in the browser tab is used;
+the bridge holds no keys and logs no session content.
 
-Tools that already do this well: [webssh2](https://github.com/billchurch/webssh2),
-[GateOne](https://github.com/liftoff/GateOne). We're likely to fork rather
-than write from scratch.
+- **Lives at:** [`../bridges/webssh/`](../bridges/webssh/) (planned;
+  scaffold lands in a follow-up PR).
+- **What it is:** a fork of [webssh2](https://github.com/billchurch/webssh2),
+  stripped down to accept ephemeral browser-generated keypairs only (no
+  user/password auth, no server-side key stores) and configured with logging
+  disabled.
+- **Where it runs:** the same VPS as the CORS proxy. One systemd unit, one
+  nginx location block on the shared HTTPS server.
+- **Self-hostable.** The whole point. Anyone who doesn't trust the reference
+  instance runs their own with the same installer.
 
 ### H3. DNS control for `*.torii.host`
 
@@ -131,6 +149,8 @@ Authorization: NostrEvent <event signed by npub>
 - **Rate-limited** — max 5 writes/day per npub.
 - **No reads** — the zone file is served publicly via the authoritative DNS,
   so a read endpoint would add attack surface without value.
+- **Lives at:** planned as a third bridge, sibling to the CORS proxy and
+  WebSSH bridge. Same repo, same deploy model.
 
 ### H4. BYO domain skips H3
 
@@ -138,6 +158,36 @@ Users who bring their own domain skip the torii.host path entirely. The
 onboarding flow shows them a two-line "Set an A record for `torii.example.com`
 to `1.2.3.4`" screen and polls DNS until it resolves. Everything downstream
 is identical.
+
+---
+
+## Deployment model — no third parties, ever
+
+The three bridges (CORS proxy, WebSSH, DNS controller) all follow the same
+deployment rules. This is a hard constraint, not a preference:
+
+- **No Cloudflare, no Fly, no Railway, no Deno Deploy, no Vercel, no Netlify,
+  no serverless PaaS.** Every one of those introduces a centralized operator
+  who sees traffic, can revoke access, and requires an account. That defeats
+  the point of a sovereign stack.
+- **No third-party auth, no OAuth, no KYC.** The only identity is the user's
+  npub.
+- **No managed databases.** All three bridges are stateless.
+- **Runs on any Linux VPS with root and ports 80/443.** Same requirements as
+  the rest of `torii-suite`.
+
+The reference bridge instance is expected to run on the same infrastructure
+as the onboarding static site — one small VPS bought from any provider (SHC
+if you want Bitcoin billing, any other host if you don't). The whole thing
+is one nginx server block, three Node processes, three systemd units.
+`installers/install-bridges.sh` will bring the whole set up on a fresh VPS.
+
+Anyone who doesn't trust the reference instance clones `torii-suite`, runs
+the same installer on their own VPS, and points their onboarding SPA at
+their own bridge host via a build-time environment variable. There is no
+technical difference between "the reference bridges" and "your bridges" —
+they're the same code from the same repo. This is the intended long-term
+state.
 
 ---
 
@@ -167,13 +217,16 @@ is the one thing the user has to remember; the DM-to-self makes it easy.
 - **No account system.** Torii never creates a user record. `npub` is your
   identity everywhere.
 - **No email.** No password reset, no notifications, no marketing.
-- **No server-side session.** The static site is stateless; the bridge is
+- **No server-side session.** The static site is stateless; the bridges are
   stateless; the DNS controller is stateless.
-- **No analytics.** The bridge and DNS controller log nothing. The static
+- **No analytics.** The bridges and DNS controller log nothing. The static
   site loads no third-party scripts.
 - **No custody.** Torii never holds a Bitcoin balance, a Cashu token, or an
   API key for a service the user pays for. Every payment goes user →
   provider directly.
+- **No third-party infrastructure.** No CDN, no PaaS, no managed serverless.
+  Plain Linux VPS, plain nginx, plain systemd, plain Node. If it needs
+  someone's dashboard to configure, it doesn't belong here.
 
 If any of the above changes in a future version, this document changes with
 it. The version bump on this file is the audit trail.
@@ -184,3 +237,7 @@ it. The version bump on this file is the audit trail.
 
 - **v0.1.0-alpha** — initial spec + wireframe. No live implementation yet;
   the flow is buildable but requires H1–H3 to ship the bridges.
+- **v0.1.1-alpha** — dropped Cloudflare/PaaS mentions. Bridges now
+  explicitly live inside `torii-suite/bridges/` and deploy to plain Linux
+  VPS via `installers/install-bridges.sh`. No third-party, KYC, or
+  centralized-service dependencies anywhere in the stack.
