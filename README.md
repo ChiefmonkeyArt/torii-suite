@@ -29,12 +29,12 @@ torii-suite/
 │   ├── install-continuum.sh      # frontend + agent + systemd + nginx fragment
 │   ├── install-quest.sh          # static bundle at /quest/ + nginx fragment
 │   ├── register-plebeian.sh      # launcher tile only (Plebeian is external)
-│   └── install-bridges.sh        # onboarding bridges (planned, v0.1.2+)
+│   └── install-bridges.sh        # onboarding bridges: cors-proxy + webssh
 ├── onboarding/
 │   └── prototype.html            # non-coder onboarding wireframe (browser-side)
-├── bridges/                      # onboarding infra (planned, v0.1.2+)
-│   ├── cors-proxy/               # stateless CORS forwarder for the SHC API
-│   └── webssh/                   # SSH-over-WebSocket bridge (webssh2 fork)
+├── bridges/                      # onboarding infra (opt-in, off by default)
+│   ├── cors-proxy/               # zero-dep allowlisted HTTP forwarder
+│   └── webssh/                   # WebSocket-to-SSH bridge (ws + ssh2)
 ├── docs/
 │   ├── HOSTING.md                # BYO VPS vs SHC vs any-other-provider
 │   └── ONBOARDING_ARCHITECTURE.md  # ephemeral browser-side design
@@ -73,7 +73,7 @@ running behind a Let's Encrypt certificate.
 
 ## What the bootstrap does
 
-Five stages, each idempotent (safe to re-run):
+Six stages, each idempotent (safe to re-run):
 
 1. **torii-base** — clones and runs [torii-base](https://github.com/ChiefmonkeyArt/torii-base)'s
    own `bootstrap.sh`, which installs nginx, certbot, node@22, the launcher
@@ -92,7 +92,12 @@ Five stages, each idempotent (safe to re-run):
 4. **Plebeian** — registers a launcher tile that opens
    `$PLEBEIAN_EXTERNAL_URL` (default `https://plebeian.market`). No install,
    no nginx fragment — Plebeian is a hosted external service.
-5. **Doctor** — runs `torii status` and `torii doctor` from torii-base to
+5. **Onboarding bridges** *(opt-in, `INSTALL_ONBOARDING_BRIDGES=1`)* — installs
+   the CORS proxy and WebSSH bridge under `torii-bridges` with hardened
+   systemd units, drops an nginx fragment mounting `/cors-proxy/` and
+   `/webssh`, and registers a `bridges` tile. Both refuse to start on an
+   empty allowlist. See [`bridges/README.md`](bridges/README.md).
+6. **Doctor** — runs `torii status` and `torii doctor` from torii-base to
    verify every app registered, its nginx fragment loads, and (for Continuum)
    the agent is reachable, Routstr is up, and the Cashu wallet directory
    exists.
@@ -145,9 +150,12 @@ Preview the wireframe at [`onboarding/prototype.html`](onboarding/prototype.html
 
 Trust boundary and rationale: [`docs/ONBOARDING_ARCHITECTURE.md`](docs/ONBOARDING_ARCHITECTURE.md).
 
-The three bridges the onboarding flow depends on (CORS proxy, WebSSH,
-DNS zone controller) all live in this repo under `bridges/`. They run on
-plain Linux VPS via `installers/install-bridges.sh` — no Cloudflare, no
+The bridges the onboarding flow depends on live in this repo under
+[`bridges/`](bridges/). As of v0.1.2 the **CORS proxy** and **WebSSH bridge**
+are shipped and installable via `installers/install-bridges.sh` (off by
+default — set `INSTALL_ONBOARDING_BRIDGES=1` and populate the two allowlists).
+A third bridge for DNS zone control is planned for a later revision. Both
+shipped bridges run on plain Linux + nginx + systemd — no Cloudflare, no
 PaaS, no third-party infrastructure of any kind. Anyone can self-host the
 full set on any VPS with root access.
 
@@ -185,12 +193,16 @@ Suite v0.1.0 does not ship an uninstaller. To tear down:
 sudo torii unregister continuum
 sudo torii unregister quest
 sudo torii unregister plebeian
+sudo torii unregister bridges 2>/dev/null || true
 sudo systemctl disable --now continuum-agent
+sudo systemctl disable --now torii-cors-proxy torii-webssh 2>/dev/null || true
 sudo rm /etc/systemd/system/continuum-agent.service
+sudo rm -f /etc/systemd/system/torii-cors-proxy.service /etc/systemd/system/torii-webssh.service
 sudo rm /opt/torii/nginx-fragments/continuum.conf
 sudo rm /opt/torii/nginx-fragments/quest.conf
+sudo rm -f /opt/torii/nginx-fragments/bridges.conf
 sudo rm -rf /var/www/torii/{continuum,continuum-releases,quest,quest-releases}
-sudo rm -rf /home/continuum
+sudo rm -rf /home/continuum /opt/torii/bridges
 sudo torii reload
 ```
 

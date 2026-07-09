@@ -53,10 +53,19 @@ fi
 : "${TORII_DOMAIN:?set TORII_DOMAIN=<yourdomain> (see .env.example)}"
 : "${LETSENCRYPT_EMAIL:?set LETSENCRYPT_EMAIL=<you@example.com>}"
 
-# --- opt-in flags (default: install everything) ---
+# --- opt-in flags (default: install everything except bridges) ---
 INSTALL_CONTINUUM="${INSTALL_CONTINUUM:-1}"
 INSTALL_QUEST="${INSTALL_QUEST:-1}"
 INSTALL_PLEBEIAN="${INSTALL_PLEBEIAN:-1}"
+# Onboarding bridges are OFF by default — they only matter if you plan to
+# accept browser-side onboarding flows against this host.
+INSTALL_ONBOARDING_BRIDGES="${INSTALL_ONBOARDING_BRIDGES:-0}"
+
+# --- bridges require explicit allowlists if opted in ---
+if [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]; then
+  : "${CORS_PROXY_ORIGIN_ALLOW:?set CORS_PROXY_ORIGIN_ALLOW=... (or INSTALL_ONBOARDING_BRIDGES=0)}"
+  : "${WEBSSH_ORIGIN_ALLOW:?set WEBSSH_ORIGIN_ALLOW=... (or INSTALL_ONBOARDING_BRIDGES=0)}"
+fi
 
 # --- continuum requires an admin npub if opted in ---
 if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
@@ -74,9 +83,18 @@ CONTINUUM_AGENT_PORT="${CONTINUUM_AGENT_PORT:-8787}"
 PLEBEIAN_EXTERNAL_URL="${PLEBEIAN_EXTERNAL_URL:-https://plebeian.market}"
 SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
 
+# Bridge defaults (only consulted when INSTALL_ONBOARDING_BRIDGES=1)
+CORS_PROXY_UPSTREAM_ALLOW="${CORS_PROXY_UPSTREAM_ALLOW:-blesta.sovereignhybridcompute.com}"
+CORS_PROXY_PORT="${CORS_PROXY_PORT:-8801}"
+WEBSSH_PORT="${WEBSSH_PORT:-8802}"
+WEBSSH_MAX_PER_IP="${WEBSSH_MAX_PER_IP:-3}"
+WEBSSH_MAX_SESSION_MS="${WEBSSH_MAX_SESSION_MS:-900000}"
+
 export TORII_DOMAIN LETSENCRYPT_EMAIL SKIP_CERTBOT
 export CONTINUUM_ADMIN_NPUB CONTINUUM_AGENT_PORT
 export SUITE_WORK_DIR
+export CORS_PROXY_ORIGIN_ALLOW CORS_PROXY_UPSTREAM_ALLOW CORS_PROXY_PORT
+export WEBSSH_ORIGIN_ALLOW WEBSSH_PORT WEBSSH_MAX_PER_IP WEBSSH_MAX_SESSION_MS
 
 # --------------------------------------------------------------------------- #
 # Banner                                                                      #
@@ -90,6 +108,7 @@ cat <<BANNER
   Continuum:         $( [[ "$INSTALL_CONTINUUM" == "1" ]] && echo "install (agent :${CONTINUUM_AGENT_PORT})" || echo "SKIP" )
   Quest:             $( [[ "$INSTALL_QUEST" == "1" ]] && echo "install" || echo "SKIP" )
   Plebeian tile:     $( [[ "$INSTALL_PLEBEIAN" == "1" ]] && echo "register (${PLEBEIAN_EXTERNAL_URL})" || echo "SKIP" )
+  Onboarding brdgs:  $( [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]] && echo "install (cors :${CORS_PROXY_PORT}, webssh :${WEBSSH_PORT})" || echo "SKIP" )
   Let's Encrypt:     $( [[ "$SKIP_CERTBOT" == "1" ]] && echo "SKIP" || echo "enabled (${LETSENCRYPT_EMAIL})" )
 =============================================================
 BANNER
@@ -183,10 +202,21 @@ else
 fi
 
 # --------------------------------------------------------------------------- #
-# STAGE 5 — doctor                                                            #
+# STAGE 5 — Onboarding bridges (CORS proxy + WebSSH)                          #
 # --------------------------------------------------------------------------- #
 
-step "STAGE 5 — doctor"
+if [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]; then
+  step "STAGE 5 — install onboarding bridges (cors-proxy + webssh)"
+  "${SCRIPT_DIR}/installers/install-bridges.sh"
+else
+  log "STAGE 5 skipped (INSTALL_ONBOARDING_BRIDGES=0)"
+fi
+
+# --------------------------------------------------------------------------- #
+# STAGE 6 — doctor                                                            #
+# --------------------------------------------------------------------------- #
+
+step "STAGE 6 — doctor"
 
 torii_cli status || warn "torii status returned non-zero"
 echo
@@ -202,9 +232,11 @@ cat <<DONE
   Torii Suite install complete.
 
   Launcher:    https://${TORII_DOMAIN}/
-$( [[ "$INSTALL_CONTINUUM" == "1" ]] && echo "  Continuum:   https://${TORII_DOMAIN}/continuum/" )
-$( [[ "$INSTALL_QUEST" == "1" ]]     && echo "  Quest:       https://${TORII_DOMAIN}/quest/" )
-$( [[ "$INSTALL_PLEBEIAN" == "1" ]]  && echo "  Plebeian:    ${PLEBEIAN_EXTERNAL_URL}" )
+$( [[ "$INSTALL_CONTINUUM" == "1" ]]           && echo "  Continuum:   https://${TORII_DOMAIN}/continuum/" )
+$( [[ "$INSTALL_QUEST" == "1" ]]               && echo "  Quest:       https://${TORII_DOMAIN}/quest/" )
+$( [[ "$INSTALL_PLEBEIAN" == "1" ]]            && echo "  Plebeian:    ${PLEBEIAN_EXTERNAL_URL}" )
+$( [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]  && echo "  CORS proxy:  https://${TORII_DOMAIN}/cors-proxy/<upstream-host>/<path>" )
+$( [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]  && echo "  WebSSH:      wss://${TORII_DOMAIN}/webssh" )
 
   Next steps:
     - Visit the launcher and pick your homepage app: sudo torii set-root <name>
