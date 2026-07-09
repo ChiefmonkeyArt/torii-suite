@@ -1,6 +1,6 @@
 // nostr-mock.mjs — fake nostr signer + relay for ?mock=1 dev.
 //
-// v0.1.4-alpha (torii-suite/onboarding)
+// v0.1.5-alpha (torii-suite/onboarding)
 //
 // Two independent shims that share the same activation flag:
 //
@@ -11,9 +11,9 @@
 //      the browser devtools.
 //
 //   2. window.__nostrRelayMock — a matching hook for nostr-relay.mjs
-//      that returns simulated ACKs from the default relay set. One
-//      relay is deliberately made to fail so the UI's "N of M relays
-//      accepted" text has a real number to render.
+//      and nostr-relaylist.mjs. Simulates:
+//        - publishToRelays()      → per-relay ACKs (one deliberately fails)
+//        - fetchInboxRelayList()  → returns null so callers fall back to defaults
 //
 // Activation: any of ?mock=1, ?mock=nostr, or window.__forceNostrMock.
 
@@ -76,8 +76,9 @@ export function installNostrSignerMock(opts = {}) {
 }
 
 /**
- * Install the relay mock. Returns a fake result set that mimics
- * publishToRelays()'s real return shape.
+ * Install the relay mock. Provides fakes for both publishToRelays() and
+ * fetchInboxRelayList() so v0.1.5's kind-10050 discovery step works in
+ * ?mock=1 without opening any real WebSockets.
  */
 export function installRelayMock() {
   if (typeof window === "undefined") return;
@@ -107,6 +108,14 @@ export function installRelayMock() {
         results,
         okCount: results.reduce((n, r) => n + (r.ok ? 1 : 0), 0),
       };
+    },
+    // Onboarding is a brand-new npub in mock mode, so it hasn't declared
+    // a DM inbox yet. Returning null makes the caller (screen 8 flow)
+    // fall back to DEFAULT_RELAYS — which is what a fresh real user
+    // would experience on their first run anyway.
+    async fetchInboxRelayList(_opts) {
+      await new Promise((r) => setTimeout(r, 200));
+      return null;
     },
   };
 }

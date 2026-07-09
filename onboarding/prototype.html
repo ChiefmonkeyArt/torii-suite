@@ -390,8 +390,21 @@ import { createShcClient, ShcError } from "./lib/shc-client.mjs";
 import { openWebSsh } from "./lib/webssh-client.mjs";
 import { generateSshKeyPair, probeEd25519 } from "./lib/ssh-keygen.mjs";
 import { generateQrSvg } from "./lib/qr.mjs";
-import { sendRecoveryDm } from "./lib/nostr-dm.mjs";
+import { sendRecoveryHint } from "./lib/nostr-dm.mjs";
+import { publishInboxRelayList, fetchInboxRelayList } from "./lib/nostr-relaylist.mjs";
+import { publishAppData, TORII_RECOVERY_D_TAG } from "./lib/nostr-appdata.mjs";
+import { encryptRecoveryBundle } from "./lib/nostr-crypto.mjs";
 import { installNostrSignerMock, installRelayMock, isNostrMockMode } from "./lib/nostr-mock.mjs";
+
+// Default relay set used for kind-10050 discovery AND as the initial
+// inbox list a fresh user publishes. Kept small and diverse.
+const DEFAULT_RELAYS = [
+  "wss://relay.damus.io",
+  "wss://relay.primal.net",
+  "wss://nos.lol",
+  "wss://relay.nostr.band",
+  "wss://nostr.wine",
+];
 
 installShcMock();
 if (isNostrMockMode()) {
@@ -440,7 +453,20 @@ const state = {
   shcEmail: null,      // computed npub-derived email (stable per tab)
   shcPassword: null,   // computed npub-derived password (stable per tab)
   shcApiKey: null,     // raw api_key.key from /auth/register
-  dmPublish: null,     // { scheme, eventId, okCount, results } or { error }
+
+  // v0.1.5 — recovery is now split into three layers:
+  //   L1 (mandatory): browser download of the full recovery JSON. Gated.
+  //   L2 (best-effort): a passphrase-free HINT DM (no secrets) to the user's
+  //       own npub, routed via their kind-10050 inbox relays. NIP-17 sealed;
+  //       we refuse NIP-04 fallback entirely.
+  //   L3 (opt-in): passphrase-encrypted kind-30078 app-data event carrying
+  //       the FULL bundle. The passphrase is user-chosen and NOT derived
+  //       from the nsec — so nsec compromise alone does not unlock it.
+  inboxRelayResult: null,   // { eventId, okCount, results } or { error }
+  inboxRelays:      null,   // string[] (resolved after kind-10050 publish)
+  hintDm:           null,   // { scheme, eventId, okCount, results } or { error } or { skipped }
+  recoveryDownloaded: false, // set true once the user clicks download or opts out
+  encryptedBackup:  null,   // { eventId, okCount, results } or { error } — L3
 };
 
 // Small helper so screens can log lifecycle events without touching the DOM.
@@ -697,63 +723,210 @@ async function runProvisioning() {
     });
   });
 
-  // Bootstrap done — now try to send the recovery DM. This is best-effort:
-  // on failure we still flip to "done" and screen 8 shows the secrets inline
-  // as a manual-copy fallback (see dmPublish.error branch in screenDone).
+  // Bootstrap done — now the v0.1.5 recovery flow:
+  //   1. Publish (or refresh) the user's kind-10050 inbox relay list.
+  //   2. Send a HINT-ONLY NIP-17 DM (no secrets) to those inbox relays.
+  // The passphrase-encrypted L3 backup is user-driven from screen 8 —
+  // we do NOT auto-generate a passphrase.
   state.buildStatus = "dm_publishing";
   render();
-  await publishRecoveryDm();
+  await publishInboxRelays();
+  await publishRecoveryHint();
 
   state.buildStatus = "done";
   render();
 }
 
-// v0.1.4 — encrypted DM to the user's own npub containing the recovery
-// bundle (SSH private key, SHC API key, hostname, IP). Self-DM only, so
-// no ephemeral wrapper key is needed. Prefers NIP-17 seal (kind 13) if the
-// signer exposes nip44; falls back to NIP-04 kind-4 otherwise.
-async function publishRecoveryDm() {
-  if (!state.npubHex || !state.sshKeys || !state.vmSummary) {
-    state.dmPublish = { error: "missing state for recovery DM (npub / ssh / vm)" };
+// v0.1.5 — publish the user's kind-10050 inbox relay list (NIP-17 §4).
+// This tells other clients which relays to use when DMing this npub.
+// We first try to fetch the user's existing list; if none, we publish
+// DEFAULT_RELAYS so the hint DM has a well-defined destination.
+async function publishInboxRelays() {
+  if (!state.npubHex) {
+    state.inboxRelayResult = { error: "no npub — cannot publish inbox list" };
     return;
   }
-  const payload = {
+  appendLog("info", "[nostr] checking your kind-10050 inbox relay list…");
+  let existing = null;
+  try {
+    existing = await fetchInboxRelayList({
+      pubkey: state.npubHex,
+      discoveryRelays: DEFAULT_RELAYS,
+      timeoutMs: 3500,
+    });
+  } catch (err) {
+    appendLog("err", `[nostr] inbox fetch failed: ${humanError(err)} — will publish defaults`);
+  }
+  const relaysForInbox = (Array.isArray(existing) && existing.length > 0)
+    ? existing
+    : DEFAULT_RELAYS;
+  state.inboxRelays = relaysForInbox;
+
+  if (Array.isArray(existing) && existing.length > 0) {
+    appendLog("info", `[nostr] using your existing ${existing.length}-relay inbox list`);
+    state.inboxRelayResult = { reused: true, count: existing.length };
+    return;
+  }
+
+  appendLog("info", "[nostr] publishing kind-10050 (inbox relays)…");
+  try {
+    const result = await publishInboxRelayList({
+      relaysForInbox,
+      publishTo: DEFAULT_RELAYS,
+      onRelayResult: (r) => {
+        const prev = state.inboxRelayResult?.results || [];
+        state.inboxRelayResult = { ...(state.inboxRelayResult || {}), results: [...prev, r] };
+        appendLog(r.ok ? "info" : "err",
+          `[nostr:10050] ${r.ok ? "ok" : "fail"} ${r.relay}` + (r.error ? ` — ${r.error}` : ""));
+      },
+    });
+    state.inboxRelayResult = result;
+    appendLog("info",
+      `[nostr] kind-10050 accepted by ${result.okCount}/${result.results.length} relays · event ${result.eventId.slice(0, 12)}…`);
+  } catch (err) {
+    const msg = humanError(err);
+    state.inboxRelayResult = { error: msg };
+    appendLog("err", `[nostr] kind-10050 publish failed: ${msg}`);
+  }
+}
+
+// v0.1.5 — send a HINT-ONLY NIP-17 sealed DM to the user's own npub.
+// Payload carries NON-catastrophic hints only: hostname, IP, OS user, SSH
+// fingerprint (not the private key), SHC email, and API key expiry (not
+// the key value). If the user loses their laptop this helps them find the
+// box again; but if a relay is coerced or leaks, no live credentials go
+// with it. NIP-04 fallback is refused — the lib throws.
+async function publishRecoveryHint() {
+  if (!state.npubHex || !state.sshKeys || !state.vmSummary) {
+    state.hintDm = { error: "missing state for recovery hint (npub / ssh / vm)" };
+    return;
+  }
+  const hint = {
     hostname: `${state.name}.torii.host`,
     vpsIp: state.vmSummary?.ips?.[0]?.ip || "(unknown)",
     osUser: state.vmSummary?.os_user || "debian",
     sshFingerprint: state.sshKeys.fingerprint,
-    sshPrivateKey: state.sshKeys.privateKey,
     shcEmail: state.shcEmail,
-    shcPassword: state.shcPassword,
-    shcApiKey: state.shcApiKey,
     shcApiKeyExpires: state.keyExpiresAt,
+    createdAt: new Date().toISOString(),
   };
-  appendLog("info", "[nostr] preparing encrypted DM to your npub…");
+  appendLog("info", "[nostr] sending NIP-17 recovery hint (no secrets)…");
   try {
-    const result = await sendRecoveryDm(payload, {
+    const result = await sendRecoveryHint(hint, {
       recipientPubkey: state.npubHex,
+      relays: state.inboxRelays || DEFAULT_RELAYS,
       onRelayResult: (r) => {
-        // Stream partial ACKs into buildLog and dmPublish so screen 8
-        // shows relays lighting up one by one instead of an all-at-once flip.
-        const prev = state.dmPublish?.results || [];
-        state.dmPublish = {
-          ...(state.dmPublish || {}),
-          results: [...prev, r],
-        };
+        const prev = state.hintDm?.results || [];
+        state.hintDm = { ...(state.hintDm || {}), results: [...prev, r] };
         appendLog(r.ok ? "info" : "err",
-          `[nostr] ${r.ok ? "ok" : "fail"} ${r.relay}` + (r.error ? ` — ${r.error}` : ""));
+          `[nostr:hint] ${r.ok ? "ok" : "fail"} ${r.relay}` + (r.error ? ` — ${r.error}` : ""));
       },
     });
-    state.dmPublish = result;
+    state.hintDm = result;
     appendLog("info",
-      `[nostr] DM sent via ${result.scheme} — ${result.okCount}/${result.results.length} relays accepted · event ${result.eventId.slice(0, 12)}…`);
+      `[nostr] hint DM sent via ${result.scheme} — ${result.okCount}/${result.results.length} relays · event ${result.eventId.slice(0, 12)}…`);
   } catch (err) {
-    // Recovery DM is best-effort. Log, store the error, and let screen 8
-    // fall back to showing the raw secrets inline for manual copy.
     const msg = humanError(err);
-    state.dmPublish = { error: msg };
-    appendLog("err", `[nostr] DM failed: ${msg}`);
+    state.hintDm = { error: msg };
+    appendLog("err", `[nostr] hint DM failed: ${msg}`);
   }
+}
+
+// v0.1.5 — L3 optional: encrypt the FULL recovery bundle with a
+// user-chosen passphrase (NOT derived from nsec) and publish it as a
+// kind-30078 replaceable app-data event. Called from screen 8 only when
+// the user checks the opt-in and provides a passphrase.
+async function publishEncryptedBackup(passphrase) {
+  if (!state.npubHex || !state.sshKeys || !state.vmSummary) {
+    state.encryptedBackup = { error: "missing state for encrypted backup" };
+    return;
+  }
+  const bundle = {
+    v: 1,
+    createdAt: new Date().toISOString(),
+    hostname: `${state.name}.torii.host`,
+    vpsIp: state.vmSummary?.ips?.[0]?.ip || null,
+    osUser: state.vmSummary?.os_user || "debian",
+    ssh: {
+      publicKey: state.sshKeys.publicKey,
+      privateKey: state.sshKeys.privateKey,
+      fingerprint: state.sshKeys.fingerprint,
+    },
+    shc: {
+      email: state.shcEmail,
+      password: state.shcPassword,
+      apiKey: state.shcApiKey,
+      apiKeyExpires: state.keyExpiresAt,
+    },
+  };
+  appendLog("info", "[nostr] encrypting recovery bundle (scrypt + XChaCha20-Poly1305)…");
+  let envelope;
+  try {
+    envelope = await encryptRecoveryBundle(bundle, passphrase);
+  } catch (err) {
+    const msg = humanError(err);
+    state.encryptedBackup = { error: `encryption failed — ${msg}` };
+    appendLog("err", `[nostr] encrypt failed: ${msg}`);
+    render();
+    return;
+  }
+  appendLog("info", "[nostr] publishing encrypted kind-30078 recovery blob…");
+  try {
+    const result = await publishAppData({
+      dTag: TORII_RECOVERY_D_TAG,
+      topic: "torii-recovery",
+      // encryptRecoveryBundle returns { ncrypt, meta } — kind-30078 content
+      // is the ASCII envelope string. Meta is intentionally NOT published:
+      // salt + nonce already ride inside the envelope body.
+      content: envelope.ncrypt,
+      relays: state.inboxRelays || DEFAULT_RELAYS,
+      onRelayResult: (r) => {
+        const prev = state.encryptedBackup?.results || [];
+        state.encryptedBackup = { ...(state.encryptedBackup || {}), results: [...prev, r] };
+        appendLog(r.ok ? "info" : "err",
+          `[nostr:30078] ${r.ok ? "ok" : "fail"} ${r.relay}` + (r.error ? ` — ${r.error}` : ""));
+      },
+    });
+    state.encryptedBackup = result;
+    appendLog("info",
+      `[nostr] encrypted backup accepted by ${result.okCount}/${result.results.length} relays · event ${result.eventId.slice(0, 12)}…`);
+  } catch (err) {
+    const msg = humanError(err);
+    state.encryptedBackup = { error: msg };
+    appendLog("err", `[nostr] encrypted backup publish failed: ${msg}`);
+  }
+  render();
+}
+
+// Build the full recovery JSON that the mandatory download button emits.
+// This is the ONLY guaranteed long-term copy of the VPS secrets: everything
+// else (hint DM, encrypted app-data) is best-effort. Keep this format
+// stable across versions so old backups still parse.
+function buildRecoveryFileBlob() {
+  const bundle = {
+    version: "torii-recovery-v1",
+    createdAt: new Date().toISOString(),
+    npub: state.npub,
+    npubHex: state.npubHex,
+    hostname: `${state.name}.torii.host`,
+    vps: {
+      ip: state.vmSummary?.ips?.[0]?.ip || null,
+      osUser: state.vmSummary?.os_user || "debian",
+    },
+    ssh: {
+      publicKey: state.sshKeys?.publicKey || null,
+      privateKey: state.sshKeys?.privateKey || null,
+      fingerprint: state.sshKeys?.fingerprint || null,
+    },
+    shc: {
+      email: state.shcEmail,
+      password: state.shcPassword,
+      apiKey: state.shcApiKey,
+      apiKeyExpires: state.keyExpiresAt,
+    },
+  };
+  const json = JSON.stringify(bundle, null, 2);
+  return new Blob([json], { type: "application/json" });
 }
 
 /* ============================================================
@@ -1140,62 +1313,90 @@ function screenDone() {
     : "unknown";
   const fp = state.sshKeys?.fingerprint || "(no key)";
 
-  // v0.1.4 — render real DM publish status. Three branches:
-  //   1. dmPublish.eventId  → success  (green, event id + N/M relay ACKs)
-  //   2. dmPublish.error    → failure  (amber, inline secrets fallback)
-  //   3. neither            → in-flight (spinner-ish, partial ACK list)
-  const dm = state.dmPublish;
-  const dmSuccess = dm && dm.eventId && !dm.error;
-  const dmError   = dm && dm.error;
-  const dmInflight = !dm || (!dmSuccess && !dmError);
+  // --- L1: mandatory download gate -----------------------------------
+  // The recovery file is the primary, guaranteed backup. Until the user
+  // either downloads it or explicitly opts out ("I copied manually"), the
+  // "open my torii" CTA stays disabled.
+  const dl = state.recoveryDownloaded;
+  const downloadBlock = `
+    <div class="disclosure" style="border-color: ${dl ? "hsl(var(--success))" : "hsl(var(--warning))"};">
+      <strong>${dl ? "recovery file saved" : "download your recovery file"}</strong>
+      <div style="margin-top:6px; font-size:0.78rem;">
+        This JSON is the only guaranteed long-term copy of your VPS secrets
+        (SSH private key, SHC API key, password). Put it in your password
+        manager, then delete the download. Everything below is best-effort.
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-primary" id="downloadRecoveryBtn" style="flex:1; min-width:180px;">
+          ${dl ? "download again" : "download recovery .json"}
+        </button>
+        <button class="btn btn-ghost" id="copiedManuallyBtn" style="flex:1; min-width:180px;">
+          I copied manually
+        </button>
+      </div>
+    </div>
+  `;
 
+  // --- L2: kind-10050 inbox relay list status ------------------------
+  const inbox = state.inboxRelayResult;
+  let inboxBlockHtml = "";
+  if (inbox?.reused) {
+    inboxBlockHtml = `
+      <div class="disclosure">
+        <strong>inbox relays</strong> — reusing your existing kind-10050 list (${inbox.count} relays)
+      </div>
+    `;
+  } else if (inbox?.eventId) {
+    inboxBlockHtml = `
+      <div class="disclosure" style="border-color: hsl(var(--success));">
+        <strong>inbox relays published</strong> — kind-10050 accepted by ${inbox.okCount}/${inbox.results?.length ?? 0} relays
+      </div>
+    `;
+  } else if (inbox?.error) {
+    inboxBlockHtml = `
+      <div class="disclosure" style="border-color: hsl(var(--warning));">
+        <strong>inbox relays failed</strong> — ${inbox.error}
+      </div>
+    `;
+  } else {
+    inboxBlockHtml = `<div class="disclosure"><strong>publishing inbox relays…</strong></div>`;
+  }
+
+  // --- L2: hint DM status --------------------------------------------
+  const dm = state.hintDm;
   let dmBlockHtml = "";
-  if (dmSuccess) {
+  if (dm?.eventId && !dm?.error) {
     const ok = dm.okCount;
     const total = dm.results?.length ?? 0;
     const shortId = dm.eventId.slice(0, 12);
-    // scheme values from sendRecoveryDm(): "nip44" (uses NIP-17 seal) or "nip04".
-    const scheme = dm.scheme === "nip44" ? "NIP-17 sealed" : "NIP-04";
     dmBlockHtml = `
-      <div class="disclosure" style="border-color: hsl(var(--success)); color: hsl(var(--fg));">
-        <strong>recovery DM sent</strong> — ${scheme} · ${ok}/${total} relays accepted
+      <div class="disclosure" style="border-color: hsl(var(--success));">
+        <strong>recovery hint sent</strong> — NIP-17 sealed · ${ok}/${total} relays accepted
         <div style="margin-top:6px; font-family: var(--font-mono); font-size:0.72rem; color: hsl(var(--muted-foreground));">
           event ${shortId}…
         </div>
         <div style="margin-top:6px; font-size:0.75rem;">
-          Open your nostr signer app and confirm you can read this DM before
-          closing the tab. It is the only long-term copy of your VPS secrets.
+          The DM contains only non-catastrophic hints (hostname, IP, SSH
+          fingerprint) — no private keys, no passwords.
         </div>
       </div>
     `;
-  } else if (dmError) {
-    // Fallback: inline secrets so the user can copy them manually before
-    // closing the tab. This is the whole point of the best-effort model.
-    const priv = state.sshKeys?.privateKey || "(no ssh key)";
-    const apiKey = state.shcApiKey || "(no api key)";
+  } else if (dm?.error) {
     dmBlockHtml = `
-      <div class="disclosure" style="border-color: hsl(var(--warning)); color: hsl(var(--fg));">
-        <strong>recovery DM failed</strong> — ${dm.error}
-        <div style="margin-top:8px; font-size:0.78rem;">
-          Copy these values into your password manager before closing this
-          tab. They will not be shown again.
-        </div>
-        <div style="margin-top:10px;">
-          <div class="label" style="font-size:0.7rem; color: hsl(var(--muted-foreground));">SHC operate API key</div>
-          <textarea readonly style="width:100%; font-family: var(--font-mono); font-size:0.75rem; background: hsl(var(--surface-2)); border:1px solid hsl(var(--border)); border-radius:6px; padding:8px; margin-top:4px;" rows="2">${apiKey}</textarea>
-        </div>
-        <div style="margin-top:10px;">
-          <div class="label" style="font-size:0.7rem; color: hsl(var(--muted-foreground));">OpenSSH private key</div>
-          <textarea readonly style="width:100%; font-family: var(--font-mono); font-size:0.68rem; background: hsl(var(--surface-2)); border:1px solid hsl(var(--border)); border-radius:6px; padding:8px; margin-top:4px;" rows="6">${priv}</textarea>
+      <div class="disclosure" style="border-color: hsl(var(--warning));">
+        <strong>recovery hint refused</strong> — ${dm.error}
+        <div style="margin-top:6px; font-size:0.75rem;">
+          Your recovery file (above) is still the primary backup — no data
+          is at risk. Use a NIP-44 capable signer (Amber, Alby, nos2x-fox)
+          to enable the hint DM next time.
         </div>
       </div>
     `;
-  } else if (dmInflight) {
+  } else {
     const partial = dm?.results?.length ?? 0;
     dmBlockHtml = `
       <div class="disclosure">
-        <strong>sending recovery DM…</strong> encrypting to your npub and
-        publishing to relays.
+        <strong>sending recovery hint…</strong>
         <div style="margin-top:6px; font-size:0.75rem; color: hsl(var(--muted-foreground));">
           ${partial} relay${partial === 1 ? "" : "s"} responded so far.
         </div>
@@ -1203,17 +1404,76 @@ function screenDone() {
     `;
   }
 
+  // --- L3: optional passphrase-encrypted backup ----------------------
+  const eb = state.encryptedBackup;
+  let ebResultHtml = "";
+  if (eb?.eventId && !eb?.error) {
+    const ok = eb.okCount;
+    const total = eb.results?.length ?? 0;
+    ebResultHtml = `
+      <div style="margin-top:10px; padding:10px; border:1px solid hsl(var(--success)); border-radius:6px; font-size:0.78rem;">
+        <strong>encrypted backup published</strong> — kind-30078 accepted by ${ok}/${total} relays.
+        Restore with your passphrase + nsec on any client that reads kind-30078 events.
+      </div>
+    `;
+  } else if (eb?.error) {
+    ebResultHtml = `
+      <div style="margin-top:10px; padding:10px; border:1px solid hsl(var(--warning)); border-radius:6px; font-size:0.78rem;">
+        <strong>encrypted backup failed</strong> — ${eb.error}
+      </div>
+    `;
+  } else if (eb) {
+    ebResultHtml = `
+      <div style="margin-top:10px; padding:10px; border:1px solid hsl(var(--border)); border-radius:6px; font-size:0.78rem;">
+        <strong>encrypting and publishing…</strong> scrypt is deliberately slow (few seconds).
+      </div>
+    `;
+  }
+
+  const encryptedBackupBlock = `
+    <div class="disclosure">
+      <strong>optional: encrypted cloud backup</strong>
+      <div style="margin-top:6px; font-size:0.78rem;">
+        Also stash the full bundle on relays, encrypted with a passphrase
+        you choose. This is <em>defense in depth</em>: even if your nsec
+        leaks, an attacker still needs the passphrase to decrypt.
+        Passphrase is 8+ characters. Never reuse your nsec here.
+      </div>
+      <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="encryptedBackupCheckbox" ${eb ? "checked disabled" : ""} />
+        <label for="encryptedBackupCheckbox" style="font-size:0.78rem;">Yes, back up encrypted to my relays</label>
+      </div>
+      <div id="encryptedBackupForm" style="margin-top:8px; display:none;">
+        <input type="password" id="encryptedBackupPass" placeholder="passphrase (≥ 8 chars)"
+          style="width:100%; font-family: var(--font-mono); font-size:0.85rem; padding:8px; background: hsl(var(--surface-2)); border:1px solid hsl(var(--border)); border-radius:6px;" />
+        <div id="encryptedBackupHint" style="margin-top:4px; font-size:0.7rem; color: hsl(var(--muted-foreground));">
+          Store this passphrase separately from your nsec.
+        </div>
+        <button class="btn btn-secondary" id="encryptedBackupGo" style="width:100%; margin-top:8px;">
+          encrypt & publish
+        </button>
+      </div>
+      ${ebResultHtml}
+    </div>
+  `;
+
+  const canOpen = state.recoveryDownloaded;
+
   return `
     <div class="eyebrow">ready</div>
     <h1>Your Torii is live.</h1>
     <p class="lede">
-      You're already logged in — your npub owns the box. Below are the
-      secrets your browser generated. The nostr DM is the only long-term
-      copy: when you close this tab, everything else disappears.
+      You're already logged in — your npub owns the box. Recovery is
+      layered: a downloadable file (mandatory), a hint DM to your own
+      npub (best-effort), and an optional passphrase-encrypted backup.
     </p>
 
-    <a class="done-cta" href="https://${domain}/" target="_blank" rel="noopener">
-      open ${domain} →
+    <a class="done-cta ${canOpen ? "" : "done-cta-disabled"}"
+       href="${canOpen ? `https://${domain}/` : "#"}"
+       ${canOpen ? "target=\"_blank\" rel=\"noopener\"" : "aria-disabled=\"true\""}
+       id="openToriiCta"
+       style="${canOpen ? "" : "opacity:0.5; pointer-events:none;"}">
+      ${canOpen ? `open ${domain} →` : "download recovery first ↓"}
     </a>
 
     <div class="done-secret">
@@ -1230,11 +1490,14 @@ function screenDone() {
       <span class="label">SHC operate API key</span>
       scoped: operate · expires: ${keyExpiry}
       <div style="margin-top:6px; font-size:0.7rem; color: hsl(var(--muted-foreground));">
-        The key value is in your encrypted DM — see below.
+        Key value lives in your recovery file — not in the hint DM.
       </div>
     </div>
 
+    ${downloadBlock}
+    ${inboxBlockHtml}
     ${dmBlockHtml}
+    ${encryptedBackupBlock}
 
     <div style="margin-top:20px;">
       <button class="btn btn-ghost" id="restartBtn" style="width:100%;">start over</button>
@@ -1420,11 +1683,92 @@ function wireScreenEvents() {
         shcEmail: null,
         shcPassword: null,
         shcApiKey: null,
-        dmPublish: null,
+        // v0.1.5 additions — recovery layering state.
+        inboxRelayResult: null,
+        inboxRelays: null,
+        hintDm: null,
+        recoveryDownloaded: false,
+        encryptedBackup: null,
       });
       // Reset the SHC client so a fresh account can be minted on the next run.
       try { shc.clearCredentials?.(); } catch { /* ignore */ }
       render();
+    });
+  }
+
+  // step 8 — mandatory download gate
+  const dlBtn = document.getElementById("downloadRecoveryBtn");
+  if (dlBtn) {
+    dlBtn.addEventListener("click", () => {
+      try {
+        const blob = buildRecoveryFileBlob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        a.download = `torii-recovery-${state.name || "vps"}-${stamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        state.recoveryDownloaded = true;
+        render();
+      } catch (err) {
+        appendLog("err", `[recovery] download failed: ${humanError(err)}`);
+      }
+    });
+  }
+  const copiedBtn = document.getElementById("copiedManuallyBtn");
+  if (copiedBtn) {
+    copiedBtn.addEventListener("click", () => {
+      const sure = confirm(
+        "Only click OK if you have already saved your SSH private key AND SHC " +
+        "API key AND password to a password manager. Without them, you cannot " +
+        "recover this VPS if you lose your laptop.",
+      );
+      if (sure) {
+        state.recoveryDownloaded = true;
+        render();
+      }
+    });
+  }
+
+  // step 8 — encrypted backup opt-in checkbox
+  const ebCb = document.getElementById("encryptedBackupCheckbox");
+  if (ebCb) {
+    const form = document.getElementById("encryptedBackupForm");
+    ebCb.addEventListener("change", () => {
+      if (form) form.style.display = ebCb.checked ? "block" : "none";
+    });
+    // If already checked-disabled (encryption in progress or done), keep
+    // the form open so the user sees the result inline.
+    if (ebCb.checked && form) form.style.display = "block";
+  }
+  const ebGo = document.getElementById("encryptedBackupGo");
+  if (ebGo) {
+    ebGo.addEventListener("click", async () => {
+      const passInput = document.getElementById("encryptedBackupPass");
+      const hint = document.getElementById("encryptedBackupHint");
+      const pass = passInput?.value || "";
+      if (pass.length < 8) {
+        if (hint) {
+          hint.textContent = "passphrase must be at least 8 characters.";
+          hint.style.color = "hsl(var(--warning))";
+        }
+        return;
+      }
+      ebGo.disabled = true;
+      ebGo.textContent = "encrypting…";
+      // Mark encryptedBackup as "in-flight" so screenDone shows the spinner
+      // block and the checkbox stays checked+disabled on the next render.
+      state.encryptedBackup = { inflight: true };
+      render();
+      try {
+        await publishEncryptedBackup(pass);
+      } finally {
+        // Passphrase should not linger in the DOM after use.
+        if (passInput) passInput.value = "";
+      }
     });
   }
 }
