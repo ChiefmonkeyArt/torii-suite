@@ -28,9 +28,13 @@ torii-suite/
 ├── installers/
 │   ├── install-continuum.sh      # frontend + agent + systemd + nginx fragment
 │   ├── install-quest.sh          # static bundle at /quest/ + nginx fragment
-│   └── register-plebeian.sh      # launcher tile only (Plebeian is external)
+│   ├── register-plebeian.sh      # launcher tile only (Plebeian is external)
+│   └── install-bridges.sh        # onboarding bridges (planned, v0.1.2+)
 ├── onboarding/
 │   └── prototype.html            # non-coder onboarding wireframe (browser-side)
+├── bridges/                      # onboarding infra (planned, v0.1.2+)
+│   ├── cors-proxy/               # stateless CORS forwarder for the SHC API
+│   └── webssh/                   # SSH-over-WebSocket bridge (webssh2 fork)
 ├── docs/
 │   ├── HOSTING.md                # BYO VPS vs SHC vs any-other-provider
 │   └── ONBOARDING_ARCHITECTURE.md  # ephemeral browser-side design
@@ -140,6 +144,12 @@ browser talks directly to your hosting provider's API.
 Preview the wireframe at [`onboarding/prototype.html`](onboarding/prototype.html).
 
 Trust boundary and rationale: [`docs/ONBOARDING_ARCHITECTURE.md`](docs/ONBOARDING_ARCHITECTURE.md).
+
+The three bridges the onboarding flow depends on (CORS proxy, WebSSH,
+DNS zone controller) all live in this repo under `bridges/`. They run on
+plain Linux VPS via `installers/install-bridges.sh` — no Cloudflare, no
+PaaS, no third-party infrastructure of any kind. Anyone can self-host the
+full set on any VPS with root access.
 
 ---
 
