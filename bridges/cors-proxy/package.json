@@ -1,0 +1,16 @@
+{
+  "name": "torii-cors-proxy",
+  "version": "0.1.2-alpha",
+  "description": "Stateless CORS-adding HTTP forwarder for the torii-suite onboarding flow. Zero runtime dependencies.",
+  "type": "module",
+  "main": "index.mjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.mjs",
+    "check": "node --check index.mjs"
+  },
+  "license": "MIT",
+  "private": true
+}

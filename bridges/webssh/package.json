@@ -1,0 +1,20 @@
+{
+  "name": "torii-webssh",
+  "version": "0.1.2-alpha",
+  "description": "SSH-over-WebSocket bridge for the torii-suite onboarding flow. Ephemeral-key sessions only.",
+  "type": "module",
+  "main": "index.mjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.mjs",
+    "check": "node --check index.mjs"
+  },
+  "dependencies": {
+    "ssh2": "^1.16.0",
+    "ws": "^8.18.0"
+  },
+  "license": "MIT",
+  "private": true
+}
