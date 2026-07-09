@@ -1,0 +1,15 @@
+# local scratch — never commit
+work/
+*.log
+*.tmp
+.env
+.env.*
+!.env.example
+
+# Onboarding wireframe: prototype.html is the canonical source; dist/ is
+# only for deploy_website previews and is regenerated from prototype.html.
+onboarding/dist/
+
+# Bridge dependencies — installed by installers/install-bridges.sh at deploy
+# time via `npm ci --omit=dev`. Not checked in.
+bridges/*/node_modules/

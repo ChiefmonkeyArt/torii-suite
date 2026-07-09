@@ -1,0 +1,1848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Own your Torii · Onboarding prototype</title>
+<meta name="description" content="Wireframe prototype: seven taps to your own sovereign Torii instance. Bitcoin, nostr, no KYC." />
+<meta name="theme-color" content="#1a1613" />
+
+<!-- Fonts (matches Continuum) -->
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ---------- tokens (mirror torii-continuum) ---------- */
+:root {
+  --background: 30 12% 8%;
+  --foreground: 40 16% 93%;
+  --card: 32 10% 12%;
+  --card-border: 32 10% 20%;
+  --primary: 38 92% 58%;
+  --primary-fg: 30 20% 10%;
+  --muted: 32 10% 18%;
+  --muted-foreground: 38 8% 62%;
+  --danger: 0 72% 60%;
+  --success: 142 60% 55%;
+  --radius: 0.75rem;
+
+  --font-display: "Cabinet Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-body);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.55;
+  overflow-x: hidden;
+}
+
+button { font: inherit; cursor: pointer; }
+input, select { font: inherit; }
+
+/* ---------- shell ---------- */
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 20px 32px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 20px;
+  border-bottom: 1px solid hsl(var(--card-border));
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: 1.05rem;
+}
+.brand svg { flex: none; }
+.step-counter {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  letter-spacing: 0.02em;
+}
+
+main { padding: 28px 0; }
+
+footer {
+  padding-top: 20px;
+  border-top: 1px solid hsl(var(--card-border));
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ---------- typography ---------- */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: hsl(var(--primary));
+  margin-bottom: 10px;
+}
+h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.85rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+}
+p.lede {
+  color: hsl(var(--muted-foreground));
+  font-size: 1rem;
+  margin-bottom: 20px;
+}
+small.mono { font-family: var(--font-mono); color: hsl(var(--muted-foreground)); font-size: 0.8rem; }
+
+/* ---------- controls ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+  min-height: 48px;
+}
+.btn:active { transform: translateY(1px); }
+
+.btn-primary {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-fg));
+}
+.btn-primary:disabled {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  cursor: not-allowed;
+}
+.btn-ghost {
+  background: transparent;
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--card-border));
+}
+.btn-ghost:hover { border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+
+.field {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius);
+  color: hsl(var(--foreground));
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.field:focus { border-color: hsl(var(--primary)); }
+.field-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+}
+.field-hint.ok { color: hsl(var(--success)); }
+.field-hint.err { color: hsl(var(--danger)); }
+
+/* ---------- cards ---------- */
+.card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.card.selectable { cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
+.card.selectable:hover { border-color: hsl(var(--primary) / 0.5); }
+.card.selected {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+}
+
+/* ---------- character grid ---------- */
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.avatar-card {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 16px 8px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.avatar-card:hover { border-color: hsl(var(--primary) / 0.5); }
+.avatar-card.selected {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+}
+.avatar-svg { width: 64px; height: 64px; }
+.avatar-name { font-weight: 700; font-size: 0.85rem; }
+.avatar-role { font-size: 0.75rem; color: hsl(var(--muted-foreground)); }
+
+/* ---------- map ---------- */
+.map {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--card-border));
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 20px;
+}
+.map-svg { width: 100%; height: auto; display: block; border-radius: 8px; }
+
+/* ---------- pay screen ---------- */
+.line-items { list-style: none; }
+.line-items li {
+  display: flex; justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px dashed hsl(var(--card-border));
+  font-size: 0.9rem;
+}
+.line-items li:last-child { border-bottom: none; padding-top: 14px; font-weight: 700; }
+.line-items .amount { font-family: var(--font-mono); color: hsl(var(--primary)); }
+
+.slider-block { margin: 18px 0 24px; }
+.slider-block label {
+  display: flex; justify-content: space-between;
+  font-size: 0.85rem; margin-bottom: 10px;
+}
+input[type="range"] {
+  width: 100%;
+  accent-color: hsl(var(--primary));
+}
+
+.qr-block {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 20px;
+  background: white;
+  border-radius: var(--radius);
+  margin: 20px 0;
+}
+.qr-caption { color: hsl(var(--primary-fg)); font-size: 0.85rem; font-family: var(--font-mono); }
+
+/* ---------- progress screen ---------- */
+.progress-list { list-style: none; }
+.progress-list li {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0;
+  font-size: 0.9rem;
+}
+.progress-list .icon {
+  flex: none;
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: hsl(var(--muted));
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+.progress-list li.done .icon {
+  background: hsl(var(--success) / 0.2);
+  color: hsl(var(--success));
+}
+.progress-list li.active .icon {
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary));
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+.progress-list .body { flex: 1; }
+.progress-list .title { font-weight: 600; }
+.progress-list .subtext { color: hsl(var(--muted-foreground)); font-size: 0.8rem; margin-top: 2px; }
+
+/* ---------- done screen ---------- */
+.done-cta {
+  display: block;
+  padding: 18px 20px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-fg));
+  border-radius: var(--radius);
+  text-align: center;
+  font-weight: 800;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  margin: 20px 0 14px;
+}
+.done-secret {
+  padding: 14px;
+  background: hsl(var(--card));
+  border: 1px dashed hsl(var(--card-border));
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  word-break: break-all;
+  margin-bottom: 10px;
+}
+.done-secret .label { color: hsl(var(--primary)); font-weight: 700; margin-bottom: 4px; display:block; }
+
+/* ---------- misc ---------- */
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  margin-left: 6px;
+}
+.disclosure {
+  font-size: 0.78rem;
+  color: hsl(var(--muted-foreground));
+  padding: 10px 12px;
+  background: hsl(var(--muted) / 0.4);
+  border-left: 3px solid hsl(var(--primary));
+  border-radius: 6px;
+  margin-top: 16px;
+}
+.support-split {
+  font-size: 0.78rem;
+  color: hsl(var(--muted-foreground));
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+  padding: 10px 0;
+}
+.support-split .row { display: contents; }
+.support-split .who { color: hsl(var(--foreground)); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <header>
+    <div class="brand">
+      <!-- torii glyph -->
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Torii">
+        <path d="M2 6 L22 6" stroke="hsl(38 92% 58%)" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M3 9 L21 9" stroke="hsl(38 92% 58%)" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M5 6 L5 21" stroke="hsl(38 92% 58%)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M19 6 L19 21" stroke="hsl(38 92% 58%)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M5 12 L19 12" stroke="hsl(38 92% 58%)" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span>torii · suite</span>
+    </div>
+    <span class="step-counter" id="stepCounter">1 / 7</span>
+  </header>
+
+  <main id="app">
+    <!-- screens injected here -->
+  </main>
+
+  <footer>
+    <button class="btn btn-ghost" id="backBtn" style="visibility:hidden">← back</button>
+    <button class="btn btn-primary" id="nextBtn">continue →</button>
+  </footer>
+
+</div>
+
+<script type="module">
+/* ============================================================
+   v0.1.3 — wired to real bridges.
+
+   Import order matters:
+     1. shc-mock installs window.__shcMock/__websshMock IFF ?mock=1.
+     2. shc-client and webssh-client then transparently pick up the
+        shims and skip real fetch/WebSocket calls.
+   ============================================================ */
+import { installShcMock, isMockMode } from "./lib/shc-mock.mjs";
+import { createShcClient, ShcError } from "./lib/shc-client.mjs";
+import { openWebSsh } from "./lib/webssh-client.mjs";
+import { generateSshKeyPair, probeEd25519 } from "./lib/ssh-keygen.mjs";
+import { generateQrSvg } from "./lib/qr.mjs";
+import { sendRecoveryHint } from "./lib/nostr-dm.mjs";
+import { publishInboxRelayList, fetchInboxRelayList } from "./lib/nostr-relaylist.mjs";
+import { publishAppData, TORII_RECOVERY_D_TAG } from "./lib/nostr-appdata.mjs";
+import { encryptRecoveryBundle } from "./lib/nostr-crypto.mjs";
+import { installNostrSignerMock, installRelayMock, isNostrMockMode } from "./lib/nostr-mock.mjs";
+
+// Default relay set used for kind-10050 discovery AND as the initial
+// inbox list a fresh user publishes. Kept small and diverse.
+const DEFAULT_RELAYS = [
+  "wss://relay.damus.io",
+  "wss://relay.primal.net",
+  "wss://nos.lol",
+  "wss://relay.nostr.band",
+  "wss://nostr.wine",
+];
+
+installShcMock();
+if (isNostrMockMode()) {
+  // Relay mock is safe to install unconditionally in mock mode. The signer
+  // mock only patches methods that aren't already provided by an existing
+  // window.nostr, so a real signer injected via addInitScript still wins.
+  installNostrSignerMock();
+  installRelayMock();
+}
+const shc = createShcClient();
+
+// Bootstrap URL — main branch of the public torii-suite repo. Every VPS runs
+// exactly this script on first boot; the source is auditable.
+const BOOTSTRAP_URL = "https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/main/bootstrap.sh";
+// WebSSH bridge — same-origin path served by the onboarding VPS's nginx.
+const WEBSSH_URL = (typeof window !== "undefined" ? location.origin.replace(/^http/, "ws") : "") + "/webssh";
+
+/* ============================================================
+   State — lives only in this tab. Nothing persisted.
+   ============================================================ */
+const state = {
+  step: 1,
+  name: "",
+  npub: "",
+  character: null,     // { id, name, role, svgKey }
+  plot: null,          // { id, name, coords }
+  supportUsd: 21,
+  vpsUsd: 84,          // filled from real preview once we have it
+  domainUsd: 18,
+  routstrUsd: 8,
+
+  // v0.1.3 additions — populated by the wire-up.
+  sshKeys: null,       // { publicKey, privateKey, fingerprint }
+  catalogItem: null,   // chosen OrderablePlan from /ordering/catalog
+  serviceId: null,     // set on submitOrder
+  invoiceId: null,
+  checkoutUrl: null,
+  vmSummary: null,     // latest /vm/{id}/summary
+  buildLog: [],        // WebSSH stdout/stderr lines
+  buildStatus: "idle", // idle | ordering | waiting_pay | provisioning | bootstrapping | dm_publishing | done | failed
+  buildError: null,
+  keyExpiresAt: null,  // from register api_key.expires_at
+
+  // v0.1.4 additions — captured so the recovery DM can carry the full
+  // bundle, and so screen 8 can render real publish status.
+  shcEmail: null,      // computed npub-derived email (stable per tab)
+  shcPassword: null,   // computed npub-derived password (stable per tab)
+  shcApiKey: null,     // raw api_key.key from /auth/register
+
+  // v0.1.5 — recovery is now split into three layers:
+  //   L1 (mandatory): browser download of the full recovery JSON. Gated.
+  //   L2 (best-effort): a passphrase-free HINT DM (no secrets) to the user's
+  //       own npub, routed via their kind-10050 inbox relays. NIP-17 sealed;
+  //       we refuse NIP-04 fallback entirely.
+  //   L3 (opt-in): passphrase-encrypted kind-30078 app-data event carrying
+  //       the FULL bundle. The passphrase is user-chosen and NOT derived
+  //       from the nsec — so nsec compromise alone does not unlock it.
+  inboxRelayResult: null,   // { eventId, okCount, results } or { error }
+  inboxRelays:      null,   // string[] (resolved after kind-10050 publish)
+  hintDm:           null,   // { scheme, eventId, okCount, results } or { error } or { skipped }
+  recoveryDownloaded: false, // set true once the user clicks download or opts out
+  encryptedBackup:  null,   // { eventId, okCount, results } or { error } — L3
+};
+
+// Small helper so screens can log lifecycle events without touching the DOM.
+function appendLog(kind, text) {
+  // Split multi-line chunks so the UI renders one line per entry.
+  for (const line of String(text).split(/\r?\n/)) {
+    if (line.length === 0) continue;
+    state.buildLog.push({ kind, line, ts: Date.now() });
+    if (state.buildLog.length > 200) state.buildLog.shift();
+  }
+  // Only re-render if we're on screen 7 — avoids thrash.
+  if (state.step === 7) render();
+}
+
+// Human-readable error extractor. Never leak the raw stack to the UI —
+// ShcError.code is stable, err.message is safe, everything else is noise.
+function humanError(err) {
+  if (err instanceof ShcError) {
+    const detail = err.details?.message || err.details?.error;
+    return detail ? `${err.code}: ${detail}` : `${err.code}: ${err.message}`;
+  }
+  return err?.message || String(err);
+}
+
+// Pick the cheapest catalog item. SHC has shipped both `pricings` and
+// `pricing` shapes in different versions of the spec, so we accept either.
+// We prefer the smallest yearly plan, then fall back to any pricing.
+function pickCatalogItem(catalog) {
+  const items = catalog?.items || catalog || [];
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new ShcError({ code: "empty_catalog", message: "SHC catalog is empty — cannot order." });
+  }
+
+  const pricingsOf = (it) => {
+    const raw = it.pricings || it.pricing || [];
+    return Array.isArray(raw) ? raw : [raw];
+  };
+
+  const toEntry = (it, p) => ({
+    packageId: it.package_id ?? it.id,
+    pricingId: p?.pricing_id ?? p?.id,
+    name: it.name || "NVMe VPS",
+    price: Number(p?.price ?? p?.amount ?? 0),
+    period: p?.period || "month",
+    currency: p?.currency || "USD",
+    moduleGroupId: it.module_group_id ?? null,
+  });
+
+  // Pass 1: cheapest yearly.
+  let best = null;
+  for (const it of items) {
+    for (const p of pricingsOf(it)) {
+      if (!p || !/year/i.test(String(p.period || ""))) continue;
+      const e = toEntry(it, p);
+      if (!best || e.price < best.price) best = e;
+    }
+  }
+  if (best) return best;
+
+  // Pass 2: cheapest any-period. Monthly prices are annualized so the
+  // total the user sees on screen 6 still reads correctly.
+  for (const it of items) {
+    for (const p of pricingsOf(it)) {
+      if (!p) continue;
+      const e = toEntry(it, p);
+      if (/month/i.test(e.period)) e.price = e.price * 12; // annualize
+      if (!best || e.price < best.price) best = e;
+    }
+  }
+  if (best) return best;
+
+  // Pass 3: absolute last resort — first item, first pricing, zero-cost.
+  return toEntry(items[0], pricingsOf(items[0])[0] || {});
+}
+
+// Screen 6 → screen 7 handshake. Runs the full SHC ordering sequence
+// end-to-end. Any failure sets buildStatus=failed and stores buildError so
+// the review screen re-renders with a readable message; the caller then
+// declines to advance.
+async function runOrderingFlow() {
+  if (!state.npubHex) {
+    throw new ShcError({ code: "missing_signer", message: "Connect your nostr signer first (step 3)." });
+  }
+  if (!state.name) {
+    throw new ShcError({ code: "missing_hostname", message: "Pick a name first (step 2)." });
+  }
+
+  state.buildStatus = "ordering";
+  state.buildError = null;
+  render();
+
+  // 1. Probe Ed25519 support (Safari <16 fails silently otherwise).
+  const probe = await probeEd25519();
+  if (!probe.supported) {
+    throw new ShcError({
+      code: "no_ed25519",
+      message: "This browser doesn't support Ed25519. Use Firefox, Chrome, or Safari 16+.",
+    });
+  }
+
+  // 2. Generate the SSH key pair in-browser. Private key never leaves this tab.
+  if (!state.sshKeys) {
+    state.sshKeys = await generateSshKeyPair({
+      comment: `torii-onboarding-${state.name}`,
+    });
+  }
+
+  // 3. Register (or reuse) an SHC account. We use the npub-hex as a stable
+  //    per-tab identity — every fresh browser session gets its own account,
+  //    which is fine because the API key is DM'd to the npub for recovery.
+  const email = `${state.npubHex.slice(0, 16)}@torii.anon.invalid`;
+  const password = state.npubHex.slice(0, 32) + "!Aa1"; // meets typical policy
+  // Persist so the recovery DM can carry the SHC login. Written before the
+  // register call so a re-run that hits the getSession() early-out still has
+  // matching values in state (the credentials themselves are deterministic
+  // per-npub, so this is safe even without a fresh register call).
+  state.shcEmail = email;
+  state.shcPassword = password;
+  if (!shc.getSession()) {
+    const reg = await shc.register({
+      email,
+      password,
+      firstName: "torii",
+      lastName: state.name.slice(0, 24),
+    });
+    state.keyExpiresAt = reg?.api_key?.expires_at || null;
+    state.shcApiKey = reg?.api_key?.key || null;
+  }
+
+  // 4. Load the catalog and pick a plan.
+  const catalog = await shc.getCatalog({ view: "lean" });
+  const chosen = pickCatalogItem(catalog);
+  state.catalogItem = chosen;
+  state.vpsUsd = Math.round(chosen.price);
+
+  // 5. Preview the order — surfaces validation errors before we spend the
+  //    idempotency key on submit.
+  const hostname = `${state.name}.torii.host`;
+  await shc.previewOrder({
+    packageId: chosen.packageId,
+    pricingId: chosen.pricingId,
+    hostname,
+    sshKey: state.sshKeys.publicKey,
+    moduleGroupId: chosen.moduleGroupId,
+  });
+
+  // 6. Submit the order. Idempotency key is stable per (npub, hostname) so
+  //    a double-click can't create a duplicate service.
+  const submitKey = `torii-submit-${state.npubHex.slice(0, 24)}-${state.name}`;
+  const submitted = await shc.submitOrder({
+    packageId: chosen.packageId,
+    pricingId: chosen.pricingId,
+    hostname,
+    sshKey: state.sshKeys.publicKey,
+    moduleGroupId: chosen.moduleGroupId,
+    idempotencyKey: submitKey,
+  });
+  state.serviceId = submitted?.service_ids?.[0] ?? submitted?.services?.[0]?.service_id;
+  state.invoiceId = submitted?.invoice?.invoice_id ?? submitted?.invoice_id;
+  if (!state.serviceId || !state.invoiceId) {
+    throw new ShcError({
+      code: "malformed_submit",
+      message: "Order submitted but no service_id/invoice_id came back.",
+      details: submitted,
+    });
+  }
+
+  // 7. Request the BTCPay checkout URL. If the invoice is somehow already
+  //    paid (unlikely but the API allows it) we skip straight to provisioning.
+  const checkout = await shc.checkoutPayment({
+    invoiceId: state.invoiceId,
+    gateway: "btcpay_server",
+    idempotencyKey: submitKey + "-pay",
+  });
+  if (checkout?.status === "checkout_required") {
+    state.checkoutUrl = checkout.checkout_url;
+    state.buildStatus = "waiting_pay";
+  } else {
+    state.checkoutUrl = null;
+    state.buildStatus = "provisioning";
+  }
+  render();
+}
+
+// Screen 7 lifecycle. Polls SHC until the VM is ready, then opens WebSSH
+// and streams the bootstrap script. buildLog is populated via appendLog so
+// the terminal card re-renders line by line.
+async function runProvisioning() {
+  if (!state.serviceId) {
+    throw new ShcError({ code: "no_service", message: "No serviceId yet — order hasn't been placed." });
+  }
+
+  state.buildStatus = "provisioning";
+  state.buildError = null;
+  appendLog("info", "[torii] waiting for SHC to hand you a warm VPS…");
+
+  const summary = await shc.waitForReady(state.serviceId, {
+    intervalMs: 4000,
+    timeoutMs: 15 * 60 * 1000,
+    onUpdate: (s) => {
+      state.vmSummary = s;
+      // Only surface state changes to avoid log spam.
+      const last = state.buildLog[state.buildLog.length - 1];
+      const line = `[shc] provisioning_state=${s.provisioning_state}` +
+        (s.recent_jobs?.[0]?.progress != null ? ` progress=${s.recent_jobs[0].progress}%` : "");
+      if (!last || last.line !== line) appendLog("info", line);
+    },
+  });
+  state.vmSummary = summary;
+
+  const ip = summary?.ips?.[0]?.ip;
+  const osUser = summary?.os_user || "debian";
+  if (!ip) {
+    throw new ShcError({ code: "no_ip", message: "VM ready but no IP was returned.", details: summary });
+  }
+  appendLog("info", `[torii] VPS is up at ${ip}. Opening WebSSH…`);
+
+  // Bootstrap runs the pinned main-branch script via curl. The one-liner is
+  // the single point of trust — see reference/README.md for the audit trail.
+  const bootstrapCmd = `bash <(curl -fsSL ${BOOTSTRAP_URL})`;
+  state.buildStatus = "bootstrapping";
+  render();
+
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn) => { if (settled) return; settled = true; fn(); };
+
+    const session = openWebSsh({
+      url: WEBSSH_URL,
+      host: ip,
+      port: 22,
+      username: osUser,
+      privateKey: state.sshKeys.privateKey,
+      command: bootstrapCmd,
+      onReady: () => appendLog("info", `[webssh] connected as ${osUser}@${ip}`),
+      onOutput: (kind, chunk) => appendLog(kind === "stderr" ? "err" : "out", chunk),
+      onError: (msg) => {
+        appendLog("err", `[webssh] ${msg}`);
+        finish(() => reject(new ShcError({ code: "webssh_error", message: msg })));
+      },
+      onExit: (exitCode) => {
+        appendLog(exitCode === 0 ? "info" : "err", `[webssh] bootstrap exited with code ${exitCode}`);
+        // Settle FIRST, then close the socket. Some bridges (and the mock)
+        // emit onClose synchronously from close(), which would race with
+        // this settle path and reject a successful run.
+        if (exitCode === 0) finish(resolve);
+        else finish(() => reject(new ShcError({ code: "bootstrap_failed", message: `bootstrap exited ${exitCode}` })));
+        try { session.close?.(); } catch { /* already closed */ }
+      },
+      onClose: () => {
+        // Only surface as an error if we haven't already settled on exit.
+        finish(() => reject(new ShcError({ code: "webssh_closed", message: "WebSSH closed before bootstrap finished." })));
+      },
+    });
+  });
+
+  // Bootstrap done — now the v0.1.5 recovery flow:
+  //   1. Publish (or refresh) the user's kind-10050 inbox relay list.
+  //   2. Send a HINT-ONLY NIP-17 DM (no secrets) to those inbox relays.
+  // The passphrase-encrypted L3 backup is user-driven from screen 8 —
+  // we do NOT auto-generate a passphrase.
+  state.buildStatus = "dm_publishing";
+  render();
+  await publishInboxRelays();
+  await publishRecoveryHint();
+
+  state.buildStatus = "done";
+  render();
+}
+
+// v0.1.5 — publish the user's kind-10050 inbox relay list (NIP-17 §4).
+// This tells other clients which relays to use when DMing this npub.
+// We first try to fetch the user's existing list; if none, we publish
+// DEFAULT_RELAYS so the hint DM has a well-defined destination.
+async function publishInboxRelays() {
+  if (!state.npubHex) {
+    state.inboxRelayResult = { error: "no npub — cannot publish inbox list" };
+    return;
+  }
+  appendLog("info", "[nostr] checking your kind-10050 inbox relay list…");
+  let existing = null;
+  try {
+    existing = await fetchInboxRelayList({
+      pubkey: state.npubHex,
+      discoveryRelays: DEFAULT_RELAYS,
+      timeoutMs: 3500,
+    });
+  } catch (err) {
+    appendLog("err", `[nostr] inbox fetch failed: ${humanError(err)} — will publish defaults`);
+  }
+  const relaysForInbox = (Array.isArray(existing) && existing.length > 0)
+    ? existing
+    : DEFAULT_RELAYS;
+  state.inboxRelays = relaysForInbox;
+
+  if (Array.isArray(existing) && existing.length > 0) {
+    appendLog("info", `[nostr] using your existing ${existing.length}-relay inbox list`);
+    state.inboxRelayResult = { reused: true, count: existing.length };
+    return;
+  }
+
+  appendLog("info", "[nostr] publishing kind-10050 (inbox relays)…");
+  try {
+    const result = await publishInboxRelayList({
+      relaysForInbox,
+      publishTo: DEFAULT_RELAYS,
+      onRelayResult: (r) => {
+        const prev = state.inboxRelayResult?.results || [];
+        state.inboxRelayResult = { ...(state.inboxRelayResult || {}), results: [...prev, r] };
+        appendLog(r.ok ? "info" : "err",
+          `[nostr:10050] ${r.ok ? "ok" : "fail"} ${r.relay}` + (r.error ? ` — ${r.error}` : ""));
+      },
+    });
+    state.inboxRelayResult = result;
+    appendLog("info",
+      `[nostr] kind-10050 accepted by ${result.okCount}/${result.results.length} relays · event ${result.eventId.slice(0, 12)}…`);
+  } catch (err) {
+    const msg = humanError(err);
+    state.inboxRelayResult = { error: msg };
+    appendLog("err", `[nostr] kind-10050 publish failed: ${msg}`);
+  }
+}
+
+// v0.1.5 — send a HINT-ONLY NIP-17 sealed DM to the user's own npub.
+// Payload carries NON-catastrophic hints only: hostname, IP, OS user, SSH
+// fingerprint (not the private key), SHC email, and API key expiry (not
+// the key value). If the user loses their laptop this helps them find the
+// box again; but if a relay is coerced or leaks, no live credentials go
+// with it. NIP-04 fallback is refused — the lib throws.
+async function publishRecoveryHint() {
+  if (!state.npubHex || !state.sshKeys || !state.vmSummary) {
+    state.hintDm = { error: "missing state for recovery hint (npub / ssh / vm)" };
+    return;
+  }
+  const hint = {
+    hostname: `${state.name}.torii.host`,
+    vpsIp: state.vmSummary?.ips?.[0]?.ip || "(unknown)",
+    osUser: state.vmSummary?.os_user || "debian",
+    sshFingerprint: state.sshKeys.fingerprint,
+    shcEmail: state.shcEmail,
+    shcApiKeyExpires: state.keyExpiresAt,
+    createdAt: new Date().toISOString(),
+  };
+  appendLog("info", "[nostr] sending NIP-17 recovery hint (no secrets)…");
+  try {
+    const result = await sendRecoveryHint(hint, {
+      recipientPubkey: state.npubHex,
+      relays: state.inboxRelays || DEFAULT_RELAYS,
+      onRelayResult: (r) => {
+        const prev = state.hintDm?.results || [];
+        state.hintDm = { ...(state.hintDm || {}), results: [...prev, r] };
+        appendLog(r.ok ? "info" : "err",
+          `[nostr:hint] ${r.ok ? "ok" : "fail"} ${r.relay}` + (r.error ? ` — ${r.error}` : ""));
+      },
+    });
+    state.hintDm = result;
+    appendLog("info",
+      `[nostr] hint DM sent via ${result.scheme} — ${result.okCount}/${result.results.length} relays · event ${result.eventId.slice(0, 12)}…`);
+  } catch (err) {
+    const msg = humanError(err);
+    state.hintDm = { error: msg };
+    appendLog("err", `[nostr] hint DM failed: ${msg}`);
+  }
+}
+
+// v0.1.5 — L3 optional: encrypt the FULL recovery bundle with a
+// user-chosen passphrase (NOT derived from nsec) and publish it as a
+// kind-30078 replaceable app-data event. Called from screen 8 only when
+// the user checks the opt-in and provides a passphrase.
+async function publishEncryptedBackup(passphrase) {
+  if (!state.npubHex || !state.sshKeys || !state.vmSummary) {
+    state.encryptedBackup = { error: "missing state for encrypted backup" };
+    return;
+  }
+  const bundle = {
+    v: 1,
+    createdAt: new Date().toISOString(),
+    hostname: `${state.name}.torii.host`,
+    vpsIp: state.vmSummary?.ips?.[0]?.ip || null,
+    osUser: state.vmSummary?.os_user || "debian",
+    ssh: {
+      publicKey: state.sshKeys.publicKey,
+      privateKey: state.sshKeys.privateKey,
+      fingerprint: state.sshKeys.fingerprint,
+    },
+    shc: {
+      email: state.shcEmail,
+      password: state.shcPassword,
+      apiKey: state.shcApiKey,
+      apiKeyExpires: state.keyExpiresAt,
+    },
+  };
+  appendLog("info", "[nostr] encrypting recovery bundle (scrypt + XChaCha20-Poly1305)…");
+  let envelope;
+  try {
+    envelope = await encryptRecoveryBundle(bundle, passphrase);
+  } catch (err) {
+    const msg = humanError(err);
+    state.encryptedBackup = { error: `encryption failed — ${msg}` };
+    appendLog("err", `[nostr] encrypt failed: ${msg}`);
+    render();
+    return;
+  }
+  appendLog("info", "[nostr] publishing encrypted kind-30078 recovery blob…");
+  try {
+    const result = await publishAppData({
+      dTag: TORII_RECOVERY_D_TAG,
+      topic: "torii-recovery",
+      // encryptRecoveryBundle returns { ncrypt, meta } — kind-30078 content
+      // is the ASCII envelope string. Meta is intentionally NOT published:
+      // salt + nonce already ride inside the envelope body.
+      content: envelope.ncrypt,
+      relays: state.inboxRelays || DEFAULT_RELAYS,
+      onRelayResult: (r) => {
+        const prev = state.encryptedBackup?.results || [];
+        state.encryptedBackup = { ...(state.encryptedBackup || {}), results: [...prev, r] };
+        appendLog(r.ok ? "info" : "err",
+          `[nostr:30078] ${r.ok ? "ok" : "fail"} ${r.relay}` + (r.error ? ` — ${r.error}` : ""));
+      },
+    });
+    state.encryptedBackup = result;
+    appendLog("info",
+      `[nostr] encrypted backup accepted by ${result.okCount}/${result.results.length} relays · event ${result.eventId.slice(0, 12)}…`);
+  } catch (err) {
+    const msg = humanError(err);
+    state.encryptedBackup = { error: msg };
+    appendLog("err", `[nostr] encrypted backup publish failed: ${msg}`);
+  }
+  render();
+}
+
+// Build the full recovery JSON that the mandatory download button emits.
+// This is the ONLY guaranteed long-term copy of the VPS secrets: everything
+// else (hint DM, encrypted app-data) is best-effort. Keep this format
+// stable across versions so old backups still parse.
+function buildRecoveryFileBlob() {
+  const bundle = {
+    version: "torii-recovery-v1",
+    createdAt: new Date().toISOString(),
+    npub: state.npub,
+    npubHex: state.npubHex,
+    hostname: `${state.name}.torii.host`,
+    vps: {
+      ip: state.vmSummary?.ips?.[0]?.ip || null,
+      osUser: state.vmSummary?.os_user || "debian",
+    },
+    ssh: {
+      publicKey: state.sshKeys?.publicKey || null,
+      privateKey: state.sshKeys?.privateKey || null,
+      fingerprint: state.sshKeys?.fingerprint || null,
+    },
+    shc: {
+      email: state.shcEmail,
+      password: state.shcPassword,
+      apiKey: state.shcApiKey,
+      apiKeyExpires: state.keyExpiresAt,
+    },
+  };
+  const json = JSON.stringify(bundle, null, 2);
+  return new Blob([json], { type: "application/json" });
+}
+
+/* ============================================================
+   Screens (functions returning HTML)
+   ============================================================ */
+const screens = [
+  screenWelcome,          // 1
+  screenPickName,         // 2
+  screenConnectSigner,    // 3
+  screenPickCharacter,    // 4
+  screenPickPlot,         // 5
+  screenReviewAndPay,     // 6
+  screenBuilding,         // 7
+  screenDone,             // 8 — beyond the 7 taps
+];
+
+/* ---------------- 1. Welcome ---------------- */
+function screenWelcome() {
+  return `
+    <div class="eyebrow">own your torii</div>
+    <h1>Your metaverse. Your AI. Your keys.</h1>
+    <p class="lede">
+      In about seven taps and ten minutes, you'll have your own Torii — a
+      sovereign metaverse home with a shop, a character, and a personal AI
+      that answers to your nostr key. No accounts, no KYC, paid in Bitcoin.
+    </p>
+
+    <div class="card">
+      <h2>What you'll end up with</h2>
+      <small class="mono">
+        alice.torii.host · continuum agent · quest shop · plebeian storefront · routstr AI · nightly encrypted backups
+      </small>
+    </div>
+
+    <div class="card">
+      <h2>What you'll need</h2>
+      <small class="mono">
+        · a nostr signer (Plebeian Signer, nos2x, or Amber)<br>
+        · a Lightning wallet with ~$100 in sats<br>
+        · about ten minutes
+      </small>
+    </div>
+
+    <div class="disclosure">
+      Nothing about your setup touches Torii's servers. Your browser talks
+      directly to your VPS host (SHC), your Lightning wallet, and your signer.
+      When this tab closes, all secrets live only on your VPS and in a nostr
+      DM encrypted to your own key.
+    </div>
+  `;
+}
+
+/* ---------------- 2. Pick a name ---------------- */
+function screenPickName() {
+  const isValid = /^[a-z0-9][a-z0-9-]{2,30}[a-z0-9]$/.test(state.name);
+  const hint = state.name === ""
+    ? `<span>lowercase, 3–32 chars, hyphens ok</span>`
+    : (isValid
+        ? `<span class="ok">✓ ${state.name}.torii.host is available</span>`
+        : `<span class="err">try lowercase letters, numbers, and hyphens</span>`);
+  return `
+    <div class="eyebrow">step one</div>
+    <h1>What should we call your Torii?</h1>
+    <p class="lede">
+      This is your subdomain. You can use your own domain later; for now
+      we'll give you one under torii.host.
+    </p>
+
+    <label for="nameInput" class="mono" style="font-size:0.85rem; color: hsl(var(--muted-foreground)); display:block; margin-bottom:8px;">
+      subdomain
+    </label>
+    <input
+      id="nameInput"
+      class="field"
+      type="text"
+      placeholder="alice"
+      autocomplete="off"
+      autocapitalize="none"
+      spellcheck="false"
+      value="${state.name}"
+    />
+    <div class="field-hint">${hint}</div>
+
+    <div style="margin-top:20px;">
+      <small class="mono">preview → <span style="color:hsl(var(--primary))">${state.name || "yourname"}.torii.host</span></small>
+    </div>
+  `;
+}
+
+/* ---------------- 3. Connect signer ---------------- */
+function screenConnectSigner() {
+  const connected = !!state.npub;
+  return `
+    <div class="eyebrow">step two</div>
+    <h1>Bring your identity.</h1>
+    <p class="lede">
+      Your nostr key is your login. Nothing we build sees your private key —
+      your signer keeps it, and we ask it to sign one challenge to prove
+      the npub is yours.
+    </p>
+
+    ${connected ? `
+      <div class="card selected">
+        <h2>Connected</h2>
+        <small class="mono" style="word-break: break-all; color: hsl(var(--primary));">
+          ${state.npub}
+        </small>
+        <div style="margin-top:10px;">
+          <small class="mono">this npub will own the new Torii instance.</small>
+        </div>
+      </div>
+    ` : `
+      <button class="btn btn-primary" id="signerBtn" style="width:100%; margin-bottom:12px;">
+        connect with signer
+      </button>
+      <small class="mono" style="display:block; text-align:center; color: hsl(var(--muted-foreground));">
+        opens Plebeian Signer · nos2x · Amber · alby
+      </small>
+      <div id="signerErr" class="mono err" style="margin-top:12px; text-align:center; min-height:1.2em;"></div>
+    `}
+
+    <div class="disclosure" style="margin-top:20px;">
+      Don't have a signer yet? Install <b>Plebeian Signer</b> (browser) or
+      <b>Amber</b> (Android). Neither asks for an email or phone. Your key
+      will be safer with them than with a note on your desk.
+    </div>
+  `;
+}
+
+/* ---------------- 4. Pick a character ---------------- */
+function screenPickCharacter() {
+  const chars = [
+    { id: "wanderer", name: "Wanderer",  role: "explorer",  hue: 38  },
+    { id: "smith",    name: "Smith",     role: "maker",     hue: 12  },
+    { id: "scribe",   name: "Scribe",    role: "writer",    hue: 260 },
+    { id: "trader",   name: "Trader",    role: "merchant",  hue: 142 },
+  ];
+  return `
+    <div class="eyebrow">step three</div>
+    <h1>Pick your character.</h1>
+    <p class="lede">
+      This is who represents you in Quest AND the personality behind your
+      Continuum agent. Same entity, one identity. You can customise later.
+    </p>
+
+    <div class="avatar-grid">
+      ${chars.map(c => `
+        <div class="avatar-card ${state.character?.id === c.id ? 'selected' : ''}" data-char="${c.id}">
+          ${characterSvg(c.hue)}
+          <div class="avatar-name">${c.name}</div>
+          <div class="avatar-role">${c.role}</div>
+        </div>
+      `).join("")}
+    </div>
+
+    <div class="card">
+      <small class="mono">
+        Your character's dialogue in Quest will come from your Continuum agent
+        (running on your VPS). When someone talks to you in-world and you're
+        offline, your AI answers in your voice.
+      </small>
+    </div>
+  `;
+}
+
+function characterSvg(hue) {
+  return `
+    <svg viewBox="0 0 64 64" class="avatar-svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="32" cy="24" r="12" fill="hsl(${hue} 60% 55%)" />
+      <rect x="16" y="36" width="32" height="24" rx="4" fill="hsl(${hue} 45% 40%)" />
+      <rect x="24" y="44" width="16" height="4" rx="2" fill="hsl(${hue} 80% 75%)" />
+    </svg>
+  `;
+}
+
+/* ---------------- 5. Pick a plot ---------------- */
+function screenPickPlot() {
+  const plots = [
+    { id: "square-w", name: "West Square",    xy: [40,  80] },
+    { id: "square-e", name: "East Square",    xy: [160, 80] },
+    { id: "harbor",   name: "Harbor",         xy: [100, 140]},
+    { id: "grove",    name: "Cedar Grove",    xy: [220, 140]},
+  ];
+  return `
+    <div class="eyebrow">step four</div>
+    <h1>Where's your shop?</h1>
+    <p class="lede">
+      Pick a plot in Torii Quest. This becomes your homepage in the metaverse
+      and your storefront in Plebeian. You can move later.
+    </p>
+
+    <div class="map">
+      <svg viewBox="0 0 280 200" class="map-svg" xmlns="http://www.w3.org/2000/svg" aria-label="Torii Quest map">
+        <defs>
+          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="hsl(32 10% 18%)" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="280" height="200" fill="url(#grid)" />
+        <!-- paths -->
+        <path d="M 0 80 L 280 80 M 100 0 L 100 200 M 200 0 L 200 200"
+              stroke="hsl(32 10% 26%)" stroke-width="1.5" fill="none" />
+        <!-- torii gate marker (center) -->
+        <g transform="translate(140 100)">
+          <path d="M -10 -6 L 10 -6" stroke="hsl(38 92% 58%)" stroke-width="1.5"/>
+          <path d="M -8 -6 L -8 6 M 8 -6 L 8 6" stroke="hsl(38 92% 58%)" stroke-width="1"/>
+        </g>
+        <!-- plots -->
+        ${plots.map(p => `
+          <g data-plot="${p.id}" style="cursor:pointer;">
+            <circle cx="${p.xy[0]}" cy="${p.xy[1]}" r="10"
+              fill="${state.plot?.id === p.id ? 'hsl(38 92% 58%)' : 'hsl(32 10% 28%)'}"
+              stroke="hsl(38 92% 58%)" stroke-width="1.5" />
+            <text x="${p.xy[0]}" y="${p.xy[1] + 26}"
+                  fill="hsl(40 16% 93%)" font-size="7" text-anchor="middle"
+                  font-family="JetBrains Mono" font-weight="500"
+                  paint-order="stroke" stroke="hsl(30 12% 8%)" stroke-width="2">${p.name}</text>
+          </g>
+        `).join("")}
+      </svg>
+    </div>
+
+    <div class="card ${state.plot ? 'selected' : ''}">
+      <h2>${state.plot?.name || "Tap a plot on the map"}</h2>
+      <small class="mono">${state.plot ? "You can trade your plot to another operator later." : "each plot is a nostr-signed claim; they're unique but transferable."}</small>
+    </div>
+  `;
+}
+
+/* ---------------- 6. Review + pay ---------------- */
+function screenReviewAndPay() {
+  const total = state.vpsUsd + state.domainUsd + state.routstrUsd + Number(state.supportUsd);
+  const qrSvg = state.checkoutUrl
+    ? generateQrSvg(state.checkoutUrl, { size: 160, margin: 2, dark: "hsl(30 12% 8%)", light: "#fff" })
+    : `<svg width="160" height="160" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-label="invoice pending"><rect width="21" height="21" fill="white"/>${qrMockRects()}</svg>`;
+  const orderingBusy = state.buildStatus === "ordering";
+  const orderingErr = state.buildError && state.buildStatus === "failed" ? state.buildError : null;
+  return `
+    <div class="eyebrow">step five</div>
+    <h1>Review and pay.</h1>
+    <p class="lede">
+      One Lightning invoice, three splits. Your wallet sends the sats straight
+      to SHC (for the VPS), Torii (community support), and the Cashu mint (for
+      your Routstr top-up). No middleman holds funds.
+    </p>
+
+    <ul class="line-items">
+      <li><span>SHC VPS <span class="pill">1 year · small tier</span></span><span class="amount">$${state.vpsUsd}</span></li>
+      <li><span>Domain <span class="pill">${state.name || "yourname"}.torii.host</span></span><span class="amount">$${state.domainUsd}</span></li>
+      <li><span>Routstr Cashu top-up <span class="pill">~1M small-model tokens</span></span><span class="amount">$${state.routstrUsd}</span></li>
+      <li><span>Community support</span><span class="amount">$${state.supportUsd}</span></li>
+      <li><span>Total</span><span class="amount">$${total}</span></li>
+    </ul>
+
+    <div class="slider-block">
+      <label>
+        <span>Community support fee (optional)</span>
+        <span class="mono" style="color:hsl(var(--primary));">$${state.supportUsd}</span>
+      </label>
+      <input id="supportSlider" type="range" min="0" max="121" step="1" value="${state.supportUsd}" />
+      <small class="mono">
+        Year one: paid to a Torii Lightning address. Buys you a nostr DM
+        support channel, priority feature requests, and a
+        <em>Founding&nbsp;Operator</em> tag on your character. Optional and
+        one-off — after year one you deal with SHC and the community directly.
+      </small>
+    </div>
+
+    <h2 style="margin-top:22px;">Who supports what</h2>
+    <div class="support-split">
+      <div class="row"><span class="who">Hardware · billing · uptime</span><span>SHC (via their portal)</span></div>
+      <div class="row"><span class="who">Torii apps · bugs · setup</span><span>Torii (year 1: DM · then GitHub)</span></div>
+      <div class="row"><span class="who">Your Lightning wallet</span><span>You (self-custody)</span></div>
+      <div class="row"><span class="who">Your nostr key</span><span>You (self-custody)</span></div>
+    </div>
+
+    <div class="qr-block">
+      ${qrSvg}
+      <div class="qr-caption">
+        ${state.checkoutUrl
+          ? `<a href="${state.checkoutUrl}" target="_blank" rel="noopener" style="color:inherit;">tap to pay · $${total} in sats →</a>`
+          : (orderingBusy ? "generating invoice…" : "tap ‘pay &amp; build’ to generate invoice")}
+      </div>
+      ${orderingErr ? `<div class="mono err" style="margin-top:10px; text-align:center;">${orderingErr}</div>` : ""}
+    </div>
+
+    <div class="disclosure">
+      Prices in sats float with BTC. The invoice is regenerated every 60&nbsp;s
+      so you're never over- or under-paying. Nothing is provisioned until the
+      invoice settles.
+    </div>
+  `;
+}
+
+function qrMockRects() {
+  // Deterministic dot pattern — pure decoration for the wireframe.
+  let rects = "";
+  for (let y = 0; y < 21; y++) {
+    for (let x = 0; x < 21; x++) {
+      const on = ((x*3 + y*7 + (x*y)) % 5) === 0 || (x<3&&y<3) || (x>17&&y<3) || (x<3&&y>17);
+      if (on) rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="black"/>`;
+    }
+  }
+  return rects;
+}
+
+/* ---------------- 7. Building ---------------- */
+function screenBuilding() {
+  // Progress inferred from state — no hardcoded index.
+  const status = state.buildStatus;
+  const summary = state.vmSummary;
+  const provState = summary?.provisioning_state ?? "pending";
+
+  const steps = [
+    { key: "account",  label: "SHC account created (anonymous, no email)",             done: !!shc.getSession(), active: false },
+    { key: "order",    label: "VPS ordered",                                            done: !!state.serviceId, active: status === "ordering" },
+    { key: "pay",      label: "Invoice paid · waiting for BTCPay confirmation",         done: status === "provisioning" || status === "bootstrapping" || status === "done", active: status === "waiting_pay" },
+    { key: "provision",label: `Waiting for provisioning_state → ready (${provState})`,  done: provState === "ready", active: status === "provisioning" },
+    { key: "bootstrap",label: "Running torii-suite bootstrap over SSH",                 done: status === "done", active: status === "bootstrapping" },
+    { key: "live",     label: `Torii live at ${(state.name||"yourname")}.torii.host`,   done: status === "done", active: false },
+  ];
+
+  const logRows = state.buildLog.slice(-30).map(entry => {
+    const cls = entry.kind === "stderr" ? "err" : "";
+    // Escape < > & to keep the terminal-ish view safe.
+    const safe = entry.line.replace(/[&<>]/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[ch]));
+    return `<div class="log-line mono ${cls}">${safe}</div>`;
+  }).join("");
+
+  return `
+    <div class="eyebrow">building</div>
+    <h1>Constructing your Torii…</h1>
+    <p class="lede">
+      This takes about ten minutes. You can close this tab — we'll DM your
+      new npub when it's ready. Nothing here needs to stay open.
+    </p>
+
+    <ul class="progress-list">
+      ${steps.map((s, i) => {
+        const cls = s.done ? "done" : (s.active ? "active" : "");
+        const icon = s.done ? "✓" : (s.active ? "…" : String(i + 1));
+        return `
+          <li class="${cls}">
+            <div class="icon">${icon}</div>
+            <div class="body">
+              <div class="title">${s.label}</div>
+              ${s.active ? `<div class="subtext">running now</div>` : ""}
+            </div>
+          </li>
+        `;
+      }).join("")}
+    </ul>
+
+    ${logRows ? `
+    <div class="card" style="margin-top:16px;">
+      <h2>bootstrap output</h2>
+      <div class="log-window" style="max-height:220px; overflow:auto; background:hsl(30 12% 6%); padding:10px; border-radius:6px; font-size:0.75rem; line-height:1.4;">
+        ${logRows}
+      </div>
+    </div>` : ""}
+
+    ${state.buildStatus === "failed" ? `
+      <div class="card" style="border-color: hsl(var(--destructive));">
+        <h2 style="color: hsl(var(--destructive));">Build failed</h2>
+        <small class="mono">${(state.buildError || "unknown error").replace(/[&<>]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]))}</small>
+      </div>
+    ` : ""}
+
+    <div class="disclosure">
+      Every step above is a real API call your browser is making — to SHC,
+      to your VPS over SSH. Torii's servers see only the BTCPay invoice.
+      Watch the network tab if you're curious.
+    </div>
+  `;
+}
+
+/* ---------------- 8. Done ---------------- */
+function screenDone() {
+  const domain = (state.name || "yourname") + ".torii.host";
+  const vmIp = state.vmSummary?.ips?.[0]?.ip;
+  const osUser = state.vmSummary?.os_user || "debian";
+  const keyExpiry = state.keyExpiresAt
+    ? new Date(state.keyExpiresAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+    : "unknown";
+  const fp = state.sshKeys?.fingerprint || "(no key)";
+
+  // --- L1: mandatory download gate -----------------------------------
+  // The recovery file is the primary, guaranteed backup. Until the user
+  // either downloads it or explicitly opts out ("I copied manually"), the
+  // "open my torii" CTA stays disabled.
+  const dl = state.recoveryDownloaded;
+  const downloadBlock = `
+    <div class="disclosure" style="border-color: ${dl ? "hsl(var(--success))" : "hsl(var(--warning))"};">
+      <strong>${dl ? "recovery file saved" : "download your recovery file"}</strong>
+      <div style="margin-top:6px; font-size:0.78rem;">
+        This JSON is the only guaranteed long-term copy of your VPS secrets
+        (SSH private key, SHC API key, password). Put it in your password
+        manager, then delete the download. Everything below is best-effort.
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-primary" id="downloadRecoveryBtn" style="flex:1; min-width:180px;">
+          ${dl ? "download again" : "download recovery .json"}
+        </button>
+        <button class="btn btn-ghost" id="copiedManuallyBtn" style="flex:1; min-width:180px;">
+          I copied manually
+        </button>
+      </div>
+    </div>
+  `;
+
+  // --- L2: kind-10050 inbox relay list status ------------------------
+  const inbox = state.inboxRelayResult;
+  let inboxBlockHtml = "";
+  if (inbox?.reused) {
+    inboxBlockHtml = `
+      <div class="disclosure">
+        <strong>inbox relays</strong> — reusing your existing kind-10050 list (${inbox.count} relays)
+      </div>
+    `;
+  } else if (inbox?.eventId) {
+    inboxBlockHtml = `
+      <div class="disclosure" style="border-color: hsl(var(--success));">
+        <strong>inbox relays published</strong> — kind-10050 accepted by ${inbox.okCount}/${inbox.results?.length ?? 0} relays
+      </div>
+    `;
+  } else if (inbox?.error) {
+    inboxBlockHtml = `
+      <div class="disclosure" style="border-color: hsl(var(--warning));">
+        <strong>inbox relays failed</strong> — ${inbox.error}
+      </div>
+    `;
+  } else {
+    inboxBlockHtml = `<div class="disclosure"><strong>publishing inbox relays…</strong></div>`;
+  }
+
+  // --- L2: hint DM status --------------------------------------------
+  const dm = state.hintDm;
+  let dmBlockHtml = "";
+  if (dm?.eventId && !dm?.error) {
+    const ok = dm.okCount;
+    const total = dm.results?.length ?? 0;
+    const shortId = dm.eventId.slice(0, 12);
+    dmBlockHtml = `
+      <div class="disclosure" style="border-color: hsl(var(--success));">
+        <strong>recovery hint sent</strong> — NIP-17 sealed · ${ok}/${total} relays accepted
+        <div style="margin-top:6px; font-family: var(--font-mono); font-size:0.72rem; color: hsl(var(--muted-foreground));">
+          event ${shortId}…
+        </div>
+        <div style="margin-top:6px; font-size:0.75rem;">
+          The DM contains only non-catastrophic hints (hostname, IP, SSH
+          fingerprint) — no private keys, no passwords.
+        </div>
+      </div>
+    `;
+  } else if (dm?.error) {
+    dmBlockHtml = `
+      <div class="disclosure" style="border-color: hsl(var(--warning));">
+        <strong>recovery hint refused</strong> — ${dm.error}
+        <div style="margin-top:6px; font-size:0.75rem;">
+          Your recovery file (above) is still the primary backup — no data
+          is at risk. Use a NIP-44 capable signer (Amber, Alby, nos2x-fox)
+          to enable the hint DM next time.
+        </div>
+      </div>
+    `;
+  } else {
+    const partial = dm?.results?.length ?? 0;
+    dmBlockHtml = `
+      <div class="disclosure">
+        <strong>sending recovery hint…</strong>
+        <div style="margin-top:6px; font-size:0.75rem; color: hsl(var(--muted-foreground));">
+          ${partial} relay${partial === 1 ? "" : "s"} responded so far.
+        </div>
+      </div>
+    `;
+  }
+
+  // --- L3: optional passphrase-encrypted backup ----------------------
+  const eb = state.encryptedBackup;
+  let ebResultHtml = "";
+  if (eb?.eventId && !eb?.error) {
+    const ok = eb.okCount;
+    const total = eb.results?.length ?? 0;
+    ebResultHtml = `
+      <div style="margin-top:10px; padding:10px; border:1px solid hsl(var(--success)); border-radius:6px; font-size:0.78rem;">
+        <strong>encrypted backup published</strong> — kind-30078 accepted by ${ok}/${total} relays.
+        Restore with your passphrase + nsec on any client that reads kind-30078 events.
+      </div>
+    `;
+  } else if (eb?.error) {
+    ebResultHtml = `
+      <div style="margin-top:10px; padding:10px; border:1px solid hsl(var(--warning)); border-radius:6px; font-size:0.78rem;">
+        <strong>encrypted backup failed</strong> — ${eb.error}
+      </div>
+    `;
+  } else if (eb) {
+    ebResultHtml = `
+      <div style="margin-top:10px; padding:10px; border:1px solid hsl(var(--border)); border-radius:6px; font-size:0.78rem;">
+        <strong>encrypting and publishing…</strong> scrypt is deliberately slow (few seconds).
+      </div>
+    `;
+  }
+
+  const encryptedBackupBlock = `
+    <div class="disclosure">
+      <strong>optional: encrypted cloud backup</strong>
+      <div style="margin-top:6px; font-size:0.78rem;">
+        Also stash the full bundle on relays, encrypted with a passphrase
+        you choose. This is <em>defense in depth</em>: even if your nsec
+        leaks, an attacker still needs the passphrase to decrypt.
+        Passphrase is 8+ characters. Never reuse your nsec here.
+      </div>
+      <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="encryptedBackupCheckbox" ${eb ? "checked disabled" : ""} />
+        <label for="encryptedBackupCheckbox" style="font-size:0.78rem;">Yes, back up encrypted to my relays</label>
+      </div>
+      <div id="encryptedBackupForm" style="margin-top:8px; display:none;">
+        <input type="password" id="encryptedBackupPass" placeholder="passphrase (≥ 8 chars)"
+          style="width:100%; font-family: var(--font-mono); font-size:0.85rem; padding:8px; background: hsl(var(--surface-2)); border:1px solid hsl(var(--border)); border-radius:6px;" />
+        <div id="encryptedBackupHint" style="margin-top:4px; font-size:0.7rem; color: hsl(var(--muted-foreground));">
+          Store this passphrase separately from your nsec.
+        </div>
+        <button class="btn btn-secondary" id="encryptedBackupGo" style="width:100%; margin-top:8px;">
+          encrypt & publish
+        </button>
+      </div>
+      ${ebResultHtml}
+    </div>
+  `;
+
+  const canOpen = state.recoveryDownloaded;
+
+  return `
+    <div class="eyebrow">ready</div>
+    <h1>Your Torii is live.</h1>
+    <p class="lede">
+      You're already logged in — your npub owns the box. Recovery is
+      layered: a downloadable file (mandatory), a hint DM to your own
+      npub (best-effort), and an optional passphrase-encrypted backup.
+    </p>
+
+    <a class="done-cta ${canOpen ? "" : "done-cta-disabled"}"
+       href="${canOpen ? `https://${domain}/` : "#"}"
+       ${canOpen ? "target=\"_blank\" rel=\"noopener\"" : "aria-disabled=\"true\""}
+       id="openToriiCta"
+       style="${canOpen ? "" : "opacity:0.5; pointer-events:none;"}">
+      ${canOpen ? `open ${domain} →` : "download recovery first ↓"}
+    </a>
+
+    <div class="done-secret">
+      <span class="label">your VPS</span>
+      ${vmIp || "(IP not yet reported)"} · ${osUser}@${domain}
+    </div>
+
+    <div class="done-secret">
+      <span class="label">SSH key fingerprint (Ed25519)</span>
+      ${fp}
+    </div>
+
+    <div class="done-secret">
+      <span class="label">SHC operate API key</span>
+      scoped: operate · expires: ${keyExpiry}
+      <div style="margin-top:6px; font-size:0.7rem; color: hsl(var(--muted-foreground));">
+        Key value lives in your recovery file — not in the hint DM.
+      </div>
+    </div>
+
+    ${downloadBlock}
+    ${inboxBlockHtml}
+    ${dmBlockHtml}
+    ${encryptedBackupBlock}
+
+    <div style="margin-top:20px;">
+      <button class="btn btn-ghost" id="restartBtn" style="width:100%;">start over</button>
+    </div>
+  `;
+}
+
+/* ============================================================
+   Render + event wiring
+   ============================================================ */
+const app = document.getElementById("app");
+const nextBtn = document.getElementById("nextBtn");
+const backBtn = document.getElementById("backBtn");
+const stepCounter = document.getElementById("stepCounter");
+
+function render() {
+  const idx = Math.min(state.step - 1, screens.length - 1);
+  app.innerHTML = screens[idx]();
+
+  // Step counter
+  if (state.step <= 7) {
+    stepCounter.textContent = `${state.step} / 7`;
+  } else {
+    stepCounter.textContent = `✓ ready`;
+    stepCounter.style.color = "hsl(var(--success))";
+  }
+  if (state.step <= 7) stepCounter.style.color = "";
+
+  // Back button visibility
+  backBtn.style.visibility = state.step > 1 && state.step < 8 ? "visible" : "hidden";
+
+  // Next button label + enabled
+  nextBtn.textContent = nextLabel();
+  nextBtn.disabled = !canAdvance();
+
+  wireScreenEvents();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function nextLabel() {
+  switch (state.step) {
+    case 1: return "start →";
+    case 2: return "next →";
+    case 3: return state.npub ? "next →" : "connect first";
+    case 4: return "next →";
+    case 5: return "next →";
+    case 6:
+      if (state.buildStatus === "ordering") return "generating invoice…";
+      if (state.buildStatus === "failed")   return "try again →";
+      if (state.checkoutUrl)                return "paid — build now →";
+      return "pay & build →";
+    case 7:
+      if (state.buildStatus === "done") return "open my torii →";
+      if (state.buildStatus === "failed") return "build failed";
+      return "building…";
+    case 8: return "done";
+    default: return "→";
+  }
+}
+
+function canAdvance() {
+  switch (state.step) {
+    case 1: return true;
+    case 2: return /^[a-z0-9][a-z0-9-]{2,30}[a-z0-9]$/.test(state.name);
+    case 3: return !!state.npub;
+    case 4: return !!state.character;
+    case 5: return !!state.plot;
+    // Step 6 is always advanceable — the click handler intercepts to run
+    // the ordering flow first (which is a two-tap sequence: order, then pay).
+    case 6: return state.buildStatus !== "ordering" && state.buildStatus !== "bootstrapping";
+    // Step 7 only advances when the VPS is fully built — no fake finish.
+    case 7: return state.buildStatus === "done";
+    case 8: return false;
+    default: return false;
+  }
+}
+
+function wireScreenEvents() {
+  // step 2 — name input
+  const nameInput = document.getElementById("nameInput");
+  if (nameInput) {
+    nameInput.addEventListener("input", (e) => {
+      state.name = e.target.value.toLowerCase().trim();
+      render();
+    });
+    nameInput.focus();
+  }
+
+  // step 3 — signer button (real NIP-07)
+  const signerBtn = document.getElementById("signerBtn");
+  if (signerBtn) {
+    signerBtn.addEventListener("click", async () => {
+      signerBtn.disabled = true;
+      signerBtn.textContent = "waiting for signer…";
+      try {
+        if (!window.nostr || typeof window.nostr.getPublicKey !== "function") {
+          throw new Error("no NIP-07 signer detected — install Plebeian Signer, nos2x, Amber, or alby");
+        }
+        const hexPubkey = await window.nostr.getPublicKey();
+        if (typeof hexPubkey !== "string" || !/^[0-9a-f]{64}$/i.test(hexPubkey)) {
+          throw new Error("signer returned an invalid public key");
+        }
+        // Store the hex pubkey for the register step; render the npub
+        // form for humans. We do NOT round-trip through a bech32 lib to
+        // keep the bundle dep-free — the hex is what SHC will hash into
+        // the account label anyway. UX-facing text uses npub1… (truncated).
+        state.npub = "npub1" + hexPubkey.slice(0, 12) + "…" + hexPubkey.slice(-8);
+        state.npubHex = hexPubkey;
+        render();
+      } catch (err) {
+        signerBtn.disabled = false;
+        signerBtn.textContent = "connect with signer";
+        const hint = document.getElementById("signerErr");
+        if (hint) hint.textContent = err.message || "signer failed";
+      }
+    });
+  }
+
+  // step 4 — character cards
+  document.querySelectorAll(".avatar-card").forEach(el => {
+    el.addEventListener("click", () => {
+      const id = el.dataset.char;
+      const map = {
+        wanderer: {id:"wanderer", name:"Wanderer", role:"explorer"},
+        smith:    {id:"smith",    name:"Smith",    role:"maker"},
+        scribe:   {id:"scribe",   name:"Scribe",   role:"writer"},
+        trader:   {id:"trader",   name:"Trader",   role:"merchant"},
+      };
+      state.character = map[id];
+      render();
+    });
+  });
+
+  // step 5 — plot cards
+  document.querySelectorAll("[data-plot]").forEach(el => {
+    el.addEventListener("click", () => {
+      const id = el.dataset.plot;
+      const map = {
+        "square-w": {id, name:"West Square"},
+        "square-e": {id, name:"East Square"},
+        "harbor":   {id, name:"Harbor"},
+        "grove":    {id, name:"Cedar Grove"},
+      };
+      state.plot = map[id];
+      render();
+    });
+  });
+
+  // step 6 — slider
+  const slider = document.getElementById("supportSlider");
+  if (slider) {
+    slider.addEventListener("input", (e) => {
+      state.supportUsd = Number(e.target.value);
+      render();
+    });
+  }
+
+  // done — restart
+  const restart = document.getElementById("restartBtn");
+  if (restart) {
+    restart.addEventListener("click", () => {
+      Object.assign(state, {
+        step: 1,
+        name: "",
+        npub: "",
+        npubHex: null,
+        character: null,
+        plot: null,
+        supportUsd: 21,
+        // v0.1.3 build state — must be cleared so a second run through
+        // the wizard starts from a clean slate.
+        sshKeys: null,
+        catalogItem: null,
+        serviceId: null,
+        invoiceId: null,
+        checkoutUrl: null,
+        vmSummary: null,
+        buildLog: [],
+        buildStatus: "idle",
+        buildError: null,
+        keyExpiresAt: null,
+        // v0.1.4 additions — cleared so a fresh recovery bundle is minted.
+        shcEmail: null,
+        shcPassword: null,
+        shcApiKey: null,
+        // v0.1.5 additions — recovery layering state.
+        inboxRelayResult: null,
+        inboxRelays: null,
+        hintDm: null,
+        recoveryDownloaded: false,
+        encryptedBackup: null,
+      });
+      // Reset the SHC client so a fresh account can be minted on the next run.
+      try { shc.clearCredentials?.(); } catch { /* ignore */ }
+      render();
+    });
+  }
+
+  // step 8 — mandatory download gate
+  const dlBtn = document.getElementById("downloadRecoveryBtn");
+  if (dlBtn) {
+    dlBtn.addEventListener("click", () => {
+      try {
+        const blob = buildRecoveryFileBlob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        a.download = `torii-recovery-${state.name || "vps"}-${stamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        state.recoveryDownloaded = true;
+        render();
+      } catch (err) {
+        appendLog("err", `[recovery] download failed: ${humanError(err)}`);
+      }
+    });
+  }
+  const copiedBtn = document.getElementById("copiedManuallyBtn");
+  if (copiedBtn) {
+    copiedBtn.addEventListener("click", () => {
+      const sure = confirm(
+        "Only click OK if you have already saved your SSH private key AND SHC " +
+        "API key AND password to a password manager. Without them, you cannot " +
+        "recover this VPS if you lose your laptop.",
+      );
+      if (sure) {
+        state.recoveryDownloaded = true;
+        render();
+      }
+    });
+  }
+
+  // step 8 — encrypted backup opt-in checkbox
+  const ebCb = document.getElementById("encryptedBackupCheckbox");
+  if (ebCb) {
+    const form = document.getElementById("encryptedBackupForm");
+    ebCb.addEventListener("change", () => {
+      if (form) form.style.display = ebCb.checked ? "block" : "none";
+    });
+    // If already checked-disabled (encryption in progress or done), keep
+    // the form open so the user sees the result inline.
+    if (ebCb.checked && form) form.style.display = "block";
+  }
+  const ebGo = document.getElementById("encryptedBackupGo");
+  if (ebGo) {
+    ebGo.addEventListener("click", async () => {
+      const passInput = document.getElementById("encryptedBackupPass");
+      const hint = document.getElementById("encryptedBackupHint");
+      const pass = passInput?.value || "";
+      if (pass.length < 8) {
+        if (hint) {
+          hint.textContent = "passphrase must be at least 8 characters.";
+          hint.style.color = "hsl(var(--warning))";
+        }
+        return;
+      }
+      ebGo.disabled = true;
+      ebGo.textContent = "encrypting…";
+      // Mark encryptedBackup as "in-flight" so screenDone shows the spinner
+      // block and the checkbox stays checked+disabled on the next render.
+      state.encryptedBackup = { inflight: true };
+      render();
+      try {
+        await publishEncryptedBackup(pass);
+      } finally {
+        // Passphrase should not linger in the DOM after use.
+        if (passInput) passInput.value = "";
+      }
+    });
+  }
+}
+
+// Guard so a double-click or a stray Enter can't kick off two ordering
+// runs in parallel. The button itself is disabled during the async work,
+// but keyboard events can slip through if we don't gate this centrally.
+let nextBusy = false;
+
+nextBtn.addEventListener("click", async () => {
+  if (nextBusy) return;
+  if (!canAdvance()) return;
+
+  // Step 6 → 7: intercept and run the ordering flow. If we've already
+  // ordered (checkoutUrl set OR buildStatus === "provisioning"), we skip
+  // straight to the transition so paying users don't re-order.
+  if (state.step === 6 && !state.checkoutUrl && state.buildStatus !== "provisioning") {
+    nextBusy = true;
+    nextBtn.disabled = true;
+    try {
+      await runOrderingFlow();
+    } catch (err) {
+      state.buildStatus = "failed";
+      state.buildError = humanError(err);
+      render();
+      return;
+    } finally {
+      nextBusy = false;
+    }
+    // After ordering, stay on step 6 so the user can see the QR / checkout
+    // URL and pay. They tap “pay & build” again to advance.
+    render();
+    return;
+  }
+
+  // Step 6 (already ordered) → 7: advance, then kick off provisioning.
+  if (state.step === 6 && (state.checkoutUrl || state.buildStatus === "provisioning")) {
+    state.step = 7;
+    render();
+    nextBusy = true;
+    nextBtn.disabled = true;
+    try {
+      await runProvisioning();
+    } catch (err) {
+      state.buildStatus = "failed";
+      state.buildError = humanError(err);
+      appendLog("err", `[torii] ${state.buildError}`);
+      render();
+      return;
+    } finally {
+      nextBusy = false;
+      render();
+    }
+    return;
+  }
+
+  // Step 7 → 8: only allow if provisioning is actually done. If the user
+  // taps early, we no-op — canAdvance() below will be tightened to reflect this.
+  if (state.step === 7 && state.buildStatus !== "done") {
+    return;
+  }
+
+  state.step = Math.min(state.step + 1, screens.length);
+  render();
+});
+
+backBtn.addEventListener("click", () => {
+  state.step = Math.max(state.step - 1, 1);
+  render();
+});
+
+// initial render
+render();
+</script>
+
+</body>
+</html>
