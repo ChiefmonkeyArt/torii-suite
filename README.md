@@ -7,12 +7,49 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.2.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.3.0-alpha/bootstrap.sh | sudo bash
 ```
 
-The installer will ask three questions (domain, Let's Encrypt email, admin
-npub), preflight the host (Ubuntu version, root, DNS `A` record, ports 80/443
-free), then install everything and print a summary. No `.env` file to edit.
+The installer will show you the Torii banner, ask three questions (domain,
+Let's Encrypt email, admin npub), preflight the host (Ubuntu version, root,
+DNS `A` record, ports 80/443 free), then install everything with a live
+progress meter and print a summary card. No `.env` file to edit.
+
+What you'll see (roughly):
+
+```
+   ______              _ _
+  /_  __/___  _____   (_|_)
+   / / / __ \/ ___/  / / /
+  / / / /_/ / /     / / /
+ /_/  \____/_/     /_/_/
+     s u i t e   v0.3.0-alpha
+
+  one vps  ·  one domain  ·  a gateway to a
+  decentralised open world of infinite possibilities
+
+──  Preflight
+  ✓ Ubuntu 24.04
+  ✓ port 80 free
+  ✓ port 443 free
+  ✓ DNS: torii.example.com → 203.0.113.10
+
+──  Setup
+  → Domain (e.g. torii.example.com): torii.example.com
+  → Email for Let's Encrypt: you@example.com
+  → Your admin npub (starts with npub1): npub1…
+
+[3/7]  ████████░░░░░░░░░░░░  Ollama (local LLM fallback)
+
+  ✓ install Ollama + pull llama3.2:3b  (4m18s)
+  → measuring Ollama throughput on this host…
+  ✓ Ollama benchmark: 2.34 tok/s (llama3.2:3b)
+```
+
+Every stage's stdout streams to `/var/log/torii-suite/install-<timestamp>.log`
+so the terminal stays calm. On failure, the last 10 log lines print inline
+plus the full log path — no second SSH session needed to debug. Set
+`SUITE_QUIET=0` to stream everything to the terminal instead.
 
 > **You need before you start:** a domain with a single `A` record pointing at
 > your VPS's public IP, an email address for Let's Encrypt, and a **NIP-07
@@ -75,7 +112,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.2.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.3.0-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
