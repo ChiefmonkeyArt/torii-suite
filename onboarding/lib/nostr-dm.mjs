@@ -1,77 +1,60 @@
-// nostr-dm.mjs — NIP-17 encrypted recovery HINT to the operator's own npub.
+// nostr-dm.mjs — NIP-17 + NIP-59 encrypted recovery hint to the operator's own npub.
 //
-// v0.1.5-alpha (torii-suite/onboarding)
+// v0.1.6-alpha (torii-suite/onboarding)
 //
-// ─── What changed since v0.1.4 ─────────────────────────────────────────
+// ─── What changed since v0.1.5 ─────────────────────────────────────────
 //
-// v0.1.4 sent the entire recovery bundle (SSH private key, SHC password,
-// SHC API key) inside a self-DM. That was reviewed and rejected as a
-// privacy/security anti-pattern for three reasons:
+// v0.1.5 shipped the recovery hint DM as a bare NIP-17 kind-13 seal.
+// The seal itself is encrypted (NIP-44), so the content and recipient
+// are hidden — but the outer event carries the SENDER's real npub as
+// its `pubkey`. Every relay that receives the seal can therefore see:
 //
-//   1. NIP-17 has no forward or backward secrecy. If the user's nsec
-//      ever leaks, every DM they ever received is retroactively
-//      decryptable — including the recovery bundle. That would upgrade a
-//      key leak to a full VPS takeover.
-//   2. Community consensus (NIP-49 spec, Soapbox, Nostr.co.uk, nostr-
-//      design.org) is that credentials belong in a password manager or
-//      on paper — not on public relays.
-//   3. Falling back to NIP-04 was worse: legacy kind-4 events leak
-//      sender pubkey, recipient pubkey, timestamp, and message length
-//      even with encrypted content.
+//   "npub X just sent a NIP-17 sealed event"
 //
-// v0.1.5 sends a *recovery hint*: hostname, IP, SSH user, SSH
-// fingerprint (not the key), SHC API-key expiry (not the key), a short
-// note telling the user where the real backup lives. Losing this DM
-// costs the user nothing catastrophic; finding it six months later on
-// any nostr client points them at the VPS they can no longer place.
+// For a self-DM this is worse than usual: the sender IS the recipient,
+// so an observer correlating traffic with the freshly-published kind-
+// 10050 inbox relay list learns:
 //
-// The real backup path is either:
-//   - the downloaded recovery text file the user rescued at onboarding, or
-//   - the optional passphrase-encrypted kind-30078 blob (see nostr-
-//     appdata.mjs), which is NOT decryptable with the nsec alone.
+//   "npub X just finished Torii onboarding and self-DM'd a recovery hint"
 //
-// ─── Wire format ───────────────────────────────────────────────────────
+// That is a metadata fingerprint we can and should close. Priority
+// hierarchy is privacy first, then efficiency, then 80/20.
 //
-// We now emit a fully-nested NIP-17 event: kind-14 rumor → kind-13 seal
-// → kind-1059 gift wrap signed by an ephemeral throwaway key. The outer
-// wrap uses an ephemeral secp256k1 key so relays cannot tell who sent it
-// (this matters even for a self-DM: without a gift wrap, the sealed
-// event carries the sender's real pubkey and everyone can see the user
-// is talking to themselves).
+// v0.1.6 wraps every seal in a NIP-59 kind-1059 gift wrap. The outer
+// wrap is signed by a fresh single-use ephemeral secp256k1 keypair
+// generated in-browser (see lib/nostr-giftwrap.mjs and lib/vendor/
+// noble-secp256k1/). The ephemeral key never touches the user's NIP-07
+// signer, never leaves the browser, never persists to storage, and is
+// wiped from memory after signing. Relays see only:
 //
-// If the signer does not expose nip44.encrypt we REFUSE to fall back to
-// NIP-04. The screen 8 UI still shows the download-gate and the
-// optional encrypted-backup checkbox, so the user has a viable recovery
-// path without publishing anything.
+//   "some random one-time pubkey addressed a kind-1059 to npub X"
 //
-// The ephemeral wrapper keypair is generated in-browser with WebCrypto
-// (P-256 is not on the nostr curve, so we use secp256k1 via WebCrypto's
-// Ed25519 helpers is NOT possible — we use noble-curves style secp256k1
-// implemented inline). To avoid pulling in a full library we take the
-// same approach as v0.1.4 and hand the wrapping off to the signer when
-// it supports it, otherwise we generate a wrapper key ourselves via
-// WebCrypto's random primitives + a minimal secp256k1 signer.
+// The sender's real pubkey is inside the seal, which is inside the
+// gift wrap, which is NIP-44 encrypted to npub X's key. Only npub X
+// can decrypt to discover who the real sender was (themselves).
 //
-// v0.1.5 KEEPS IT SIMPLE: we generate an ephemeral secp256k1 keypair
-// with WebCrypto's `crypto.getRandomValues` for the private key and use
-// the signer's own NIP-44 conversation-key derivation to encrypt the
-// outer wrap when possible. Because that requires the signer to expose
-// nip44.encrypt for an arbitrary key (not just the user's), which most
-// signers DO NOT support today, we instead expose a `wrapperSigner`
-// option that callers can pass. If no `wrapperSigner` is provided we
-// omit the outer gift wrap and publish just the sealed event.
+// ─── Refusal policy ────────────────────────────────────────────────────
 //
-// This is a deliberate 80/20 trade — the seal itself hides all content
-// and metadata *inside* the event, and the outer wrap only hides the
-// sender pubkey. For a self-DM, sender == recipient, so an observer can
-// already infer "this pubkey is talking to itself" from any DM traffic
-// pattern; skipping the gift wrap does not degrade any additional
-// privacy the user can plausibly achieve without a real wrapper signer.
-// When signers grow arbitrary-key nip44 support (nostr-connect NIP-46
-// bunkers already do), we'll route the wrap through them.
+// If the user's NIP-07 signer does not expose `nip44.encrypt`, we
+// REFUSE to publish. There is no bare-seal or NIP-04 fallback: those
+// would silently downgrade the privacy properties this module exists
+// to provide. Screen 8 already treats the recovery hint DM as an
+// optional convenience layered on top of the mandatory local recovery
+// file download, so a refusal here is non-catastrophic — the user
+// still has their bundle on disk.
+//
+// ─── Payload trimming ──────────────────────────────────────────────────
+//
+// The hint itself carries NO catastrophic secrets — only hostname, IP,
+// SSH user, SSH fingerprint (verifiable, not the key), SHC API-key
+// expiry (not the key), and a pointer to the real backup paths. If
+// this DM ever leaks in plaintext it would cost the user nothing they
+// could not have discovered by scanning the internet. See the v0.1.5
+// commit message for the full threat-model discussion.
 
 import { signEvent, computeEventId, detectDmEncryption } from "./nostr-event.mjs";
 import { publishToRelays, DEFAULT_RELAYS } from "./nostr-relay.mjs";
+import { buildGiftWrap } from "./nostr-giftwrap.mjs";
 
 /**
  * The recovery HINT payload. NO credentials — just enough info for the
@@ -155,8 +138,9 @@ function formatHintBody(p) {
  */
 async function buildNip17Seal(recipientPubkey, bodyText, signer) {
   const now = Math.floor(Date.now() / 1000);
-  // NIP-17 recommends randomising created_at up to 2 days in the past so
-  // relays cannot correlate seals with real send times.
+  // NIP-59 recommends randomising created_at up to 2 days in the past
+  // for BOTH the seal and the wrap. We handle the seal here; the wrap
+  // timestamp is set inside buildGiftWrap.
   const rumorCreatedAt = now - Math.floor(Math.random() * 172800);
   const sealCreatedAt  = now - Math.floor(Math.random() * 172800);
 
@@ -181,39 +165,17 @@ async function buildNip17Seal(recipientPubkey, bodyText, signer) {
 }
 
 /**
- * Optionally wrap a signed seal in a NIP-59 kind-1059 gift wrap using a
- * caller-provided ephemeral signer. If no `wrapperSigner` is passed, we
- * publish the raw seal instead. See the module docstring for rationale.
+ * Publish the recovery hint to the user's own npub as a NIP-59
+ * gift-wrapped NIP-17 sealed DM.
  *
- * @param {object} seal                signed kind-13 event
- * @param {string} recipientPubkey     hex
- * @param {object} [wrapperSigner]     ephemeral NIP-07-shaped signer with nip44
- * @returns {Promise<object>}          event to publish (seal or gift wrap)
- */
-async function maybeGiftWrap(seal, recipientPubkey, wrapperSigner) {
-  if (!wrapperSigner || typeof wrapperSigner.signEvent !== "function"
-      || !wrapperSigner.nip44 || typeof wrapperSigner.nip44.encrypt !== "function") {
-    return seal; // seal-only publish
-  }
-  const now = Math.floor(Date.now() / 1000);
-  const wrapCreatedAt = now - Math.floor(Math.random() * 172800);
-  const sealJson = JSON.stringify(seal);
-  const wrappedContent = await wrapperSigner.nip44.encrypt(recipientPubkey, sealJson);
-  return signEvent(
-    {
-      kind: 1059,
-      tags: [["p", recipientPubkey]],
-      content: wrappedContent,
-      created_at: wrapCreatedAt,
-    },
-    { signer: wrapperSigner },
-  );
-}
-
-/**
- * Publish the recovery hint to the user's own npub as a NIP-17 sealed
- * DM. REFUSES to fall back to NIP-04 — if the signer lacks nip44 we
- * throw so screen 8 can surface the download-gate as the primary path.
+ * The outer envelope is a kind:1059 event signed by a fresh ephemeral
+ * secp256k1 key that is generated in-browser and destroyed immediately
+ * after signing. Relays see only the ephemeral pubkey; the user's real
+ * pubkey is hidden inside the encrypted seal.
+ *
+ * REFUSES to publish if the signer lacks NIP-44 support — no bare-seal
+ * or NIP-04 fallback. Screen 8's mandatory recovery file download is
+ * the primary backup path, so a refusal here is non-catastrophic.
  *
  * @param {RecoveryHint} hint
  * @param {object}    opts
@@ -222,8 +184,7 @@ async function maybeGiftWrap(seal, recipientPubkey, wrapperSigner) {
  * @param {number}    [opts.timeoutMs=8000]       per-relay publish timeout
  * @param {(r:object)=>void} [opts.onRelayResult] fires per relay
  * @param {object}    [opts.signer=window.nostr]  user's NIP-07 signer
- * @param {object}    [opts.wrapperSigner]        optional ephemeral signer for kind-1059
- * @returns {Promise<{scheme:"nip17-sealed"|"nip17-wrapped", eventId:string, okCount:number, results:Array}>}
+ * @returns {Promise<{scheme:"nip17-giftwrapped", eventId:string, ephemeralPubkey:string, okCount:number, results:Array}>}
  */
 export async function sendRecoveryHint(hint, opts) {
   if (!opts?.recipientPubkey || !/^[0-9a-f]{64}$/i.test(opts.recipientPubkey)) {
@@ -242,22 +203,28 @@ export async function sendRecoveryHint(hint, opts) {
 
   const bodyText = formatHintBody(hint);
   const seal = await buildNip17Seal(opts.recipientPubkey, bodyText, signer);
-  const published = await maybeGiftWrap(seal, opts.recipientPubkey, opts.wrapperSigner);
-  const outerScheme = published === seal ? "nip17-sealed" : "nip17-wrapped";
 
-  const publishResult = await publishToRelays(published, {
+  // Always gift-wrap. Never publish a bare seal — that leaks the
+  // sender's real pubkey on the outer envelope.
+  const wrapped = await buildGiftWrap({
+    seal,
+    recipientPubkey: opts.recipientPubkey,
+  });
+
+  const publishResult = await publishToRelays(wrapped, {
     relays: opts.relays || DEFAULT_RELAYS,
     timeoutMs: opts.timeoutMs,
     onResult: opts.onRelayResult,
   });
 
   return {
-    scheme: outerScheme,
+    scheme: "nip17-giftwrapped",
     eventId: publishResult.eventId,
+    ephemeralPubkey: wrapped.pubkey,
     okCount: publishResult.okCount,
     results: publishResult.results,
   };
 }
 
 // Re-exports so callers can inspect intermediate steps in tests.
-export { formatHintBody, buildNip17Seal, maybeGiftWrap };
+export { formatHintBody, buildNip17Seal };

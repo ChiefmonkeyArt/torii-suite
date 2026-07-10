@@ -1,6 +1,17 @@
 // nostr-mock.mjs — fake nostr signer + relay for ?mock=1 dev.
 //
-// v0.1.5-alpha (torii-suite/onboarding)
+// v0.1.6-alpha (torii-suite/onboarding)
+//
+// ─── Changes from v0.1.5 ───────────────────────────────────────────────
+//
+// The default mock pubkey is now a VALID secp256k1 x-only point (the
+// well-known secp256k1 generator G, x = 79be667e...). v0.1.5's default
+// was `1234...cdef`, which is fine as an opaque identifier but is not
+// a valid on-curve x-coordinate. v0.1.6's gift-wrap flow performs real
+// ECDH against the recipient pubkey (see lib/nostr-giftwrap.mjs), which
+// requires the pubkey to be a lift-able point on the curve. Using G
+// keeps the mock trivially deterministic while allowing the real crypto
+// pipeline to run end-to-end in ?mock=1.
 //
 // Two independent shims that share the same activation flag:
 //
@@ -33,7 +44,9 @@ export function installNostrSignerMock(opts = {}) {
   const existing = window.nostr || {};
   // Default to a deterministic 64-hex pubkey so the mock is usable without
   // any config — the ?mock=1 dev path needs `getPublicKey()` to succeed.
-  const DEFAULT_MOCK_PUBKEY = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  // secp256k1 generator G, x-only. Deterministic, valid on-curve point,
+  // safe as a mock recipient for the real ECDH inside gift-wrap.
+  const DEFAULT_MOCK_PUBKEY = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
   const pubkey = opts.pubkey || existing.__mockPubkey || DEFAULT_MOCK_PUBKEY;
 
   const withDefaults = {

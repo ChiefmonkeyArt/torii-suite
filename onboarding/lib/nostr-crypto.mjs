@@ -316,7 +316,10 @@ function hchacha20(key, nonce24) {
   return { subKey, nonce12 };
 }
 
-function chacha20(key, nonce12, input, output, initialCounter) {
+// Exported for reuse by lib/nostr-nip44.mjs (NIP-44 v2 also uses ChaCha20).
+// Reusing one implementation keeps the review surface small — both call
+// paths share the exact same rotation, constant, and counter code.
+export function chacha20(key, nonce12, input, output, initialCounter) {
   const state = new Uint32Array(16);
   state[0] = 0x61707865; state[1] = 0x3320646e; state[2] = 0x79622d32; state[3] = 0x6b206574;
   for (let i = 0; i < 8; i++) state[4 + i] = leU32(key, i * 4);
