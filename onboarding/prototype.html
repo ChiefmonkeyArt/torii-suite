@@ -464,7 +464,7 @@ const state = {
   //       from the nsec — so nsec compromise alone does not unlock it.
   inboxRelayResult: null,   // { eventId, okCount, results } or { error }
   inboxRelays:      null,   // string[] (resolved after kind-10050 publish)
-  hintDm:           null,   // { scheme, eventId, okCount, results } or { error } or { skipped }
+  hintDm:           null,   // { scheme, eventId, ephemeralPubkey, okCount, results } or { error } or { skipped }
   recoveryDownloaded: false, // set true once the user clicks download or opts out
   encryptedBackup:  null,   // { eventId, okCount, results } or { error } — L3
 };
@@ -810,7 +810,7 @@ async function publishRecoveryHint() {
     shcApiKeyExpires: state.keyExpiresAt,
     createdAt: new Date().toISOString(),
   };
-  appendLog("info", "[nostr] sending NIP-17 recovery hint (no secrets)…");
+  appendLog("info", "[nostr] sending gift-wrapped recovery hint (no secrets, sender unlinked)…");
   try {
     const result = await sendRecoveryHint(hint, {
       recipientPubkey: state.npubHex,
@@ -1369,15 +1369,18 @@ function screenDone() {
     const ok = dm.okCount;
     const total = dm.results?.length ?? 0;
     const shortId = dm.eventId.slice(0, 12);
+    const shortEph = (dm.ephemeralPubkey || "").slice(0, 12);
     dmBlockHtml = `
       <div class="disclosure" style="border-color: hsl(var(--success));">
-        <strong>recovery hint sent</strong> — NIP-17 sealed · ${ok}/${total} relays accepted
+        <strong>recovery hint sent (unlinked)</strong> — NIP-59 gift-wrap · ${ok}/${total} relays accepted
         <div style="margin-top:6px; font-family: var(--font-mono); font-size:0.72rem; color: hsl(var(--muted-foreground));">
-          event ${shortId}…
+          event ${shortId}… · ephemeral sender ${shortEph}…
         </div>
         <div style="margin-top:6px; font-size:0.75rem;">
-          The DM contains only non-catastrophic hints (hostname, IP, SSH
-          fingerprint) — no private keys, no passwords.
+          Your real npub is hidden inside the encrypted seal. Relays see
+          only a random one-time pubkey addressing your inbox. The DM
+          itself carries hints only (hostname, IP, SSH fingerprint) — no
+          private keys, no passwords.
         </div>
       </div>
     `;
