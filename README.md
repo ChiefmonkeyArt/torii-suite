@@ -1,6 +1,27 @@
 # torii-suite
 
-**One VPS. One domain. Continuum + Quest + Plebeian, side by side.**
+**One VPS. One domain. Continuum + Quest + Ollama + Plebeian, side by side.**
+
+## Install in one line
+
+On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.2.0-alpha/bootstrap.sh | sudo bash
+```
+
+The installer will ask three questions (domain, Let's Encrypt email, admin
+npub), preflight the host (Ubuntu version, root, DNS `A` record, ports 80/443
+free), then install everything and print a summary. No `.env` file to edit.
+
+> **You need before you start:** a domain with a single `A` record pointing at
+> your VPS's public IP, an email address for Let's Encrypt, and a **NIP-07
+> signer** (Plebeian Signer, nos2x, or similar) so you can hand the installer
+> your `npub`. **Never** hand it an `nsec` — the VPS doesn't sign anything.
+
+---
+
+## What you get
 
 `torii-suite` is a meta-installer. It composes the individual Torii apps into
 a single deployment on a fresh Ubuntu VPS:
@@ -13,8 +34,13 @@ https://your-domain.com/quest/          — Torii Quest (3D open-world game)
 https://your-domain.com/plebeian/       — Plebeian Market (external tile)
 ```
 
+Continuum also gets a **local Ollama daemon** on `127.0.0.1:11434` as an LLM
+fallback for when Routstr is unreachable or out of ecash. It runs the 3B
+`llama3.2` model by default — usable as a fallback on a CPU-only VPS (1–5 tok/s),
+not a daily driver. See [Ollama daily-driver notes](#ollama-a-fallback-not-a-daily-driver).
+
 Everything is opt-in. Install only Continuum if that's all you want. Add Quest
-later by re-running `bootstrap.sh` with `INSTALL_QUEST=1`.
+later by re-running the installer with `INSTALL_QUEST=1`.
 
 ---
 
@@ -27,6 +53,7 @@ torii-suite/
 ├── .env.example                  # env contract (copy to .env)
 ├── installers/
 │   ├── install-continuum.sh      # frontend + agent + systemd + nginx fragment
+│   ├── install-ollama.sh         # local LLM daemon (loopback, systemd-managed)
 │   ├── install-quest.sh          # static bundle at /quest/ + nginx fragment
 │   ├── register-plebeian.sh      # launcher tile only (Plebeian is external)
 │   └── install-bridges.sh        # onboarding bridges: cors-proxy + webssh
@@ -43,15 +70,23 @@ torii-suite/
 
 ---
 
-## Quick install
+## Install options
 
-**Requirements:** Ubuntu 22.04 or 24.04, root (or a passwordless-sudo user),
-a DNS `A` record pointing at your VPS, and an email address for Let's Encrypt.
-You will also need a **NIP-07 signer** (Plebeian Signer, nos2x, or similar) so
-you can hand the installer your `npub`.
+### A. One-liner (recommended for non-coders)
 
 ```bash
-# 1. Point your domain at the VPS, then SSH in as root:
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.2.0-alpha/bootstrap.sh | sudo bash
+```
+
+The installer clones itself to `/opt/torii-suite/checkout/`, asks three
+questions, writes your answers to `.env` (mode `0600`), preflights the host,
+and runs. Re-run the same command later to update — it detects the existing
+`.env` and skips the prompts.
+
+### B. Manual (for operators who want to edit `.env` by hand)
+
+```bash
+# 1. SSH into your VPS as root (or a passwordless-sudo user):
 git clone https://github.com/ChiefmonkeyArt/torii-suite.git
 cd torii-suite
 
@@ -66,14 +101,15 @@ nano .env
 sudo -E ./bootstrap.sh
 ```
 
-That's it. In roughly 5–10 minutes on a small VPS you'll have all three apps
-running behind a Let's Encrypt certificate.
+Either way, in roughly 10–20 minutes on a small VPS you'll have the full suite
+running behind a Let's Encrypt certificate (add ~5–10 minutes on first install
+while Ollama pulls the 2GB model).
 
 ---
 
 ## What the bootstrap does
 
-Six stages, each idempotent (safe to re-run):
+Seven stages, each idempotent (safe to re-run):
 
 1. **torii-base** — clones and runs [torii-base](https://github.com/ChiefmonkeyArt/torii-base)'s
    own `bootstrap.sh`, which installs nginx, certbot, node@22, the launcher
@@ -85,6 +121,12 @@ Six stages, each idempotent (safe to re-run):
    agent under the `continuum` system user at `/home/continuum/agent/repo/`,
    generates a session secret, writes `continuum-agent.service`, and drops an
    nginx fragment that mounts `/continuum/` (static) and `/agent/` (proxy).
+2b. **Ollama** *(opt-in, on by default when Continuum is installed)* — installs
+   the official Ollama daemon, writes a systemd override binding it to
+   `127.0.0.1:11434` with `OLLAMA_ORIGINS` restricted to localhost, pulls the
+   default model (`llama3.2:3b`, ~2 GB), and flips `ollama.enabled: true` in
+   the Continuum agent config. The agent's model router keeps Routstr as first
+   choice — Ollama is only used when Routstr is unavailable.
 3. **Quest** — clones torii-quest, patches `vite.config.js` for a `/quest/`
    base path (see [`docs/HOSTING.md`](docs/HOSTING.md) §Quest sub-path), builds,
    snapshots into `/var/www/torii/quest-releases/<stamp>/`, atomically flips
@@ -161,12 +203,43 @@ full set on any VPS with root access.
 
 ---
 
-## Updating
+## Ollama: a fallback, not a daily driver
 
-Re-run the bootstrap:
+Continuum defaults to **Routstr first, Ollama second**. Routstr calls out to
+hosted models via a Nostr provider marketplace, paid per-request in Cashu —
+fast and high-quality. When Routstr is unreachable or your wallet is empty,
+the agent falls back to the local Ollama daemon this installer sets up.
+
+On a CPU-only VPS the default `llama3.2:3b` model will produce roughly:
+
+| Host                       | Approximate throughput             |
+| -------------------------- | ---------------------------------- |
+| 2 vCPU / 4 GB RAM VPS      | 1–3 tok/s — fallback only          |
+| 8 vCPU / 16 GB RAM VPS     | 5–10 tok/s — workable for short prompts |
+| RTX 3060 12 GB (desktop)   | 40–70 tok/s — daily-driver range   |
+| RTX 4090 / A100            | 100+ tok/s                         |
+
+Upcoming slice **SUITE-OLLAMA-REMOTE-1** will let you point the Continuum
+agent at a remote Ollama endpoint over WireGuard/Tailscale — keep the VPS
+small, run Ollama on your own GPU box at home, get daily-driver latency
+without paying VPS GPU rates.
+
+To swap models later:
 
 ```bash
-cd torii-suite
+sudo -u root ollama pull qwen2.5:7b
+sudo -u continuum sed -i 's|llama3.2:3b|qwen2.5:7b|g' /home/continuum/agent/repo/agent/config.yaml
+sudo systemctl restart continuum-agent
+```
+
+---
+
+## Updating
+
+Re-run the same one-liner (it re-clones and pulls the latest tag), or:
+
+```bash
+cd /opt/torii-suite/checkout   # or wherever you cloned it manually
 git pull --ff-only
 sudo -E ./bootstrap.sh
 ```
@@ -187,7 +260,7 @@ TORII_QUEST_REF=v0.2.362-alpha
 
 ## Uninstall
 
-Suite v0.1.0 does not ship an uninstaller. To tear down:
+Suite v0.2.0 does not ship an uninstaller. To tear down:
 
 ```bash
 sudo torii unregister continuum
@@ -195,15 +268,27 @@ sudo torii unregister quest
 sudo torii unregister plebeian
 sudo torii unregister bridges 2>/dev/null || true
 sudo systemctl disable --now continuum-agent
+sudo systemctl disable --now ollama 2>/dev/null || true
 sudo systemctl disable --now torii-cors-proxy torii-webssh 2>/dev/null || true
 sudo rm /etc/systemd/system/continuum-agent.service
 sudo rm -f /etc/systemd/system/torii-cors-proxy.service /etc/systemd/system/torii-webssh.service
+sudo rm -rf /etc/systemd/system/ollama.service.d
 sudo rm /opt/torii/nginx-fragments/continuum.conf
 sudo rm /opt/torii/nginx-fragments/quest.conf
 sudo rm -f /opt/torii/nginx-fragments/bridges.conf
 sudo rm -rf /var/www/torii/{continuum,continuum-releases,quest,quest-releases}
 sudo rm -rf /home/continuum /opt/torii/bridges
 sudo torii reload
+```
+
+To also remove Ollama and its models (frees ~2 GB per model):
+
+```bash
+sudo systemctl stop ollama
+sudo rm -f /usr/local/bin/ollama
+sudo rm -f /etc/systemd/system/ollama.service
+sudo rm -rf /usr/share/ollama
+sudo userdel ollama 2>/dev/null || true
 ```
 
 To remove torii-base itself, follow the uninstall steps in the torii-base repo.
