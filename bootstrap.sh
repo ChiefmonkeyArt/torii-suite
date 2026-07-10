@@ -193,7 +193,8 @@ torii-suite needs three things to get started:
 
   1. A domain name that already points at this VPS's public IP
      (one A record — e.g. torii.example.com → 203.0.113.10)
-  2. An email address for Let's Encrypt certificate registration
+  2. An email address for Let's Encrypt (free HTTPS certificates).
+     Used only for cert-expiry warnings — any working inbox is fine.
   3. Your Nostr npub (from Plebeian Signer, nos2x, or another NIP-07 signer)
      — this is the account that will be the Continuum admin. NEVER an nsec.
 
@@ -202,7 +203,7 @@ INTRO
   ask "Domain (e.g. torii.example.com)"          TORII_DOMAIN
   [[ -n "$TORII_DOMAIN" ]] || die "domain is required"
 
-  ask "Let's Encrypt email"                       LETSENCRYPT_EMAIL
+  ask "Email for Let's Encrypt (HTTPS cert expiry warnings)" LETSENCRYPT_EMAIL
   [[ "$LETSENCRYPT_EMAIL" == *@*.* ]] || die "email doesn't look like an email"
 
   ask "Your admin npub (starts with npub1)"       CONTINUUM_ADMIN_NPUB
