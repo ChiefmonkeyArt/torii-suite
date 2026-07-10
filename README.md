@@ -7,7 +7,7 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.3.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.4.0-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer will show you the Torii banner, ask three questions (domain,
@@ -112,7 +112,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.3.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.4.0-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
@@ -256,12 +256,55 @@ On a CPU-only VPS the default `llama3.2:3b` model will produce roughly:
 | RTX 3060 12 GB (desktop)   | 40–70 tok/s — daily-driver range   |
 | RTX 4090 / A100            | 100+ tok/s                         |
 
-Upcoming slice **SUITE-OLLAMA-REMOTE-1** will let you point the Continuum
-agent at a remote Ollama endpoint over WireGuard/Tailscale — keep the VPS
-small, run Ollama on your own GPU box at home, get daily-driver latency
-without paying VPS GPU rates.
+### Remote Ollama endpoint
 
-To swap models later:
+If you already run Ollama somewhere with real horsepower — a homelab GPU box,
+a Tailscale/WireGuard LAN, a private VPS — the suite can skip the local
+install and wire Continuum at your existing endpoint. Keep the public VPS
+small, get daily-driver latency without paying VPS GPU rates.
+
+During the interactive install, the fourth question is:
+
+```
+→ Ollama LLM fallback: [local] install here, or [remote] use existing? remote
+→ Remote Ollama URL (e.g. http://10.0.0.5:11434 or https://ollama.example.com): http://ollama-box.tailnet.ts.net:11434
+→ Auth header for remote endpoint (or blank if none): 
+```
+
+Or non-interactively via `.env`:
+
+```
+OLLAMA_MODE=remote
+OLLAMA_URL=http://ollama-box.tailnet.ts.net:11434
+OLLAMA_AUTH_HEADER=          # blank for LAN/Tailscale, or 'Authorization: Bearer sk-...'
+```
+
+What happens:
+
+- **Preflight probe.** Before running any stages, bootstrap does
+  `GET ${OLLAMA_URL}/api/tags` (5s timeout, with the auth header if you gave
+  one). If it fails, install aborts with a clear message — no half-installed
+  system to clean up.
+- **Local install stage is skipped.** No systemd unit, no model pull, no
+  loopback bind. The stage counter reflects this.
+- **Continuum config is rewritten.** `agent/config.yaml` gets
+  `ollama.enabled: true`, `ollama.host: <your URL>`, and (if provided)
+  `ollama.auth_header: <your header>` — the file stays at mode 0600.
+- **Live benchmark still runs** against the remote endpoint. The final
+  summary card shows the measured tok/s you'll actually get.
+
+Security notes:
+
+- Plaintext `http://` to a public-looking host emits a warning — inference
+  traffic is in the clear. RFC1918, loopback, Tailscale (`*.ts.net`,
+  `100.64/10`), and `*.internal`/`*.lan`/`*.local`/`*.home` addresses are
+  treated as private and don't warn. For public endpoints, use `https://`.
+- The auth header is only useful for endpoints behind a reverse proxy that
+  requires it (nginx `auth_basic`, oauth2-proxy, a bearer-token gateway).
+  Vanilla Ollama has no auth of its own — don't expose it to the internet
+  without one.
+
+### Swapping local models
 
 ```bash
 sudo -u root ollama pull qwen2.5:7b

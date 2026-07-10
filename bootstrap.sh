@@ -183,6 +183,9 @@ elif [[ -e /dev/tty ]]; then
   ui_box_line "   ${UI_DIM}used only for cert-expiry warnings${UI_RESET}"
   ui_box_line "3. Your ${UI_CYAN}Nostr npub${UI_RESET} (from a NIP-07 signer)"
   ui_box_line "   ${UI_DIM}Continuum admin login. NEVER an nsec.${UI_RESET}"
+  ui_box_rule
+  ui_box_line "${UI_DIM}Optional: point the LLM fallback at a remote Ollama box${UI_RESET}"
+  ui_box_line "${UI_DIM}instead of installing one here.${UI_RESET}"
   ui_box_bottom
   printf "\n"
 
@@ -196,6 +199,28 @@ elif [[ -e /dev/tty ]]; then
   [[ "$CONTINUUM_ADMIN_NPUB" == npub1* ]] \
     || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub (starts with npub1)"
 
+  # Optional 4th question: local Ollama vs. remote endpoint.
+  # Default is "local" — press Enter to keep the old behaviour.
+  OLLAMA_MODE="${OLLAMA_MODE:-}"
+  ui_ask "Ollama LLM fallback: [local] install here, or [remote] use existing?" OLLAMA_MODE
+  OLLAMA_MODE="${OLLAMA_MODE:-local}"
+  OLLAMA_MODE="${OLLAMA_MODE,,}"  # lowercase
+  case "$OLLAMA_MODE" in
+    local|remote) ;;
+    "") OLLAMA_MODE="local" ;;
+    *) ui_die "OLLAMA_MODE must be 'local' or 'remote' (got: ${OLLAMA_MODE})" ;;
+  esac
+
+  OLLAMA_URL=""
+  OLLAMA_AUTH_HEADER=""
+  if [[ "$OLLAMA_MODE" == "remote" ]]; then
+    ui_ask "Remote Ollama URL (e.g. http://10.0.0.5:11434 or https://ollama.example.com)" OLLAMA_URL
+    [[ "$OLLAMA_URL" =~ ^https?://.+ ]] \
+      || ui_die "OLLAMA_URL must start with http:// or https://"
+    # Optional auth header — leave blank for LAN/Tailscale endpoints.
+    ui_ask "Auth header for remote endpoint (or blank if none, e.g. 'Authorization: Bearer sk-...')" OLLAMA_AUTH_HEADER
+  fi
+
   ui_ok "writing answers to ${SCRIPT_DIR}/.env (mode 0600)"
   umask 077
   cat > "${SCRIPT_DIR}/.env" <<EOF
@@ -203,6 +228,9 @@ elif [[ -e /dev/tty ]]; then
 TORII_DOMAIN="${TORII_DOMAIN}"
 LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL}"
 CONTINUUM_ADMIN_NPUB="${CONTINUUM_ADMIN_NPUB}"
+OLLAMA_MODE="${OLLAMA_MODE}"
+OLLAMA_URL="${OLLAMA_URL}"
+OLLAMA_AUTH_HEADER="${OLLAMA_AUTH_HEADER}"
 EOF
   umask 022
 else
@@ -244,8 +272,32 @@ TORII_QUEST_REF="${TORII_QUEST_REF:-main}"
 CONTINUUM_AGENT_PORT="${CONTINUUM_AGENT_PORT:-8787}"
 PLEBEIAN_EXTERNAL_URL="${PLEBEIAN_EXTERNAL_URL:-https://plebeian.market}"
 SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
+OLLAMA_MODE="${OLLAMA_MODE:-local}"
+OLLAMA_MODE="${OLLAMA_MODE,,}"
 OLLAMA_BIND="${OLLAMA_BIND:-127.0.0.1:11434}"
 OLLAMA_MODELS="${OLLAMA_MODELS:-llama3.2:3b}"
+OLLAMA_URL="${OLLAMA_URL:-}"
+OLLAMA_AUTH_HEADER="${OLLAMA_AUTH_HEADER:-}"
+
+case "$OLLAMA_MODE" in
+  local|remote) ;;
+  *) ui_die "OLLAMA_MODE must be 'local' or 'remote' (got: ${OLLAMA_MODE})" ;;
+esac
+
+if [[ "$OLLAMA_MODE" == "remote" && "$INSTALL_OLLAMA" == "1" ]]; then
+  [[ -n "$OLLAMA_URL" ]] || ui_die "OLLAMA_MODE=remote requires OLLAMA_URL to be set"
+  [[ "$OLLAMA_URL" =~ ^https?://.+ ]] \
+    || ui_die "OLLAMA_URL must start with http:// or https://"
+fi
+
+# Resolve the endpoint the benchmark + Continuum will actually hit. In local
+# mode this is http://<bind>; in remote mode it's OLLAMA_URL as-is (no trailing
+# slash to keep string concatenation clean).
+if [[ "$OLLAMA_MODE" == "remote" ]]; then
+  OLLAMA_ENDPOINT="${OLLAMA_URL%/}"
+else
+  OLLAMA_ENDPOINT="http://${OLLAMA_BIND}"
+fi
 CORS_PROXY_UPSTREAM_ALLOW="${CORS_PROXY_UPSTREAM_ALLOW:-blesta.sovereignhybridcompute.com}"
 CORS_PROXY_PORT="${CORS_PROXY_PORT:-8801}"
 WEBSSH_PORT="${WEBSSH_PORT:-8802}"
@@ -254,7 +306,7 @@ WEBSSH_MAX_SESSION_MS="${WEBSSH_MAX_SESSION_MS:-900000}"
 
 export TORII_DOMAIN LETSENCRYPT_EMAIL SKIP_CERTBOT
 export CONTINUUM_ADMIN_NPUB CONTINUUM_AGENT_PORT
-export INSTALL_OLLAMA OLLAMA_BIND OLLAMA_MODELS
+export INSTALL_OLLAMA OLLAMA_MODE OLLAMA_BIND OLLAMA_MODELS OLLAMA_URL OLLAMA_AUTH_HEADER OLLAMA_ENDPOINT
 export SUITE_WORK_DIR
 export CORS_PROXY_ORIGIN_ALLOW CORS_PROXY_UPSTREAM_ALLOW CORS_PROXY_PORT
 export WEBSSH_ORIGIN_ALLOW WEBSSH_PORT WEBSSH_MAX_PER_IP WEBSSH_MAX_SESSION_MS
@@ -284,13 +336,57 @@ else
 fi
 
 # --------------------------------------------------------------------------- #
+# Remote Ollama preflight (only when OLLAMA_MODE=remote)                      #
+# --------------------------------------------------------------------------- #
+#
+# Probe /api/tags on the remote endpoint before running any stages. Better to
+# fail here in 5 seconds than after installing torii-base + Continuum.
+#
+if [[ "$INSTALL_OLLAMA" == "1" && "$OLLAMA_MODE" == "remote" ]]; then
+  # Warn on plaintext http:// to a non-loopback / non-RFC1918 host.
+  # Extract the host portion between :// and (: or / or end).
+  _ollama_host="${OLLAMA_URL#*://}"
+  _ollama_host="${_ollama_host%%[/?#]*}"
+  _ollama_host="${_ollama_host%%:*}"
+  if [[ "$OLLAMA_URL" == http://* ]]; then
+    case "$_ollama_host" in
+      127.*|localhost|::1)                                 ;;  # loopback
+      10.*|192.168.*)                                      ;;  # RFC1918
+      172.1[6-9].*|172.2[0-9].*|172.3[0-1].*)              ;;  # RFC1918 172.16/12
+      100.6[4-9].*|100.[7-9][0-9].*|100.1[0-1][0-9].*|100.12[0-7].*) ;;  # CGNAT / Tailscale 100.64/10
+      *.ts.net|*.tail*.net)                                ;;  # Tailscale MagicDNS
+      *.internal|*.lan|*.local|*.home)                     ;;  # common LAN suffixes
+      *)
+        ui_warn "OLLAMA_URL uses plain http:// to a public-looking host (${_ollama_host}) — inference traffic will be in the clear. Prefer https:// or a private-network address."
+        ;;
+    esac
+  fi
+
+  ui_step "probing remote Ollama at ${OLLAMA_URL} ..."
+  _probe_args=(-fsS -m 5 "${OLLAMA_ENDPOINT}/api/tags")
+  [[ -n "$OLLAMA_AUTH_HEADER" ]] && _probe_args+=(-H "$OLLAMA_AUTH_HEADER")
+  if _probe_out="$(curl "${_probe_args[@]}" 2>>"$SUITE_LOG_FILE")"; then
+    if printf "%s" "$_probe_out" | grep -qE '"models"[[:space:]]*:'; then
+      _model_count="$(printf "%s" "$_probe_out" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | wc -l | tr -d ' ')"
+      ui_ok "remote Ollama reachable — ${_model_count} model(s) available"
+    else
+      ui_warn "remote Ollama responded but /api/tags didn't return a models array (see log)"
+    fi
+  else
+    ui_die "remote Ollama at ${OLLAMA_URL} did not respond — fix OLLAMA_URL / OLLAMA_AUTH_HEADER or switch to OLLAMA_MODE=local"
+  fi
+  unset _probe_args _probe_out _model_count _ollama_host
+fi
+
+# --------------------------------------------------------------------------- #
 # Plan summary                                                                #
 # --------------------------------------------------------------------------- #
 
-# Compute stage count for the progress meter.
+# Compute stage count for the progress meter. Remote mode skips the install
+# stage entirely (there's nothing to install), so it doesn't count.
 _STAGES_TOTAL=1  # base
 [[ "$INSTALL_CONTINUUM"          == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
-[[ "$INSTALL_OLLAMA"             == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_OLLAMA"             == "1" && "$OLLAMA_MODE" == "local" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_QUEST"              == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_PLEBEIAN"           == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
@@ -312,7 +408,11 @@ ui_box_line "${UI_BOLD}Install plan${UI_RESET}  ${UI_DIM}v${SUITE_VERSION}${UI_R
 ui_box_rule
 ui_box_line "Domain      ${UI_CYAN}${TORII_DOMAIN}${UI_RESET}"
 ui_box_line "Continuum   $(_plan_row "$INSTALL_CONTINUUM" "install ${UI_DIM}(agent :${CONTINUUM_AGENT_PORT})${UI_RESET}")"
-ui_box_line "Ollama      $(_plan_row "$INSTALL_OLLAMA" "install ${UI_DIM}(${OLLAMA_MODELS})${UI_RESET}")"
+if [[ "$INSTALL_OLLAMA" == "1" && "$OLLAMA_MODE" == "remote" ]]; then
+  ui_box_line "Ollama      ${UI_GREEN}remote${UI_RESET} ${UI_DIM}(${OLLAMA_URL})${UI_RESET}"
+else
+  ui_box_line "Ollama      $(_plan_row "$INSTALL_OLLAMA" "install ${UI_DIM}(${OLLAMA_MODELS})${UI_RESET}")"
+fi
 ui_box_line "Quest       $(_plan_row "$INSTALL_QUEST" "install")"
 ui_box_line "Plebeian    $(_plan_row "$INSTALL_PLEBEIAN" "tile")"
 ui_box_line "Bridges     $(_plan_row "$INSTALL_ONBOARDING_BRIDGES" "install")"
@@ -393,37 +493,57 @@ fi
 
 OLLAMA_BENCH=""
 if [[ "$INSTALL_OLLAMA" == "1" ]]; then
-  stage_header "Ollama (local LLM fallback)"
-  run_stage "install Ollama + pull ${OLLAMA_MODELS}" _stage_ollama
-
-  # Live benchmark — measure actual tok/s on this VPS. Costs ~15s, gives the
-  # operator a real number instead of the README's range.
-  ui_step "measuring Ollama throughput on this host..."
-  # Use the first model in $OLLAMA_MODELS for the benchmark.
-  _bench_model="${OLLAMA_MODELS%% *}"
-  # Ask for exactly 32 tokens of output; measure eval_count / eval_duration.
-  # eval_duration is in nanoseconds.
-  _bench_json="$(
-    curl -fsS -m 120 "http://${OLLAMA_BIND}/api/generate" \
-      -H 'Content-Type: application/json' \
-      -d "$(printf '{"model":"%s","prompt":"Say the word hello.","stream":false,"options":{"num_predict":32}}' "$_bench_model")" \
-      2>>"$SUITE_LOG_FILE" || echo ""
-  )"
-  if [[ -n "$_bench_json" ]]; then
-    _eval_count=$(printf "%s" "$_bench_json" | grep -oE '"eval_count":[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
-    _eval_dur=$(printf "%s"   "$_bench_json" | grep -oE '"eval_duration":[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
-    if [[ -n "$_eval_count" && -n "$_eval_dur" && "$_eval_dur" -gt 0 ]]; then
-      # tok/s = eval_count / (eval_duration / 1e9); use integer math × 100 for one decimal.
-      _tps_x100=$(( _eval_count * 100000000000 / _eval_dur ))
-      _tps_int=$(( _tps_x100 / 100 ))
-      _tps_frac=$(( _tps_x100 % 100 ))
-      OLLAMA_BENCH="$(printf "%d.%02d tok/s (%s)" "$_tps_int" "$_tps_frac" "$_bench_model")"
-      ui_ok "Ollama benchmark: ${OLLAMA_BENCH}"
-    else
-      ui_warn "Ollama benchmark: could not parse response (see log)"
-    fi
+  if [[ "$OLLAMA_MODE" == "remote" ]]; then
+    ui_section "Ollama (remote endpoint)"
+    ui_ok "using existing endpoint at ${OLLAMA_URL} — nothing to install"
   else
-    ui_warn "Ollama benchmark: request failed (see log)"
+    stage_header "Ollama (local LLM fallback)"
+    run_stage "install Ollama + pull ${OLLAMA_MODELS}" _stage_ollama
+  fi
+
+  # Live benchmark — measure actual tok/s for whichever endpoint we're going
+  # to use. Costs ~15s, gives the operator a real number instead of guessing.
+  # For local mode we use the first shipped model; for remote we ask the
+  # endpoint for its first available model.
+  ui_step "measuring Ollama throughput..."
+  if [[ "$OLLAMA_MODE" == "remote" ]]; then
+    _tags_args=(-fsS -m 5 "${OLLAMA_ENDPOINT}/api/tags")
+    [[ -n "$OLLAMA_AUTH_HEADER" ]] && _tags_args+=(-H "$OLLAMA_AUTH_HEADER")
+    _tags_json="$(curl "${_tags_args[@]}" 2>>"$SUITE_LOG_FILE" || echo "")"
+    _bench_model="$(printf "%s" "$_tags_json" | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed -E 's/^"name"[[:space:]]*:[[:space:]]*"([^"]+)"$/\1/')"
+    if [[ -z "$_bench_model" ]]; then
+      ui_warn "Ollama benchmark: remote endpoint has no models pulled yet — skipping"
+      _bench_model=""
+    fi
+    unset _tags_args _tags_json
+  else
+    _bench_model="${OLLAMA_MODELS%% *}"
+  fi
+
+  if [[ -n "$_bench_model" ]]; then
+    # Ask for exactly 32 tokens of output; measure eval_count / eval_duration.
+    # eval_duration is in nanoseconds.
+    _bench_args=(-fsS -m 120 "${OLLAMA_ENDPOINT}/api/generate" -H 'Content-Type: application/json')
+    [[ -n "$OLLAMA_AUTH_HEADER" ]] && _bench_args+=(-H "$OLLAMA_AUTH_HEADER")
+    _bench_args+=(-d "$(printf '{"model":"%s","prompt":"Say the word hello.","stream":false,"options":{"num_predict":32}}' "$_bench_model")")
+    _bench_json="$(curl "${_bench_args[@]}" 2>>"$SUITE_LOG_FILE" || echo "")"
+    if [[ -n "$_bench_json" ]]; then
+      _eval_count=$(printf "%s" "$_bench_json" | grep -oE '"eval_count":[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+      _eval_dur=$(printf "%s"   "$_bench_json" | grep -oE '"eval_duration":[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+      if [[ -n "$_eval_count" && -n "$_eval_dur" && "$_eval_dur" -gt 0 ]]; then
+        # tok/s = eval_count / (eval_duration / 1e9); use integer math × 100 for one decimal.
+        _tps_x100=$(( _eval_count * 100000000000 / _eval_dur ))
+        _tps_int=$(( _tps_x100 / 100 ))
+        _tps_frac=$(( _tps_x100 % 100 ))
+        OLLAMA_BENCH="$(printf "%d.%02d tok/s (%s)" "$_tps_int" "$_tps_frac" "$_bench_model")"
+        ui_ok "Ollama benchmark: ${OLLAMA_BENCH}"
+      else
+        ui_warn "Ollama benchmark: could not parse response (see log)"
+      fi
+    else
+      ui_warn "Ollama benchmark: request failed (see log)"
+    fi
+    unset _bench_args _bench_json _eval_count _eval_dur _tps_x100 _tps_int _tps_frac
   fi
 fi
 
@@ -459,7 +579,11 @@ ui_box_line "Launcher     ${UI_CYAN}https://${TORII_DOMAIN}/${UI_RESET}"
 [[ "$INSTALL_QUEST" == "1" ]]     && ui_box_line "Quest        ${UI_CYAN}https://${TORII_DOMAIN}/quest/${UI_RESET}"
 [[ "$INSTALL_PLEBEIAN" == "1" ]]  && ui_box_line "Plebeian     ${UI_DIM}${PLEBEIAN_EXTERNAL_URL}${UI_RESET}"
 if [[ "$INSTALL_OLLAMA" == "1" ]]; then
-  ui_box_line "Ollama       ${UI_DIM}${OLLAMA_BIND} (loopback)${UI_RESET}"
+  if [[ "$OLLAMA_MODE" == "remote" ]]; then
+    ui_box_line "Ollama       ${UI_DIM}remote: ${OLLAMA_URL}${UI_RESET}"
+  else
+    ui_box_line "Ollama       ${UI_DIM}${OLLAMA_BIND} (loopback)${UI_RESET}"
+  fi
   [[ -n "$OLLAMA_BENCH" ]] && ui_box_line "  ${UI_ARROW} measured  ${UI_PINK}${OLLAMA_BENCH}${UI_RESET}"
 fi
 ui_box_rule
@@ -471,8 +595,13 @@ ui_box_line "   sign in with your NIP-07 signer"
 ui_box_line "2. Top up your Cashu wallet from the signer"
 ui_box_line "   so Continuum can pay Routstr per request"
 if [[ "$INSTALL_OLLAMA" == "1" ]]; then
-  ui_box_line "3. Local Ollama is running as a fallback when"
-  ui_box_line "   Routstr is unreachable or the wallet is empty"
+  if [[ "$OLLAMA_MODE" == "remote" ]]; then
+    ui_box_line "3. Continuum will fall back to your remote Ollama"
+    ui_box_line "   when Routstr is unreachable or the wallet is empty"
+  else
+    ui_box_line "3. Local Ollama is running as a fallback when"
+    ui_box_line "   Routstr is unreachable or the wallet is empty"
+  fi
 fi
 ui_box_rule
 ui_box_line "Logs         ${UI_DIM}${SUITE_LOG_FILE}${UI_RESET}"
