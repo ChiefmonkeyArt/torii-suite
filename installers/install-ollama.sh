@@ -29,6 +29,13 @@ die()  { printf "\033[31mxx  %s\033[0m\n" "$*" >&2; exit 1; }
 
 [[ $EUID -eq 0 ]] || die "install-ollama must run as root"
 
+# Defence in depth: bootstrap.sh already skips this stage in remote mode, but
+# a hand-run of this installer while OLLAMA_MODE=remote is set in the env
+# would otherwise install a local daemon the operator didn't want. Refuse.
+if [[ "${OLLAMA_MODE:-local}" == "remote" ]]; then
+  die "OLLAMA_MODE=remote is set — not installing a local Ollama daemon. Unset OLLAMA_MODE or set it to 'local' if you want the local install."
+fi
+
 OLLAMA_BIND="${OLLAMA_BIND:-127.0.0.1:11434}"
 OLLAMA_MODELS="${OLLAMA_MODELS:-llama3.2:3b}"
 OLLAMA_HEALTHCHECK_TRIES="${OLLAMA_HEALTHCHECK_TRIES:-20}"

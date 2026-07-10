@@ -190,17 +190,32 @@ fi
 # change without the operator hand-editing config.yaml.
 #
 if [[ "${INSTALL_OLLAMA:-0}" == "1" ]]; then
-  log "flipping ollama.enabled -> true in agent/config.yaml"
+  _ollama_mode="${OLLAMA_MODE:-local}"
+  # Resolve the endpoint we want the agent to hit.
+  if [[ "$_ollama_mode" == "remote" ]]; then
+    _ollama_target="${OLLAMA_URL%/}"
+    log "flipping ollama.enabled -> true and pointing ollama.host at ${_ollama_target} in agent/config.yaml"
+  else
+    _ollama_target="http://${OLLAMA_BIND:-127.0.0.1:11434}"
+    log "flipping ollama.enabled -> true in agent/config.yaml (local mode, host stays at ${_ollama_target})"
+  fi
   # Python is more reliable than sed for YAML-adjacent edits; the file already
   # requires python3 above for cors_origins, so no new dependency.
   # `set -e` would kill us on the python heredoc's non-zero exit; guard it.
   set +e
-  sudo -u continuum -H python3 - "$CONFIG_FILE" <<'PY'
-import pathlib, re, sys
+  sudo -u continuum -H \
+    OLLAMA_TARGET="$_ollama_target" \
+    OLLAMA_MODE="$_ollama_mode" \
+    OLLAMA_AUTH_HEADER="${OLLAMA_AUTH_HEADER:-}" \
+    python3 - "$CONFIG_FILE" <<'PY'
+import os, pathlib, re, sys
 path = pathlib.Path(sys.argv[1])
 text = path.read_text()
-# Match the first `enabled:` line inside the top-level `ollama:` block and
-# rewrite it to true. Preserves indentation and comments. Idempotent.
+target = os.environ.get("OLLAMA_TARGET", "")
+mode = os.environ.get("OLLAMA_MODE", "local")
+auth = os.environ.get("OLLAMA_AUTH_HEADER", "")
+
+# 1. Flip enabled: true inside the top-level ollama: block.
 new_text, n = re.subn(
     r"(^ollama:\s*\n(?:[ \t]+.*\n)*?[ \t]+enabled:\s*)(?:true|false)",
     r"\1true",
@@ -209,19 +224,60 @@ new_text, n = re.subn(
     flags=re.MULTILINE,
 )
 if n == 0:
-    # No ollama block yet — do nothing and let the operator know via exit code.
-    # The install-continuum.sh caller will warn, not die, because the agent
-    # will still start correctly with Routstr only.
+    # No ollama block — caller will warn.
     sys.exit(2)
+
+# 2. Rewrite host: <url> inside the same block. Only touches the ollama block.
+#    Handles both quoted and unquoted values, preserves indentation.
+def _replace_field(src, field, value):
+    pat = re.compile(
+        rf'(^ollama:\s*\n(?:[ \t]+.*\n)*?[ \t]+{field}:\s*)(?:"[^"]*"|\'[^\']*\'|[^\n]*)',
+        re.MULTILINE,
+    )
+    # Always emit the value double-quoted so URLs and header strings with
+    # colons don't confuse the YAML parser.
+    safe = value.replace('"', '\\"')
+    return pat.subn(rf'\g<1>"{safe}"', src, count=1)
+
+new_text, n_host = _replace_field(new_text, "host", target)
+# `host:` might not exist yet in older configs — that's OK, agent will use its
+# own default. We only care that it was set correctly if it was present.
+if mode == "remote" and n_host == 0:
+    # For remote mode we NEED the host to be set. Inject it right after
+    # the enabled: line so the agent actually points at the endpoint.
+    def _inject(src, field, value):
+        pat = re.compile(
+            r"(^ollama:\s*\n(?:[ \t]+.*\n)*?)([ \t]+)(enabled:\s*(?:true|false)\n)",
+            re.MULTILINE,
+        )
+        safe = value.replace('"', '\\"')
+        return pat.subn(rf'\g<1>\g<2>\g<3>\g<2>{field}: "{safe}"\n', src, count=1)
+    new_text, _ = _inject(new_text, "host", target)
+
+# 3. Auth header for remote endpoints behind a reverse proxy.
+if mode == "remote" and auth:
+    new_text, n_auth = _replace_field(new_text, "auth_header", auth)
+    if n_auth == 0:
+        # Same injection trick as above for the auth field.
+        pat = re.compile(
+            r"(^ollama:\s*\n(?:[ \t]+.*\n)*?)([ \t]+)(enabled:\s*(?:true|false)\n)",
+            re.MULTILINE,
+        )
+        safe = auth.replace('"', '\\"')
+        new_text = pat.sub(
+            rf'\g<1>\g<2>\g<3>\g<2>auth_header: "{safe}"\n', new_text, count=1
+        )
+
 path.write_text(new_text)
 PY
   rc=$?
   set -e
   if [[ $rc -eq 2 ]]; then
-    warn "agent/config.yaml has no 'ollama:' block — leaving enabled flag alone (agent will run Routstr-only)"
+    warn "agent/config.yaml has no 'ollama:' block — leaving Ollama alone (agent will run Routstr-only)"
   elif [[ $rc -ne 0 ]]; then
-    die "failed to update ollama.enabled in ${CONFIG_FILE}"
+    die "failed to update ollama config in ${CONFIG_FILE}"
   fi
+  unset _ollama_mode _ollama_target
 fi
 
 # --------------------------------------------------------------------------- #
