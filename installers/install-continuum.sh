@@ -180,6 +180,51 @@ else
 fi
 
 # --------------------------------------------------------------------------- #
+# 4b. Ollama enablement (idempotent, safe to re-run)                          #
+# --------------------------------------------------------------------------- #
+#
+# When the suite is asked to install Ollama, the agent config's `ollama.enabled`
+# flag must flip to true so the model router will actually consider the local
+# daemon as a fallback. We do this on every run (not just first-run) so that a
+# later `INSTALL_OLLAMA=1 bootstrap.sh` on an existing install picks up the
+# change without the operator hand-editing config.yaml.
+#
+if [[ "${INSTALL_OLLAMA:-0}" == "1" ]]; then
+  log "flipping ollama.enabled -> true in agent/config.yaml"
+  # Python is more reliable than sed for YAML-adjacent edits; the file already
+  # requires python3 above for cors_origins, so no new dependency.
+  # `set -e` would kill us on the python heredoc's non-zero exit; guard it.
+  set +e
+  sudo -u continuum -H python3 - "$CONFIG_FILE" <<'PY'
+import pathlib, re, sys
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+# Match the first `enabled:` line inside the top-level `ollama:` block and
+# rewrite it to true. Preserves indentation and comments. Idempotent.
+new_text, n = re.subn(
+    r"(^ollama:\s*\n(?:[ \t]+.*\n)*?[ \t]+enabled:\s*)(?:true|false)",
+    r"\1true",
+    text,
+    count=1,
+    flags=re.MULTILINE,
+)
+if n == 0:
+    # No ollama block yet — do nothing and let the operator know via exit code.
+    # The install-continuum.sh caller will warn, not die, because the agent
+    # will still start correctly with Routstr only.
+    sys.exit(2)
+path.write_text(new_text)
+PY
+  rc=$?
+  set -e
+  if [[ $rc -eq 2 ]]; then
+    warn "agent/config.yaml has no 'ollama:' block — leaving enabled flag alone (agent will run Routstr-only)"
+  elif [[ $rc -ne 0 ]]; then
+    die "failed to update ollama.enabled in ${CONFIG_FILE}"
+  fi
+fi
+
+# --------------------------------------------------------------------------- #
 # 5. systemd unit                                                             #
 # --------------------------------------------------------------------------- #
 
