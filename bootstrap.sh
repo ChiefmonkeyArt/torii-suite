@@ -15,68 +15,42 @@
 #
 #      curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/main/bootstrap.sh | sudo bash
 #
-#      The script clones itself, asks three questions (domain, LE email, admin
-#      npub), then installs everything. No pre-editing required.
-#
-#   B. From a manual checkout (for operators who prefer a .env file):
+#   B. From a manual checkout:
 #
 #      git clone https://github.com/ChiefmonkeyArt/torii-suite
 #      cd torii-suite
 #      cp .env.example .env && nano .env
 #      sudo -E ./bootstrap.sh
 #
-# Environment (see .env.example for the full contract):
+# v0.3 UX:
+#   - ASCII banner, coloured stage headers with progress meter (Stage 3/7)
+#   - Quiet by default — every stage's stdout goes to /var/log/torii-suite/
+#     install-<ts>.log; the terminal shows a spinner + ✓ + elapsed time
+#   - Live Ollama tok/s benchmark after install, shown in the final summary
+#   - Set SUITE_QUIET=0 to stream everything to terminal (debug mode)
 #
-#   Required:  TORII_DOMAIN, LETSENCRYPT_EMAIL, CONTINUUM_ADMIN_NPUB
-#   Opt-in:    INSTALL_CONTINUUM, INSTALL_QUEST, INSTALL_PLEBEIAN, INSTALL_OLLAMA
-#   Overrides: SUITE_WORK_DIR, TORII_*_REF, CONTINUUM_AGENT_PORT, SKIP_CERTBOT,
-#              OLLAMA_MODELS, OLLAMA_BIND
-#
-# Idempotent: re-running the script pulls the latest ref for each repo,
-# rebuilds only if the resolved commit changed, and re-registers apps if the
-# launcher registry is missing them.
+# Environment: see .env.example for the full contract.
 
 set -euo pipefail
 
 # --------------------------------------------------------------------------- #
-# Logging                                                                     #
+# Root check (comes before self-hoist, before anything)                       #
 # --------------------------------------------------------------------------- #
 
-log()  { printf "\033[36m==>\033[0m %s\n" "$*"; }
-warn() { printf "\033[33m--  %s\033[0m\n" "$*" >&2; }
-die()  { printf "\033[31mxx  %s\033[0m\n" "$*" >&2; exit 1; }
-step() { printf "\n\033[35m### %s ###\033[0m\n\n" "$*"; }
-ask()  { # ask <prompt> <var> [<default>]
-  local prompt="$1" var="$2" default="${3:-}" reply
-  if [[ -n "$default" ]]; then
-    printf "\033[36m?\033[0m %s [%s]: " "$prompt" "$default" > /dev/tty
-  else
-    printf "\033[36m?\033[0m %s: " "$prompt" > /dev/tty
-  fi
-  read -r reply < /dev/tty
-  reply="${reply:-$default}"
-  printf -v "$var" '%s' "$reply"
-}
-
-# --------------------------------------------------------------------------- #
-# Root check (comes before everything else)                                   #
-# --------------------------------------------------------------------------- #
-
-[[ $EUID -eq 0 ]] || die "bootstrap must run as root (try: sudo bash bootstrap.sh, or pipe: curl ... | sudo bash)"
+if [[ $EUID -ne 0 ]]; then
+  printf "\033[31mxx\033[0m bootstrap must run as root (try: sudo bash bootstrap.sh, or pipe: curl ... | sudo bash)\n" >&2
+  exit 1
+fi
 
 # --------------------------------------------------------------------------- #
 # Self-hoist: if we're being piped in (curl | sudo bash) then $0 is a bash    #
-# child with no on-disk script. Clone the repo and re-exec the copy on disk   #
-# so paths, installers, and .env behave normally.                             #
+# child with no on-disk script. Clone the repo and re-exec the copy on disk.  #
 # --------------------------------------------------------------------------- #
 
 SUITE_REPO_URL="${SUITE_REPO_URL:-https://github.com/ChiefmonkeyArt/torii-suite.git}"
 SUITE_CLONE_REF="${SUITE_CLONE_REF:-main}"
 SUITE_INSTALL_DIR="${SUITE_INSTALL_DIR:-/opt/torii-suite/checkout}"
 
-# Detect the "piped in" case: BASH_SOURCE[0] points at something that isn't a
-# real, readable file (usually /dev/fd/... or empty), OR the file exists but
-# its containing directory has no VERSION file (i.e. not a real checkout).
 NEEDS_HOIST=0
 if [[ -z "${BASH_SOURCE[0]:-}" ]] || [[ ! -f "${BASH_SOURCE[0]:-}" ]]; then
   NEEDS_HOIST=1
@@ -88,18 +62,13 @@ else
 fi
 
 if [[ "$NEEDS_HOIST" == "1" ]]; then
-  log "one-liner mode detected — cloning torii-suite into ${SUITE_INSTALL_DIR}"
-
-  # Need git + curl + ca-certificates before anything else.
+  printf "\033[36m==>\033[0m one-liner mode — cloning torii-suite into %s\n" "$SUITE_INSTALL_DIR"
   if ! command -v git >/dev/null 2>&1; then
-    log "installing git + curl + ca-certificates"
     apt-get update -qq
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git curl ca-certificates
   fi
-
   mkdir -p "$(dirname "$SUITE_INSTALL_DIR")"
   if [[ -d "${SUITE_INSTALL_DIR}/.git" ]]; then
-    log "existing checkout found — updating to ${SUITE_CLONE_REF}"
     git -C "$SUITE_INSTALL_DIR" fetch --tags --prune origin
     git -C "$SUITE_INSTALL_DIR" checkout "$SUITE_CLONE_REF"
     git -C "$SUITE_INSTALL_DIR" pull --ff-only origin "$SUITE_CLONE_REF" 2>/dev/null || true
@@ -108,110 +77,126 @@ if [[ "$NEEDS_HOIST" == "1" ]]; then
       || git clone "$SUITE_REPO_URL" "$SUITE_INSTALL_DIR"
     git -C "$SUITE_INSTALL_DIR" checkout "$SUITE_CLONE_REF"
   fi
-
-  log "re-executing on-disk bootstrap: ${SUITE_INSTALL_DIR}/bootstrap.sh"
-  # Preserve env so anything the operator set on the curl command line survives
-  # the re-exec. Do NOT re-hoist (guard flag).
   export SUITE_HOISTED=1
   exec "${SUITE_INSTALL_DIR}/bootstrap.sh" "$@"
 fi
 
 # --------------------------------------------------------------------------- #
-# Constants                                                                   #
+# Constants + UX library                                                      #
 # --------------------------------------------------------------------------- #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUITE_VERSION="$(cat "${SCRIPT_DIR}/VERSION" 2>/dev/null || echo "unknown")"
 
+# shellcheck source=lib/ui.sh
+. "${SCRIPT_DIR}/lib/ui.sh"
+# shellcheck source=lib/run.sh
+. "${SCRIPT_DIR}/lib/run.sh"
+
+# --------------------------------------------------------------------------- #
+# Banner                                                                      #
+# --------------------------------------------------------------------------- #
+
+ui_banner "v${SUITE_VERSION}"
+
+# Stage counter — we compute the total number of stages after preflight so the
+# progress meter shows an accurate denominator.
+_STAGES_TOTAL=0
+_STAGES_DONE=0
+stage_header() {
+  _STAGES_DONE=$(( _STAGES_DONE + 1 ))
+  ui_stage "$_STAGES_DONE" "$_STAGES_TOTAL" "$*"
+}
+
 # --------------------------------------------------------------------------- #
 # Preflight                                                                   #
 # --------------------------------------------------------------------------- #
 
-step "preflight — checking host is ready for install"
+ui_section "Preflight"
 
-# 1. Ubuntu version. Accept 22.04, 24.04, 26.04. Others get a warning, not an
-#    abort, because a friend running Debian testing may still succeed and we
-#    don't want to be paternalistic.
+# 1. Ubuntu version. Accept 22.04, 24.04, 26.04. Others get a warning.
 if [[ -r /etc/os-release ]]; then
   # shellcheck disable=SC1091
   . /etc/os-release
   if [[ "${ID:-}" == "ubuntu" ]]; then
     case "${VERSION_ID:-}" in
-      22.04|24.04|26.04) log "OS: Ubuntu ${VERSION_ID} (supported)" ;;
-      *) warn "OS: Ubuntu ${VERSION_ID} — untested but proceeding" ;;
+      22.04|24.04|26.04) ui_ok "Ubuntu ${VERSION_ID}" ;;
+      *) ui_warn "Ubuntu ${VERSION_ID} — untested but proceeding" ;;
     esac
   else
-    warn "OS: ${PRETTY_NAME:-unknown} — torii-suite officially targets Ubuntu 22.04/24.04/26.04"
+    ui_warn "OS: ${PRETTY_NAME:-unknown} — Torii officially targets Ubuntu 22.04/24.04/26.04"
   fi
 else
-  warn "cannot detect OS (no /etc/os-release) — proceeding anyway"
+  ui_warn "cannot detect OS (no /etc/os-release) — proceeding anyway"
 fi
 
-# 2. Ports 80 + 443 must be free (or already owned by nginx from a previous run).
+# 2. Ports 80 + 443.
 for port in 80 443; do
-  # ss is in iproute2 on all supported Ubuntu versions.
   if ss -H -tln "sport = :${port}" | grep -q .; then
-    # If nginx already owns it, that's fine — a re-run of the bootstrap.
     if ss -H -tlnp "sport = :${port}" 2>/dev/null | grep -q '"nginx"'; then
-      log "port ${port}: already bound by nginx (previous install detected)"
+      ui_ok "port ${port} (already bound by nginx from a previous run)"
     else
-      warn "port ${port} is in use by something other than nginx"
-      warn "  run:  ss -tlnp 'sport = :${port}'  to see what's holding it"
-      die  "port ${port} must be free before install (or hand it off to nginx)"
+      ui_fail "port ${port} in use by something other than nginx"
+      ui_step "run:  ss -tlnp 'sport = :${port}'  to see what's holding it"
+      ui_die "port ${port} must be free before install"
     fi
   else
-    log "port ${port}: free"
+    ui_ok "port ${port} free"
   fi
 done
 
-# 3. Basic tool availability. torii-base's own bootstrap installs the rest, but
-#    we need enough to run our preflight (dig for DNS, curl for downloads).
+# 3. Install missing tools quietly.
+_missing=()
 for tool in curl dig git; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    log "installing missing tool: ${tool}"
-    apt-get update -qq
-    case "$tool" in
-      dig) DEBIAN_FRONTEND=noninteractive apt-get install -y -qq dnsutils ;;
-      *)   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$tool" ;;
-    esac
-  fi
+  command -v "$tool" >/dev/null 2>&1 || _missing+=("$tool")
 done
+if [[ ${#_missing[@]} -gt 0 ]]; then
+  # Map tool→package.
+  _pkgs=()
+  for t in "${_missing[@]}"; do
+    case "$t" in
+      dig) _pkgs+=("dnsutils") ;;
+      *)   _pkgs+=("$t") ;;
+    esac
+  done
+  run_stage "install prerequisites (${_missing[*]})" \
+    bash -c "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ${_pkgs[*]}"
+fi
 
 # --------------------------------------------------------------------------- #
-# Interactive setup (only when .env doesn't already exist)                    #
+# Setup — env + interactive prompts                                           #
 # --------------------------------------------------------------------------- #
+
+ui_section "Setup"
 
 if [[ -f "${SCRIPT_DIR}/.env" ]]; then
-  log "found existing .env at ${SCRIPT_DIR}/.env — using it"
+  ui_ok "using existing .env at ${SCRIPT_DIR}/.env"
   # shellcheck disable=SC1091
   set -a; source "${SCRIPT_DIR}/.env"; set +a
 elif [[ -e /dev/tty ]]; then
-  step "setup — three questions"
-  cat <<'INTRO' > /dev/tty
+  ui_box_top
+  ui_box_line "${UI_BOLD}Torii needs three things to get started${UI_RESET}"
+  ui_box_rule
+  ui_box_line "1. ${UI_CYAN}Domain${UI_RESET} pointing at this VPS's public IP"
+  ui_box_line "   ${UI_DIM}(one A record — e.g. torii.example.com)${UI_RESET}"
+  ui_box_line "2. ${UI_CYAN}Email${UI_RESET} for Let's Encrypt (HTTPS certs)"
+  ui_box_line "   ${UI_DIM}used only for cert-expiry warnings${UI_RESET}"
+  ui_box_line "3. Your ${UI_CYAN}Nostr npub${UI_RESET} (from a NIP-07 signer)"
+  ui_box_line "   ${UI_DIM}Continuum admin login. NEVER an nsec.${UI_RESET}"
+  ui_box_bottom
+  printf "\n"
 
-torii-suite needs three things to get started:
+  ui_ask "Domain (e.g. torii.example.com)" TORII_DOMAIN
+  [[ -n "$TORII_DOMAIN" ]] || ui_die "domain is required"
 
-  1. A domain name that already points at this VPS's public IP
-     (one A record — e.g. torii.example.com → 203.0.113.10)
-  2. An email address for Let's Encrypt (free HTTPS certificates).
-     Used only for cert-expiry warnings — any working inbox is fine.
-  3. Your Nostr npub (from Plebeian Signer, nos2x, or another NIP-07 signer)
-     — this is the account that will be the Continuum admin. NEVER an nsec.
+  ui_ask "Email for Let's Encrypt" LETSENCRYPT_EMAIL
+  [[ "$LETSENCRYPT_EMAIL" == *@*.* ]] || ui_die "email doesn't look like an email"
 
-INTRO
-
-  ask "Domain (e.g. torii.example.com)"          TORII_DOMAIN
-  [[ -n "$TORII_DOMAIN" ]] || die "domain is required"
-
-  ask "Email for Let's Encrypt (HTTPS cert expiry warnings)" LETSENCRYPT_EMAIL
-  [[ "$LETSENCRYPT_EMAIL" == *@*.* ]] || die "email doesn't look like an email"
-
-  ask "Your admin npub (starts with npub1)"       CONTINUUM_ADMIN_NPUB
+  ui_ask "Your admin npub (starts with npub1)" CONTINUUM_ADMIN_NPUB
   [[ "$CONTINUUM_ADMIN_NPUB" == npub1* ]] \
-    || die "CONTINUUM_ADMIN_NPUB must be a bech32 npub (starts with npub1)"
+    || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub (starts with npub1)"
 
-  # Write the answers so re-runs don't ask again.
-  log "writing answers to ${SCRIPT_DIR}/.env (mode 0600)"
+  ui_ok "writing answers to ${SCRIPT_DIR}/.env (mode 0600)"
   umask 077
   cat > "${SCRIPT_DIR}/.env" <<EOF
 # Written by bootstrap.sh interactive setup on $(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -221,38 +206,34 @@ CONTINUUM_ADMIN_NPUB="${CONTINUUM_ADMIN_NPUB}"
 EOF
   umask 022
 else
-  die "no .env and no interactive terminal — set TORII_DOMAIN, LETSENCRYPT_EMAIL, CONTINUUM_ADMIN_NPUB and try again"
+  ui_die "no .env and no interactive terminal — set TORII_DOMAIN, LETSENCRYPT_EMAIL, CONTINUUM_ADMIN_NPUB and try again"
 fi
 
-# --- required env (belt and braces after prompts/env loading) ---
+# --- required env ---
 : "${TORII_DOMAIN:?set TORII_DOMAIN=<yourdomain> (see .env.example)}"
 : "${LETSENCRYPT_EMAIL:?set LETSENCRYPT_EMAIL=<you@example.com>}"
 
-# --- opt-in flags (defaults geared to "100% Continuum + 100% Quest") ---
+# --- opt-in flags ---
 INSTALL_CONTINUUM="${INSTALL_CONTINUUM:-1}"
 INSTALL_QUEST="${INSTALL_QUEST:-1}"
-INSTALL_OLLAMA="${INSTALL_OLLAMA:-1}"       # v0.2.0: on by default when Continuum is on
-INSTALL_PLEBEIAN="${INSTALL_PLEBEIAN:-1}"   # tile only — see register-plebeian.sh
-# Onboarding bridges (CORS proxy + WebSSH) stay OFF unless the operator asks for them.
+INSTALL_OLLAMA="${INSTALL_OLLAMA:-1}"
+INSTALL_PLEBEIAN="${INSTALL_PLEBEIAN:-1}"
 INSTALL_ONBOARDING_BRIDGES="${INSTALL_ONBOARDING_BRIDGES:-0}"
 
-# Ollama only makes sense when Continuum is installed. Coerce and warn.
 if [[ "$INSTALL_OLLAMA" == "1" && "$INSTALL_CONTINUUM" != "1" ]]; then
-  warn "INSTALL_OLLAMA=1 but INSTALL_CONTINUUM=0 — Ollama has no consumer, disabling"
+  ui_warn "INSTALL_OLLAMA=1 but INSTALL_CONTINUUM=0 — Ollama has no consumer, disabling"
   INSTALL_OLLAMA=0
 fi
 
-# --- bridges require explicit allowlists if opted in ---
 if [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]; then
   : "${CORS_PROXY_ORIGIN_ALLOW:?set CORS_PROXY_ORIGIN_ALLOW=... (or INSTALL_ONBOARDING_BRIDGES=0)}"
   : "${WEBSSH_ORIGIN_ALLOW:?set WEBSSH_ORIGIN_ALLOW=... (or INSTALL_ONBOARDING_BRIDGES=0)}"
 fi
 
-# --- continuum requires an admin npub if opted in ---
 if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
   : "${CONTINUUM_ADMIN_NPUB:?set CONTINUUM_ADMIN_NPUB=npub1... (or INSTALL_CONTINUUM=0 to skip)}"
   [[ "$CONTINUUM_ADMIN_NPUB" == npub1* ]] \
-    || die "CONTINUUM_ADMIN_NPUB must be a bech32 npub (starts with npub1)"
+    || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub (starts with npub1)"
 fi
 
 # --- overrides + defaults ---
@@ -263,12 +244,8 @@ TORII_QUEST_REF="${TORII_QUEST_REF:-main}"
 CONTINUUM_AGENT_PORT="${CONTINUUM_AGENT_PORT:-8787}"
 PLEBEIAN_EXTERNAL_URL="${PLEBEIAN_EXTERNAL_URL:-https://plebeian.market}"
 SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
-
-# Ollama defaults (CPU-only, small model).
 OLLAMA_BIND="${OLLAMA_BIND:-127.0.0.1:11434}"
 OLLAMA_MODELS="${OLLAMA_MODELS:-llama3.2:3b}"
-
-# Bridge defaults (only consulted when INSTALL_ONBOARDING_BRIDGES=1)
 CORS_PROXY_UPSTREAM_ALLOW="${CORS_PROXY_UPSTREAM_ALLOW:-blesta.sovereignhybridcompute.com}"
 CORS_PROXY_PORT="${CORS_PROXY_PORT:-8801}"
 WEBSSH_PORT="${WEBSSH_PORT:-8802}"
@@ -283,62 +260,74 @@ export CORS_PROXY_ORIGIN_ALLOW CORS_PROXY_UPSTREAM_ALLOW CORS_PROXY_PORT
 export WEBSSH_ORIGIN_ALLOW WEBSSH_PORT WEBSSH_MAX_PER_IP WEBSSH_MAX_SESSION_MS
 
 # --------------------------------------------------------------------------- #
-# Preflight — DNS resolves to this host                                       #
+# DNS preflight (has to come after we know TORII_DOMAIN)                      #
 # --------------------------------------------------------------------------- #
 
-# Look up the host's public IP and the domain's A record. If they disagree,
-# Let's Encrypt will fail later — much better to bail here with a plain-English
-# message than to leave a half-installed system.
 PUBLIC_IP="$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || echo "")"
 if [[ -z "$PUBLIC_IP" ]]; then
-  # Fall back to a second provider so we don't hard-fail on ipify being down.
   PUBLIC_IP="$(curl -fsS --max-time 5 https://ifconfig.me 2>/dev/null || echo "")"
 fi
 
 if [[ -n "$PUBLIC_IP" ]]; then
   DOMAIN_IPS="$(dig +short A "$TORII_DOMAIN" @1.1.1.1 2>/dev/null | tr '\n' ' ')"
   if [[ -z "$DOMAIN_IPS" ]]; then
-    warn "DNS: no A record found for ${TORII_DOMAIN} — Let's Encrypt will fail"
-    warn "  create an A record pointing ${TORII_DOMAIN} at ${PUBLIC_IP} and re-run"
-    if [[ "$SKIP_CERTBOT" != "1" ]]; then
-      die "DNS not configured (set SKIP_CERTBOT=1 to install without HTTPS)"
-    fi
+    ui_warn "DNS: no A record found for ${TORII_DOMAIN} — Let's Encrypt will fail"
+    [[ "$SKIP_CERTBOT" == "1" ]] || ui_die "DNS not configured (set SKIP_CERTBOT=1 to install without HTTPS)"
   elif ! echo " $DOMAIN_IPS " | grep -q " $PUBLIC_IP "; then
-    warn "DNS: ${TORII_DOMAIN} resolves to [${DOMAIN_IPS% }] but this VPS is ${PUBLIC_IP}"
-    if [[ "$SKIP_CERTBOT" != "1" ]]; then
-      die "DNS points elsewhere — fix the A record or set SKIP_CERTBOT=1"
-    fi
+    ui_warn "DNS: ${TORII_DOMAIN} → [${DOMAIN_IPS% }], but this VPS is ${PUBLIC_IP}"
+    [[ "$SKIP_CERTBOT" == "1" ]] || ui_die "DNS points elsewhere — fix the A record or set SKIP_CERTBOT=1"
   else
-    log "DNS: ${TORII_DOMAIN} → ${PUBLIC_IP} ✓"
+    ui_ok "DNS: ${TORII_DOMAIN} → ${PUBLIC_IP}"
   fi
 else
-  warn "could not determine this VPS's public IP — skipping DNS preflight"
+  ui_warn "could not determine this VPS's public IP — skipping DNS preflight"
 fi
 
 # --------------------------------------------------------------------------- #
-# Banner                                                                      #
+# Plan summary                                                                #
 # --------------------------------------------------------------------------- #
 
-cat <<BANNER
-=============================================================
-  torii-suite bootstrap  v${SUITE_VERSION}
-  Domain:            ${TORII_DOMAIN}
-  Work dir:          ${SUITE_WORK_DIR}
-  Continuum:         $( [[ "$INSTALL_CONTINUUM" == "1" ]] && echo "install (agent :${CONTINUUM_AGENT_PORT})" || echo "SKIP" )
-  Ollama:            $( [[ "$INSTALL_OLLAMA"    == "1" ]] && echo "install (${OLLAMA_MODELS} on ${OLLAMA_BIND})" || echo "SKIP" )
-  Quest:             $( [[ "$INSTALL_QUEST"     == "1" ]] && echo "install" || echo "SKIP" )
-  Plebeian tile:     $( [[ "$INSTALL_PLEBEIAN"  == "1" ]] && echo "register (${PLEBEIAN_EXTERNAL_URL})" || echo "SKIP" )
-  Onboarding brdgs:  $( [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]] && echo "install (cors :${CORS_PROXY_PORT}, webssh :${WEBSSH_PORT})" || echo "SKIP" )
-  Let's Encrypt:     $( [[ "$SKIP_CERTBOT" == "1" ]] && echo "SKIP" || echo "enabled (${LETSENCRYPT_EMAIL})" )
-=============================================================
-BANNER
+# Compute stage count for the progress meter.
+_STAGES_TOTAL=1  # base
+[[ "$INSTALL_CONTINUUM"          == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_OLLAMA"             == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_QUEST"              == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_PLEBEIAN"           == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+_STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))  # doctor
 
-# Confirm — but only if we have a tty AND the operator didn't already answer
-# our interactive prompts (i.e. .env was there and no prompt phase happened).
+# Build plan rows via string concatenation — avoids putting user-supplied
+# values (email, port, model list) into printf format strings.
+_plan_row() {
+  local flag="$1" active_text="$2" skip_text="${3:-skip}"
+  if [[ "$flag" == "1" ]]; then
+    echo "${UI_GREEN}${active_text}${UI_RESET}"
+  else
+    echo "${UI_DIM}${skip_text}${UI_RESET}"
+  fi
+}
+
+ui_box_top
+ui_box_line "${UI_BOLD}Install plan${UI_RESET}  ${UI_DIM}v${SUITE_VERSION}${UI_RESET}"
+ui_box_rule
+ui_box_line "Domain      ${UI_CYAN}${TORII_DOMAIN}${UI_RESET}"
+ui_box_line "Continuum   $(_plan_row "$INSTALL_CONTINUUM" "install ${UI_DIM}(agent :${CONTINUUM_AGENT_PORT})${UI_RESET}")"
+ui_box_line "Ollama      $(_plan_row "$INSTALL_OLLAMA" "install ${UI_DIM}(${OLLAMA_MODELS})${UI_RESET}")"
+ui_box_line "Quest       $(_plan_row "$INSTALL_QUEST" "install")"
+ui_box_line "Plebeian    $(_plan_row "$INSTALL_PLEBEIAN" "tile")"
+ui_box_line "Bridges     $(_plan_row "$INSTALL_ONBOARDING_BRIDGES" "install")"
+if [[ "$SKIP_CERTBOT" == "1" ]]; then
+  ui_box_line "HTTPS       ${UI_YELLOW}skip${UI_RESET}"
+else
+  ui_box_line "HTTPS       ${UI_GREEN}Let's Encrypt${UI_RESET} ${UI_DIM}(${LETSENCRYPT_EMAIL})${UI_RESET}"
+fi
+ui_box_rule
+ui_box_line "Logs        ${UI_DIM}${SUITE_LOG_FILE}${UI_RESET}"
+ui_box_bottom
+
+# Confirm — skip if piped (no /dev/tty) or SUITE_ASSUME_YES=1.
 if [[ -e /dev/tty && "${SUITE_ASSUME_YES:-0}" != "1" ]]; then
-  printf "Continue? [y/N] " > /dev/tty
-  read -r reply < /dev/tty
-  [[ "$reply" =~ ^[Yy]$ ]] || die "aborted by operator"
+  ui_confirm "Continue?" || ui_die "aborted by operator"
 fi
 
 mkdir -p "$SUITE_WORK_DIR"
@@ -350,143 +339,144 @@ mkdir -p "$SUITE_WORK_DIR"
 clone_or_pull() {
   local url="$1" ref="$2" dest="$3"
   if [[ -d "${dest}/.git" ]]; then
-    log "updating $(basename "$dest") to ${ref}"
     git -C "$dest" fetch --tags --prune origin
     git -C "$dest" checkout "$ref"
     git -C "$dest" pull --ff-only origin "$ref" 2>/dev/null || true
   else
-    log "cloning $(basename "$dest") @ ${ref}"
-    git clone --branch "$ref" "$url" "$dest" 2>/dev/null \
-      || git clone "$url" "$dest"
+    git clone --branch "$ref" "$url" "$dest" 2>/dev/null || git clone "$url" "$dest"
     git -C "$dest" checkout "$ref"
   fi
 }
 
 torii_cli() {
   local torii_bin="/usr/local/bin/torii"
-  [[ -x "$torii_bin" ]] || die "torii CLI not found at ${torii_bin} (base bootstrap failed?)"
+  [[ -x "$torii_bin" ]] || ui_die "torii CLI not found at ${torii_bin} (base bootstrap failed?)"
   "$torii_bin" "$@"
 }
 
+# Wrapper functions so each stage can be one shell command that run_stage runs.
+_stage_base() {
+  local src="${SUITE_WORK_DIR}/torii-base"
+  clone_or_pull "https://github.com/ChiefmonkeyArt/torii-base.git" "$TORII_BASE_REF" "$src"
+  (
+    cd "$src"
+    TORII_DOMAIN="$TORII_DOMAIN" \
+    LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" \
+    SKIP_CERTBOT="$SKIP_CERTBOT" \
+      ./bootstrap.sh
+  )
+}
+_stage_continuum()      { "${SCRIPT_DIR}/installers/install-continuum.sh"; }
+_stage_ollama()         { "${SCRIPT_DIR}/installers/install-ollama.sh"; }
+_stage_quest()          { "${SCRIPT_DIR}/installers/install-quest.sh"; }
+_stage_plebeian()       { "${SCRIPT_DIR}/installers/register-plebeian.sh"; }
+_stage_bridges()        { "${SCRIPT_DIR}/installers/install-bridges.sh"; }
+
+# Doctor is a status readout — never fatal.
+_stage_doctor() {
+  torii_cli status || true
+  echo
+  torii_cli doctor || true
+}
+
 # --------------------------------------------------------------------------- #
-# STAGE 1 — torii-base                                                        #
+# Stages                                                                      #
 # --------------------------------------------------------------------------- #
 
-step "STAGE 1 — install torii-base (host layer)"
-
-BASE_SRC="${SUITE_WORK_DIR}/torii-base"
-clone_or_pull "https://github.com/ChiefmonkeyArt/torii-base.git" "$TORII_BASE_REF" "$BASE_SRC"
-
-log "running torii-base bootstrap"
-(
-  cd "$BASE_SRC"
-  TORII_DOMAIN="$TORII_DOMAIN" \
-  LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" \
-  SKIP_CERTBOT="$SKIP_CERTBOT" \
-    ./bootstrap.sh
-)
-
-# --------------------------------------------------------------------------- #
-# STAGE 2 — Continuum                                                         #
-# --------------------------------------------------------------------------- #
+stage_header "torii-base (host layer)"
+run_stage "install torii-base" _stage_base
 
 if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
-  step "STAGE 2 — install Continuum (frontend + agent)"
-  "${SCRIPT_DIR}/installers/install-continuum.sh"
-else
-  log "STAGE 2 skipped (INSTALL_CONTINUUM=0)"
+  stage_header "Continuum (frontend + agent)"
+  run_stage "install Continuum" _stage_continuum
 fi
 
-# --------------------------------------------------------------------------- #
-# STAGE 2b — Ollama (local LLM fallback for Continuum)                        #
-# --------------------------------------------------------------------------- #
-
+OLLAMA_BENCH=""
 if [[ "$INSTALL_OLLAMA" == "1" ]]; then
-  step "STAGE 2b — install Ollama (local LLM fallback)"
-  "${SCRIPT_DIR}/installers/install-ollama.sh"
-else
-  log "STAGE 2b skipped (INSTALL_OLLAMA=0)"
-fi
+  stage_header "Ollama (local LLM fallback)"
+  run_stage "install Ollama + pull ${OLLAMA_MODELS}" _stage_ollama
 
-# --------------------------------------------------------------------------- #
-# STAGE 3 — Torii Quest                                                       #
-# --------------------------------------------------------------------------- #
+  # Live benchmark — measure actual tok/s on this VPS. Costs ~15s, gives the
+  # operator a real number instead of the README's range.
+  ui_step "measuring Ollama throughput on this host..."
+  # Use the first model in $OLLAMA_MODELS for the benchmark.
+  _bench_model="${OLLAMA_MODELS%% *}"
+  # Ask for exactly 32 tokens of output; measure eval_count / eval_duration.
+  # eval_duration is in nanoseconds.
+  _bench_json="$(
+    curl -fsS -m 120 "http://${OLLAMA_BIND}/api/generate" \
+      -H 'Content-Type: application/json' \
+      -d "$(printf '{"model":"%s","prompt":"Say the word hello.","stream":false,"options":{"num_predict":32}}' "$_bench_model")" \
+      2>>"$SUITE_LOG_FILE" || echo ""
+  )"
+  if [[ -n "$_bench_json" ]]; then
+    _eval_count=$(printf "%s" "$_bench_json" | grep -oE '"eval_count":[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+    _eval_dur=$(printf "%s"   "$_bench_json" | grep -oE '"eval_duration":[0-9]+' | head -1 | grep -oE '[0-9]+' || echo "")
+    if [[ -n "$_eval_count" && -n "$_eval_dur" && "$_eval_dur" -gt 0 ]]; then
+      # tok/s = eval_count / (eval_duration / 1e9); use integer math × 100 for one decimal.
+      _tps_x100=$(( _eval_count * 100000000000 / _eval_dur ))
+      _tps_int=$(( _tps_x100 / 100 ))
+      _tps_frac=$(( _tps_x100 % 100 ))
+      OLLAMA_BENCH="$(printf "%d.%02d tok/s (%s)" "$_tps_int" "$_tps_frac" "$_bench_model")"
+      ui_ok "Ollama benchmark: ${OLLAMA_BENCH}"
+    else
+      ui_warn "Ollama benchmark: could not parse response (see log)"
+    fi
+  else
+    ui_warn "Ollama benchmark: request failed (see log)"
+  fi
+fi
 
 if [[ "$INSTALL_QUEST" == "1" ]]; then
-  step "STAGE 3 — install Torii Quest (static bundle)"
-  "${SCRIPT_DIR}/installers/install-quest.sh"
-else
-  log "STAGE 3 skipped (INSTALL_QUEST=0)"
+  stage_header "Torii Quest (3D world)"
+  run_stage "install Quest" _stage_quest
 fi
-
-# --------------------------------------------------------------------------- #
-# STAGE 4 — Plebeian tile registration                                        #
-# --------------------------------------------------------------------------- #
 
 if [[ "$INSTALL_PLEBEIAN" == "1" ]]; then
-  step "STAGE 4 — register Plebeian Market tile"
-  "${SCRIPT_DIR}/installers/register-plebeian.sh"
-else
-  log "STAGE 4 skipped (INSTALL_PLEBEIAN=0)"
+  stage_header "Plebeian tile"
+  run_stage "register Plebeian" _stage_plebeian
 fi
-
-# --------------------------------------------------------------------------- #
-# STAGE 5 — Onboarding bridges (CORS proxy + WebSSH)                          #
-# --------------------------------------------------------------------------- #
 
 if [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]; then
-  step "STAGE 5 — install onboarding bridges (cors-proxy + webssh)"
-  "${SCRIPT_DIR}/installers/install-bridges.sh"
-else
-  log "STAGE 5 skipped (INSTALL_ONBOARDING_BRIDGES=0)"
+  stage_header "Onboarding bridges"
+  run_stage "install bridges (cors-proxy + webssh)" _stage_bridges
 fi
 
-# --------------------------------------------------------------------------- #
-# STAGE 6 — doctor                                                            #
-# --------------------------------------------------------------------------- #
-
-step "STAGE 6 — doctor"
-
-torii_cli status || warn "torii status returned non-zero"
-echo
-torii_cli doctor || warn "torii doctor reported issues — review above"
+stage_header "Doctor"
+run_stage "torii status + doctor" _stage_doctor
 
 # --------------------------------------------------------------------------- #
-# Done                                                                        #
+# Summary card                                                                #
 # --------------------------------------------------------------------------- #
 
-cat <<DONE
+ui_section "Done"
 
-=============================================================
-  Torii Suite install complete.
+ui_box_top
+ui_box_line "${UI_BOLD}${UI_GREEN}${UI_CHECK} Torii Suite is live${UI_RESET}  ${UI_DIM}v${SUITE_VERSION}${UI_RESET}"
+ui_box_rule
+ui_box_line "Launcher     ${UI_CYAN}https://${TORII_DOMAIN}/${UI_RESET}"
+[[ "$INSTALL_CONTINUUM" == "1" ]] && ui_box_line "Continuum    ${UI_CYAN}https://${TORII_DOMAIN}/continuum/${UI_RESET}"
+[[ "$INSTALL_QUEST" == "1" ]]     && ui_box_line "Quest        ${UI_CYAN}https://${TORII_DOMAIN}/quest/${UI_RESET}"
+[[ "$INSTALL_PLEBEIAN" == "1" ]]  && ui_box_line "Plebeian     ${UI_DIM}${PLEBEIAN_EXTERNAL_URL}${UI_RESET}"
+if [[ "$INSTALL_OLLAMA" == "1" ]]; then
+  ui_box_line "Ollama       ${UI_DIM}${OLLAMA_BIND} (loopback)${UI_RESET}"
+  [[ -n "$OLLAMA_BENCH" ]] && ui_box_line "  ${UI_ARROW} measured  ${UI_PINK}${OLLAMA_BENCH}${UI_RESET}"
+fi
+ui_box_rule
+ui_box_line "Admin npub   ${UI_DIM}${CONTINUUM_ADMIN_NPUB:-<not set>}${UI_RESET}"
+ui_box_rule
+ui_box_line "${UI_BOLD}Next steps${UI_RESET}"
+ui_box_line "1. Open ${UI_CYAN}https://${TORII_DOMAIN}/continuum/${UI_RESET}"
+ui_box_line "   sign in with your NIP-07 signer"
+ui_box_line "2. Top up your Cashu wallet from the signer"
+ui_box_line "   so Continuum can pay Routstr per request"
+if [[ "$INSTALL_OLLAMA" == "1" ]]; then
+  ui_box_line "3. Local Ollama is running as a fallback when"
+  ui_box_line "   Routstr is unreachable or the wallet is empty"
+fi
+ui_box_rule
+ui_box_line "Logs         ${UI_DIM}${SUITE_LOG_FILE}${UI_RESET}"
+ui_box_line "Repo         ${UI_DIM}github.com/ChiefmonkeyArt/torii-suite${UI_RESET}"
+ui_box_bottom
 
-  Launcher:    https://${TORII_DOMAIN}/
-$( [[ "$INSTALL_CONTINUUM" == "1" ]]           && echo "  Continuum:   https://${TORII_DOMAIN}/continuum/" )
-$( [[ "$INSTALL_QUEST" == "1" ]]               && echo "  Quest:       https://${TORII_DOMAIN}/quest/" )
-$( [[ "$INSTALL_PLEBEIAN" == "1" ]]            && echo "  Plebeian:    ${PLEBEIAN_EXTERNAL_URL}" )
-$( [[ "$INSTALL_OLLAMA" == "1" ]]              && echo "  Ollama:      http://${OLLAMA_BIND} (loopback only)" )
-$( [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]  && echo "  CORS proxy:  https://${TORII_DOMAIN}/cors-proxy/<upstream-host>/<path>" )
-$( [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]  && echo "  WebSSH:      wss://${TORII_DOMAIN}/webssh" )
-
-  Admin npub:  ${CONTINUUM_ADMIN_NPUB:-<not set>}
-
-  Next steps:
-    1. Open https://${TORII_DOMAIN}/continuum/ in a browser with a NIP-07
-       signer (Plebeian Signer, nos2x). Sign in — the agent will only accept
-       the admin npub above.
-    2. Top up your Cashu wallet from the signer so Continuum's Routstr calls
-       can pay per-request. See docs/CONTINUUM.md for the walkthrough.
-$( [[ "$INSTALL_OLLAMA" == "1" ]] && cat <<OLLAMA_NEXT
-    3. Local Ollama is running on ${OLLAMA_BIND} as a fallback for when
-       Routstr is unreachable. On a CPU-only VPS expect 1–5 tok/s from
-       ${OLLAMA_MODELS} — usable, but not a daily driver. See
-       docs/CONTINUUM.md for how to switch to a remote GPU host later.
-OLLAMA_NEXT
-)
-
-  To update: re-run this script (or on the VPS: cd ${SCRIPT_DIR} && git pull && sudo ./bootstrap.sh).
-
-  Ops guide:   docs/OPS.md
-  Repo:        https://github.com/ChiefmonkeyArt/torii-suite
-=============================================================
-DONE
+printf "\n"
