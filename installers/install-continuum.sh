@@ -460,14 +460,26 @@ mkdir -p "$FRAGMENT_DIR"
 FRAGMENT_CONTENT="$(cat <<NGINX
 # /opt/torii/nginx-fragments/continuum.conf — written by torii-suite
 
-# Frontend static bundle
+# Frontend static bundle.
+#
+# NOTE (v0.7.0-alpha): the previous fragment used a nested
+# `location ~* ^/continuum/assets/...` with `alias /var/www/torii/continuum/;`
+# to attach cache headers. That pattern is broken: nginx does not strip the
+# location prefix when `alias` is used inside a regex location, so the file
+# lookup fails, the outer `try_files` fallback catches it, and every asset
+# request 301s to `<path>/` and is served the SPA shell as text/html. This
+# breaks every hashed JS/CSS bundle -> blank page.
+#
+# Fix: use prefix `location /continuum/assets/` (nginx handles prefix + alias
+# correctly), cache the whole /assets/ tree since Vite hashes every file in
+# it, and return 404 on miss instead of falling through to the SPA shell.
 location /continuum/ {
     alias /var/www/torii/continuum/;
     try_files \$uri \$uri/ /continuum/index.html;
 
-    # Long-cache hashed assets; never cache the shell.
-    location ~* ^/continuum/assets/.*\.(js|css|woff2?|svg|png|jpg|jpeg|webp)\$ {
-        alias /var/www/torii/continuum/;
+    location /continuum/assets/ {
+        alias /var/www/torii/continuum/assets/;
+        try_files \$uri =404;
         expires 30d;
         add_header Cache-Control "public, max-age=2592000, immutable" always;
     }
