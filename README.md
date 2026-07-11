@@ -7,7 +7,7 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.2-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.3-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer will show you the Torii banner, ask three questions (domain,
@@ -112,7 +112,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.2-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.3-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
@@ -261,6 +261,15 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.6.3-alpha
+
+Pins `TORII_BASE_REF` default `main` -> `v0.1.1`. torii-base v0.1.1 installs
+`/etc/sudoers.d/torii-nginx` so the sidecar (running as the unprivileged
+`torii` user) can `sudo -n nginx -t` + `sudo -n nginx -s reload`. Without
+that, every `torii register` call from the app installers returned
+`500 {"error":"nginx_reload_failed"}` and the `[2/6] Continuum` stage of a
+fresh install died.
 
 ### New in v0.6.2-alpha
 
