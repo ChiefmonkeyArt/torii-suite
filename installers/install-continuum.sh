@@ -310,6 +310,89 @@ PY
 fi
 
 # --------------------------------------------------------------------------- #
+# 4c. Rate limit config (v0.6.0-alpha, SUITE-VPS-READY-1)                     #
+# --------------------------------------------------------------------------- #
+#
+# Continuum v0.2.14-alpha ships with a defaults-populated `rate_limit:` block
+# in agent/config.example.yaml. The agent also defaults sensibly if the block
+# is entirely absent (loader fills it in on boot), so the very worst case here
+# is a no-op. But we still write the block from the four CONTINUUM_RATE_LIMIT_*
+# env vars so operators can tune on install by editing /opt/torii-suite/.env
+# and re-running bootstrap.sh - same UX as the ollama block above.
+#
+# Idempotent: on first install the block is injected below the closing brace
+# of the audit_log logging entry; on re-run the existing keys are rewritten
+# in-place.
+_rl_enabled="${CONTINUUM_RATE_LIMIT_ENABLED:-1}"
+_rl_challenge="${CONTINUUM_RATE_LIMIT_CHALLENGE_PER_MIN:-10}"
+_rl_verify="${CONTINUUM_RATE_LIMIT_VERIFY_PER_MIN:-20}"
+_rl_max="${CONTINUUM_RATE_LIMIT_MAX_CHALLENGES:-1000}"
+
+# Bool-ify: env vars are always strings.
+if [[ "$_rl_enabled" == "0" || "$_rl_enabled" == "false" ]]; then
+  _rl_enabled_yaml="false"
+else
+  _rl_enabled_yaml="true"
+fi
+
+log "writing rate_limit block to agent/config.yaml (enabled=${_rl_enabled_yaml}, challenge=${_rl_challenge}/min, verify=${_rl_verify}/min, max_challenges=${_rl_max})"
+set +e
+sudo -u continuum -H \
+  RL_ENABLED="$_rl_enabled_yaml" \
+  RL_CHALLENGE="$_rl_challenge" \
+  RL_VERIFY="$_rl_verify" \
+  RL_MAX="$_rl_max" \
+  python3 - "$CONFIG_FILE" <<'PY'
+import os, pathlib, re, sys
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+enabled = os.environ.get("RL_ENABLED", "true")
+challenge = os.environ.get("RL_CHALLENGE", "10")
+verify = os.environ.get("RL_VERIFY", "20")
+max_ch = os.environ.get("RL_MAX", "1000")
+
+# Match the top-level `rate_limit:` block.
+#
+# Note vs. the ollama patcher: rate_limit's rendered form in
+# config.example.yaml includes blank lines between keys and inline `  #`
+# comments. `[ \t]+.*\n` alone stops at the first blank line and leaves
+# `auth_challenge_per_min: ...` orphaned under a stripped-and-rewritten
+# block, which then produces duplicate keys on re-run. The pattern below
+# also matches blank lines (`[ \t]*\n`) and stops only at a line that
+# starts flush-left with a non-whitespace character (the next top-level
+# YAML key), which is the real block boundary.
+block_re = re.compile(
+    r"(^rate_limit:\s*\n(?:(?:[ \t]+.*|[ \t]*)\n)*)",
+    re.MULTILINE,
+)
+
+desired = (
+    "rate_limit:\n"
+    f"  enabled: {enabled}\n"
+    f"  auth_challenge_per_min: {challenge}\n"
+    f"  auth_verify_per_min: {verify}\n"
+    f"  max_challenges: {max_ch}\n"
+)
+
+if block_re.search(text):
+    new_text = block_re.sub(desired, text, count=1)
+else:
+    # No block present (older config.example.yaml or manually stripped).
+    # Append with a preceding blank line so YAML stays clean.
+    if not text.endswith("\n"):
+        text = text + "\n"
+    new_text = text + "\n" + desired
+
+path.write_text(new_text)
+PY
+rc=$?
+set -e
+if [[ $rc -ne 0 ]]; then
+  die "failed to update rate_limit config in ${CONFIG_FILE}"
+fi
+unset _rl_enabled _rl_challenge _rl_verify _rl_max _rl_enabled_yaml
+
+# --------------------------------------------------------------------------- #
 # 5. systemd unit                                                             #
 # --------------------------------------------------------------------------- #
 

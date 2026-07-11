@@ -120,8 +120,18 @@ if [[ -r /etc/os-release ]]; then
   . /etc/os-release
   if [[ "${ID:-}" == "ubuntu" ]]; then
     case "${VERSION_ID:-}" in
-      22.04|24.04|26.04) ui_ok "Ubuntu ${VERSION_ID}" ;;
-      *) ui_warn "Ubuntu ${VERSION_ID} — untested but proceeding" ;;
+      22.04|24.04) ui_ok "Ubuntu ${VERSION_ID}" ;;
+      26.04)
+        ui_ok "Ubuntu ${VERSION_ID}"
+        # Ollama's official installer has documented support for 22/24 only.
+        # 26.04 has worked in testing but is untested at scale. Flag it here
+        # so the operator has an audit trail if something Ollama-shaped fails
+        # later. The escape hatch is INSTALL_OLLAMA=0 (or OLLAMA_MODE=remote).
+        if [[ "${INSTALL_OLLAMA:-1}" == "1" && "${OLLAMA_MODE:-local}" == "local" ]]; then
+          ui_info "Ubuntu 26.04 detected - local Ollama install is unofficial-but-should-work. If it fails, re-run with INSTALL_OLLAMA=0 or OLLAMA_MODE=remote."
+        fi
+        ;;
+      *) ui_warn "Ubuntu ${VERSION_ID} - untested but proceeding" ;;
     esac
   else
     ui_warn "OS: ${PRETTY_NAME:-unknown} — Torii officially targets Ubuntu 22.04/24.04/26.04"
@@ -282,7 +292,9 @@ fi
 # --- overrides + defaults ---
 SUITE_WORK_DIR="${SUITE_WORK_DIR:-/opt/torii-suite/work}"
 TORII_BASE_REF="${TORII_BASE_REF:-main}"
-TORII_CONTINUUM_REF="${TORII_CONTINUUM_REF:-main}"
+# Continuum ships tagged releases; suite v0.6.0-alpha pins v0.2.14-alpha (auth
+# rate-limit slice). Quest has no tag carrying arena-ws yet, so we track main.
+TORII_CONTINUUM_REF="${TORII_CONTINUUM_REF:-v0.2.14-alpha}"
 TORII_QUEST_REF="${TORII_QUEST_REF:-main}"
 CONTINUUM_AGENT_PORT="${CONTINUUM_AGENT_PORT:-8787}"
 PLEBEIAN_EXTERNAL_URL="${PLEBEIAN_EXTERNAL_URL:-https://plebeian.market}"
@@ -659,9 +671,115 @@ fi
 stage_header "Doctor"
 run_stage "torii status + doctor" _stage_doctor
 
+AUTH_SMOKE_RATE_RESULT="skipped"
+_stage_auth_smoke_rate() {
+  # Only run when the operator has rate-limiting turned on. If they've
+  # disabled it explicitly, we mark 'skipped' on the summary card rather
+  # than probing a limiter that isn't there.
+  if [[ "${CONTINUUM_RATE_LIMIT_ENABLED:-1}" != "1" ]]; then
+    AUTH_SMOKE_RATE_RESULT="skipped"
+    ui_info "CONTINUUM_RATE_LIMIT_ENABLED=0 - not probing /api/auth/challenge limiter"
+    return 0
+  fi
+
+  local base="http://127.0.0.1:${CONTINUUM_AGENT_PORT}"
+  local max="${CONTINUUM_RATE_LIMIT_CHALLENGE_PER_MIN:-10}"
+  local n=$(( max + 1 ))
+  local last="000"
+  local http
+
+  # Fire N+1 challenges as fast as curl will go. Loopback bypasses TLS so
+  # this is only bounded by process turnaround. Legitimate users get 10
+  # sign-ins/min per IP - well above real usage - and we prove the (N+1)th
+  # returns 429.
+  for _ in $(seq 1 "$n"); do
+    http="$(curl -sS -m 5 -o /dev/null -w '%{http_code}' \
+      -X POST -H 'Content-Type: application/json' -d '{}' \
+      "${base}/api/auth/challenge" 2>>"$SUITE_LOG_FILE" || echo '000')"
+    last="$http"
+  done
+
+  if [[ "$last" == "429" ]]; then
+    ui_ok "/api/auth/challenge returned 429 on request #${n} (limit=${max}/min)"
+    AUTH_SMOKE_RATE_RESULT="ok"
+  else
+    ui_warn "expected 429 on request #${n}, got ${last} - limiter may not be enforced"
+    AUTH_SMOKE_RATE_RESULT="not-enforced"
+  fi
+  return 0
+}
+
+# MP smoke test (v0.6.0-alpha, SUITE-VPS-READY-1). Opens a WebSocket to
+# 127.0.0.1:${ARENA_WS_PORT} through the same loopback path the nginx /mp
+# fragment proxies, and verifies the arena-ws process is speaking WebSocket
+# rather than crashing on connect. Uses Node inline - already installed for
+# the Continuum agent so no new dependency.
+MP_SMOKE_RESULT="skipped"
+_stage_mp_smoke() {
+  if [[ "${INSTALL_QUEST:-1}" != "1" ]]; then
+    MP_SMOKE_RESULT="skipped"
+    return 0
+  fi
+  if [[ "${INSTALL_ARENA_WS:-1}" != "1" ]]; then
+    MP_SMOKE_RESULT="skipped"
+    ui_info "INSTALL_ARENA_WS=0 - not probing /mp WebSocket"
+    return 0
+  fi
+
+  local port="${ARENA_WS_PORT:-8788}"
+  local result
+  # Node one-liner: try to open a WS to loopback and log the outcome.
+  # Timeout is 5s. Success = any of: open event fires, or the server sends
+  # a HELLO frame. Failure = timeout or connection refused.
+  set +e
+  result="$(sudo -u torii-quest -H NODE_PATH=/opt/torii-quest/mp/node_modules \
+    node -e "
+      const WebSocket = require('ws');
+      const ws = new WebSocket('ws://127.0.0.1:${port}/mp');
+      let done = false;
+      const finish = (label) => { if (done) return; done = true; try { ws.terminate(); } catch(e){} console.log(label); process.exit(0); };
+      ws.on('open', () => finish('ok'));
+      ws.on('message', () => finish('ok'));
+      ws.on('error', (e) => finish('error:' + (e && e.code || 'unknown')));
+      setTimeout(() => finish('timeout'), 5000);
+    " 2>>"$SUITE_LOG_FILE")"
+  local rc=$?
+  set -e
+
+  case "$result" in
+    ok)
+      ui_ok "wss loopback probe to /mp connected (arena-ws is alive)"
+      MP_SMOKE_RESULT="ok"
+      ;;
+    timeout)
+      ui_warn "/mp WebSocket did not complete handshake within 5s"
+      MP_SMOKE_RESULT="timeout"
+      ;;
+    error:*)
+      ui_warn "/mp WebSocket probe failed (${result})"
+      MP_SMOKE_RESULT="error"
+      ;;
+    *)
+      ui_warn "/mp WebSocket probe returned unexpected result (rc=${rc}, result=${result})"
+      MP_SMOKE_RESULT="error"
+      ;;
+  esac
+  return 0
+}
+
 if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
   stage_header "Auth smoke test"
   run_stage "verify Nostr login endpoints" _stage_auth_smoke
+  # Only run the rate-limit probe if the base auth smoke actually got a
+  # working agent. Firing N+1 requests at a health-timeout agent is useless.
+  if [[ "$AUTH_SMOKE_RESULT" == "ok" ]]; then
+    run_stage "verify /api/auth rate limit" _stage_auth_smoke_rate
+  fi
+fi
+
+if [[ "$INSTALL_QUEST" == "1" && "${INSTALL_ARENA_WS:-1}" == "1" ]]; then
+  stage_header "MP smoke test"
+  run_stage "verify arena-ws /mp WebSocket" _stage_mp_smoke
 fi
 
 # --------------------------------------------------------------------------- #
@@ -690,10 +808,26 @@ ui_box_line "Admin npub   ${UI_DIM}${CONTINUUM_ADMIN_NPUB:-<not set>}${UI_RESET}
 if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
   case "$AUTH_SMOKE_RESULT" in
     ok)              ui_box_line "Nostr login  ${UI_GREEN}verified${UI_RESET}${UI_DIM}  (challenge issued, bogus event rejected)${UI_RESET}" ;;
-    SECURITY-FAIL)   ui_box_line "Nostr login  ${UI_RED}SECURITY FAIL${UI_RESET}${UI_DIM}  agent accepted a bogus event — check ${SUITE_LOG_FILE}${UI_RESET}" ;;
-    health-timeout)  ui_box_line "Nostr login  ${UI_YELLOW}unverified${UI_RESET}${UI_DIM}  agent /api/health not up yet — test manually${UI_RESET}" ;;
-    challenge-*)     ui_box_line "Nostr login  ${UI_YELLOW}degraded${UI_RESET}${UI_DIM}  /api/auth/challenge issue (${AUTH_SMOKE_RESULT}) — see ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    SECURITY-FAIL)   ui_box_line "Nostr login  ${UI_RED}SECURITY FAIL${UI_RESET}${UI_DIM}  agent accepted a bogus event - check ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    health-timeout)  ui_box_line "Nostr login  ${UI_YELLOW}unverified${UI_RESET}${UI_DIM}  agent /api/health not up yet - test manually${UI_RESET}" ;;
+    challenge-*)     ui_box_line "Nostr login  ${UI_YELLOW}degraded${UI_RESET}${UI_DIM}  /api/auth/challenge issue (${AUTH_SMOKE_RESULT}) - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
     *)               ui_box_line "Nostr login  ${UI_DIM}not tested${UI_RESET}" ;;
+  esac
+  case "$AUTH_SMOKE_RATE_RESULT" in
+    ok)              ui_box_line "Rate limit   ${UI_GREEN}enforced${UI_RESET}${UI_DIM}  (429 on request N+1)${UI_RESET}" ;;
+    not-enforced)    ui_box_line "Rate limit   ${UI_YELLOW}not enforced${UI_RESET}${UI_DIM}  - check ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    skipped)         ui_box_line "Rate limit   ${UI_DIM}skipped${UI_RESET}" ;;
+    *)               : ;;
+  esac
+fi
+if [[ "$INSTALL_QUEST" == "1" && "${INSTALL_ARENA_WS:-1}" == "1" ]]; then
+  ui_box_line "Quest MP     ${UI_CYAN}wss://${TORII_DOMAIN}/mp${UI_RESET}"
+  case "$MP_SMOKE_RESULT" in
+    ok)              ui_box_line "  ${UI_ARROW} arena-ws   ${UI_GREEN}loopback probe ok${UI_RESET}" ;;
+    timeout)         ui_box_line "  ${UI_ARROW} arena-ws   ${UI_YELLOW}handshake timeout${UI_RESET}${UI_DIM}  - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    error)           ui_box_line "  ${UI_ARROW} arena-ws   ${UI_YELLOW}probe failed${UI_RESET}${UI_DIM}  - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    skipped)         ui_box_line "  ${UI_ARROW} arena-ws   ${UI_DIM}skipped${UI_RESET}" ;;
+    *)               : ;;
   esac
 fi
 ui_box_rule
