@@ -156,7 +156,9 @@ ui_stage_banner() {
       printf "%s / __|___ _ _| |_(_)_ _ _  _ _  _ _ __%s\n"  "$UI_CYAN2" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
       printf "%s| (__/ _ \\ ' \\  _| | ' \\ || | || | '  \\%s\n" "$UI_CYAN2" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
       printf "%s \\___\\___/_||_\\__|_|_||_\\_,_|\\_,_|_|_|_|%s\n" "$UI_CYAN2" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
-      printf "%s      an AI-powered app builder%s\n\n"       "$UI_DIM"   "$UI_RESET"
+      printf "%s    an AI-powered app builder for Torii Quest,%s\n"  "$UI_DIM" "$UI_RESET"
+      printf "%s     Plebeian, itself, and anything else you%s\n"     "$UI_DIM" "$UI_RESET"
+      printf "%s           can think of... it's not a cult%s\n\n"    "$UI_DIM" "$UI_RESET"
       ;;
     quest)
       printf "%s   ____                  __%s\n"             "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
