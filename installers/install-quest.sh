@@ -251,6 +251,15 @@ if [[ "${ARENA_WS_INSTALLED:-0}" == "1" ]]; then
     log "torii-quest user already present"
   fi
 
+  # 7b.1. Ensure the home dir exists and is torii-quest-owned. If the user was
+  # created on a previous install and /opt/torii-quest was later removed (e.g.
+  # a partial cleanup), `useradd` skips this run and the home dir is missing.
+  # `install -d $MP_DIR` below would then create /opt/torii-quest as root, and
+  # the subsequent `sudo -u torii-quest -H npm install` would EACCES trying to
+  # write /opt/torii-quest/.npm. Belt-and-braces: chown even if it existed.
+  install -d -m 0755 -o torii-quest -g torii-quest /opt/torii-quest
+  chown torii-quest:torii-quest /opt/torii-quest
+
   # 7c. Install path + copy artifacts.
   install -d -m 0755 -o torii-quest -g torii-quest "$MP_DIR"
   cp -f "$MP_SRC_SERVER" "$MP_DIR/arena-ws.cjs"
