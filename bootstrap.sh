@@ -291,7 +291,12 @@ fi
 
 # --- overrides + defaults ---
 SUITE_WORK_DIR="${SUITE_WORK_DIR:-/opt/torii-suite/work}"
-TORII_BASE_REF="${TORII_BASE_REF:-main}"
+# torii-base v0.1.1 adds /etc/sudoers.d/torii-nginx so the sidecar (which
+# runs as the unprivileged torii user) can `sudo -n nginx -t` and
+# `sudo -n nginx -s reload`. Without this the [2/6] Continuum stage fails
+# with 500 {"error":"nginx_reload_failed"} on the torii register call.
+# Pinned by suite v0.6.3-alpha.
+TORII_BASE_REF="${TORII_BASE_REF:-v0.1.1}"
 # Continuum ships tagged releases; suite v0.6.0-alpha pins v0.2.14-alpha (auth
 # rate-limit slice). Quest v0.2.367-alpha is the first tag carrying arena-ws,
 # pinned by suite v0.6.1-alpha.
