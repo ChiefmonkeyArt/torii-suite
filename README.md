@@ -7,7 +7,7 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.4.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.5.0-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer will show you the Torii banner, ask three questions (domain,
@@ -112,7 +112,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.4.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.5.0-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
@@ -183,6 +183,68 @@ Seven stages, each idempotent (safe to re-run):
 
 Everything is atomic-symlink deployed. The last 3 releases of each app are
 retained under `<app>-releases/` for rollback via `ln -sfn`.
+
+---
+
+## Signing in for the first time
+
+Continuum has no username, no password, no email recovery link. Your
+**Nostr npub is the identity** and a **NIP-07 signer** is how you prove
+it. If you gave a fresh domain to `bootstrap.sh` you already declared
+the one npub the agent will accept.
+
+### 1. Install a NIP-07 signer
+
+Any NIP-07 browser signer works. Recommended:
+
+- **Plebeian Signer** (Chrome / Firefox) — built by us, small surface area
+- Alternatives: `nos2x`, Alby (browser), Amber (Android via WebView)
+
+Search "Plebeian Signer" on the Chrome Web Store or on
+addons.mozilla.org, install, then unlock it with your existing nsec (or
+create one from inside the signer if you're new to Nostr).
+
+### 2. Note your npub
+
+Open the signer, copy the `npub1...` string. **Never copy the nsec.**
+The VPS is never allowed to see your private key — that's the whole
+point of NIP-07.
+
+### 3. Visit your Torii domain
+
+Open `https://<your-domain>/continuum/` in the same browser that has the
+signer installed. Click **Sign in with Nostr**.
+
+The flow:
+
+1. Continuum agent hands you a random challenge (48 hex chars, 5-min TTL).
+2. Your signer wraps it in a kind-22242 event and signs it.
+3. Agent verifies signature, checks pubkey matches `admin_npub`, issues an
+   HMAC-signed session token that lasts `session_ttl_sec` (default 24h).
+4. Browser stores the token in `localStorage` and fires `session-changed`.
+
+You are now logged in. Signer approval popup only appears once per
+challenge — not per request.
+
+### 4. Troubleshooting
+
+| Symptom                              | Cause                                                        | Fix                                                                                     |
+| ------------------------------------ | ------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| "No NIP-07 signer detected"          | Extension not installed or disabled in this browser profile  | Install Plebeian Signer, reload the page                                                |
+| Signer popup never appears           | Extension permissions blocked on your domain                 | Extension settings → allow on `https://<your-domain>`                                   |
+| "pubkey is not admin npub"           | You're signing with a different key than `CONTINUUM_ADMIN_NPUB` | Switch signer identity, or rotate the admin npub: `sudo bash /opt/torii-suite/installers/set-admin-npub.sh npub1...` |
+| "challenge expired"                  | You took > 5 minutes to approve the popup                    | Click **Sign in with Nostr** again — a fresh challenge is issued                        |
+| Cross-origin (CORS) error in console | Your domain isn't in `cors_origins` of `agent/config.yaml`   | Re-run `install-continuum.sh`, or edit the config and `systemctl restart continuum-agent.service` |
+| Signed in yesterday, session gone    | Token expired at `session_ttl_sec` (default 24h)             | Sign in again; shorten TTL in `.env` if that felt too long                              |
+
+### 5. Key hygiene
+
+- **Lost your signer?** `sudo bash /opt/torii-suite/installers/set-admin-npub.sh npub1<new>` on the VPS to swap identity.
+- **Suspect a token was leaked?** `sudo bash /opt/torii-suite/installers/rotate-session-secret.sh` — every open session dies at the next request.
+- **Both at once?** Run `set-admin-npub.sh` first, `rotate-session-secret.sh` immediately after.
+
+See [`.env.example`](.env.example) for `CONTINUUM_SESSION_TTL_SEC` if you
+want tokens shorter than 24 hours.
 
 ---
 

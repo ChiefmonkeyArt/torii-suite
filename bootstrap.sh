@@ -195,9 +195,20 @@ elif [[ -e /dev/tty ]]; then
   ui_ask "Email for Let's Encrypt" LETSENCRYPT_EMAIL
   [[ "$LETSENCRYPT_EMAIL" == *@*.* ]] || ui_die "email doesn't look like an email"
 
+  # First-timer hint. If they don't have a signer yet, they can't produce
+  # a valid npub — tell them where to get one before we ask for it.
+  printf '\n  %b%b No NIP-07 signer yet? Any of these work:%b\n' "${UI_DIM}" "${UI_ARROW}" "${UI_RESET}"
+  printf '  %b  • Plebeian Signer (Chrome/Firefox, recommended — built by us)%b\n' "${UI_DIM}" "${UI_RESET}"
+  printf '  %b  • nos2x, Alby, Amber (Android)%b\n' "${UI_DIM}" "${UI_RESET}"
+  printf '  %b    Chrome:  chromewebstore.google.com → search "Plebeian Signer"%b\n' "${UI_DIM}" "${UI_RESET}"
+  printf '  %b    Firefox: addons.mozilla.org → search "Plebeian Signer"%b\n\n' "${UI_DIM}" "${UI_RESET}"
+
   ui_ask "Your admin npub (starts with npub1)" CONTINUUM_ADMIN_NPUB
-  [[ "$CONTINUUM_ADMIN_NPUB" == npub1* ]] \
-    || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub (starts with npub1)"
+  # Trim stray whitespace from paste artefacts.
+  CONTINUUM_ADMIN_NPUB="${CONTINUUM_ADMIN_NPUB## }"
+  CONTINUUM_ADMIN_NPUB="${CONTINUUM_ADMIN_NPUB%% }"
+  [[ "$CONTINUUM_ADMIN_NPUB" =~ ^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$ ]] \
+    || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub: 'npub1' + 58 lowercase chars from the bech32 alphabet"
 
   # Optional 4th question: local Ollama vs. remote endpoint.
   # Default is "local" — press Enter to keep the old behaviour.
@@ -260,8 +271,12 @@ fi
 
 if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
   : "${CONTINUUM_ADMIN_NPUB:?set CONTINUUM_ADMIN_NPUB=npub1... (or INSTALL_CONTINUUM=0 to skip)}"
-  [[ "$CONTINUUM_ADMIN_NPUB" == npub1* ]] \
-    || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub (starts with npub1)"
+  # Trim paste-whitespace and validate the full bech32 shape (not just the
+  # 'npub1' prefix). Matches the shape check enforced by set-admin-npub.sh.
+  CONTINUUM_ADMIN_NPUB="${CONTINUUM_ADMIN_NPUB## }"
+  CONTINUUM_ADMIN_NPUB="${CONTINUUM_ADMIN_NPUB%% }"
+  [[ "$CONTINUUM_ADMIN_NPUB" =~ ^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$ ]] \
+    || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub: 'npub1' + 58 lowercase chars from the bech32 alphabet"
 fi
 
 # --- overrides + defaults ---
@@ -305,7 +320,7 @@ WEBSSH_MAX_PER_IP="${WEBSSH_MAX_PER_IP:-3}"
 WEBSSH_MAX_SESSION_MS="${WEBSSH_MAX_SESSION_MS:-900000}"
 
 export TORII_DOMAIN LETSENCRYPT_EMAIL SKIP_CERTBOT
-export CONTINUUM_ADMIN_NPUB CONTINUUM_AGENT_PORT
+export CONTINUUM_ADMIN_NPUB CONTINUUM_AGENT_PORT CONTINUUM_SESSION_TTL_SEC
 export INSTALL_OLLAMA OLLAMA_MODE OLLAMA_BIND OLLAMA_MODELS OLLAMA_URL OLLAMA_AUTH_HEADER OLLAMA_ENDPOINT
 export SUITE_WORK_DIR
 export CORS_PROXY_ORIGIN_ALLOW CORS_PROXY_UPSTREAM_ALLOW CORS_PROXY_PORT
@@ -479,6 +494,85 @@ _stage_doctor() {
   torii_cli doctor || true
 }
 
+# Post-install auth smoke test. NEVER hard-fails the install — the agent may
+# still be booting or nginx may still be reloading. Records the result into
+# AUTH_SMOKE_RESULT for the summary card.
+#
+# Verifies (against http://127.0.0.1:${CONTINUUM_AGENT_PORT} — the loopback
+# endpoint bypasses TLS entirely, so this works whether certbot ran or not):
+#   1. GET /api/health returns 200
+#   2. POST /api/auth/challenge returns { challenge: <48-char hex>, expires_in }
+#   3. POST /api/auth/verify with a bogus event is rejected (ok=false)
+AUTH_SMOKE_RESULT="skipped"
+_stage_auth_smoke() {
+  local base="http://127.0.0.1:${CONTINUUM_AGENT_PORT}"
+  local tries=0 max_tries=6 backoff=2
+
+  # 1. Health check, with backoff (systemd may still be warming up).
+  while (( tries < max_tries )); do
+    if curl -fsS -m 5 "${base}/api/health" >/dev/null 2>&1; then break; fi
+    tries=$(( tries + 1 ))
+    if (( tries >= max_tries )); then
+      ui_warn "agent /api/health did not respond after ${max_tries} tries — skipping auth smoke"
+      AUTH_SMOKE_RESULT="health-timeout"
+      return 0
+    fi
+    sleep "$backoff"
+    backoff=$(( backoff * 2 ))
+  done
+  ui_ok "agent /api/health OK"
+
+  # 2. Challenge endpoint.
+  local ch_body
+  ch_body="$(curl -fsS -m 5 -X POST -H 'Content-Type: application/json' -d '{}' "${base}/api/auth/challenge" 2>>"$SUITE_LOG_FILE" || echo '')"
+  if [[ -z "$ch_body" ]]; then
+    ui_warn "/api/auth/challenge did not respond"
+    AUTH_SMOKE_RESULT="challenge-failed"
+    return 0
+  fi
+  local challenge
+  challenge="$(printf '%s' "$ch_body" | grep -oE '"challenge"[[:space:]]*:[[:space:]]*"[a-f0-9]+"' | head -1 | sed -E 's/.*"([a-f0-9]+)"$/\1/')"
+  if [[ -z "$challenge" ]]; then
+    ui_warn "/api/auth/challenge returned malformed body (see log)"
+    printf '%s\n' "$ch_body" >> "$SUITE_LOG_FILE"
+    AUTH_SMOKE_RESULT="challenge-malformed"
+    return 0
+  fi
+  local ch_len=${#challenge}
+  if (( ch_len < 32 )); then
+    ui_warn "/api/auth/challenge returned suspiciously short challenge (${ch_len} chars)"
+    AUTH_SMOKE_RESULT="challenge-short"
+    return 0
+  fi
+  ui_ok "/api/auth/challenge issued ${ch_len}-char challenge"
+
+  # 3. Verify with a bogus event — must be rejected. We build a well-formed
+  # kind 22242 shape with an all-zero pubkey/id/sig; if the agent accepts
+  # this, something is very wrong.
+  local bogus
+  bogus=$(printf '{"kind":22242,"pubkey":"%s","content":"%s","tags":[["challenge","%s"]],"created_at":%d,"id":"%s","sig":"%s"}' \
+    "$(printf '0%.0s' {1..64})" "$challenge" "$challenge" "$(date +%s)" \
+    "$(printf '0%.0s' {1..64})" "$(printf '0%.0s' {1..128})")
+  local vf_body vf_http
+  vf_http="$(curl -sS -m 5 -o /tmp/torii-suite-auth-vf.json -w '%{http_code}' \
+    -X POST -H 'Content-Type: application/json' \
+    -d "{\"event\":${bogus}}" "${base}/api/auth/verify" 2>>"$SUITE_LOG_FILE" || echo '000')"
+  vf_body="$(cat /tmp/torii-suite-auth-vf.json 2>/dev/null || echo '')"
+  rm -f /tmp/torii-suite-auth-vf.json
+
+  # We expect a 4xx OR a 200 with ok:false. What we do NOT want is 200 + ok:true.
+  if [[ "$vf_http" == "200" ]] && printf '%s' "$vf_body" | grep -qE '"ok"[[:space:]]*:[[:space:]]*true'; then
+    ui_warn "SECURITY: /api/auth/verify accepted a bogus event — investigate immediately"
+    printf '%s\n' "$vf_body" >> "$SUITE_LOG_FILE"
+    AUTH_SMOKE_RESULT="SECURITY-FAIL"
+    return 0
+  fi
+  ui_ok "/api/auth/verify correctly rejected a bogus event (HTTP ${vf_http})"
+
+  AUTH_SMOKE_RESULT="ok"
+  return 0
+}
+
 # --------------------------------------------------------------------------- #
 # Stages                                                                      #
 # --------------------------------------------------------------------------- #
@@ -565,6 +659,11 @@ fi
 stage_header "Doctor"
 run_stage "torii status + doctor" _stage_doctor
 
+if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
+  stage_header "Auth smoke test"
+  run_stage "verify Nostr login endpoints" _stage_auth_smoke
+fi
+
 # --------------------------------------------------------------------------- #
 # Summary card                                                                #
 # --------------------------------------------------------------------------- #
@@ -588,6 +687,15 @@ if [[ "$INSTALL_OLLAMA" == "1" ]]; then
 fi
 ui_box_rule
 ui_box_line "Admin npub   ${UI_DIM}${CONTINUUM_ADMIN_NPUB:-<not set>}${UI_RESET}"
+if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
+  case "$AUTH_SMOKE_RESULT" in
+    ok)              ui_box_line "Nostr login  ${UI_GREEN}verified${UI_RESET}${UI_DIM}  (challenge issued, bogus event rejected)${UI_RESET}" ;;
+    SECURITY-FAIL)   ui_box_line "Nostr login  ${UI_RED}SECURITY FAIL${UI_RESET}${UI_DIM}  agent accepted a bogus event — check ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    health-timeout)  ui_box_line "Nostr login  ${UI_YELLOW}unverified${UI_RESET}${UI_DIM}  agent /api/health not up yet — test manually${UI_RESET}" ;;
+    challenge-*)     ui_box_line "Nostr login  ${UI_YELLOW}degraded${UI_RESET}${UI_DIM}  /api/auth/challenge issue (${AUTH_SMOKE_RESULT}) — see ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    *)               ui_box_line "Nostr login  ${UI_DIM}not tested${UI_RESET}" ;;
+  esac
+fi
 ui_box_rule
 ui_box_line "${UI_BOLD}Next steps${UI_RESET}"
 ui_box_line "1. Open ${UI_CYAN}https://${TORII_DOMAIN}/continuum/${UI_RESET}"
