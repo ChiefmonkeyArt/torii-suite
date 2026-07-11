@@ -7,7 +7,7 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.5-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.6-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer will show you the Torii banner, ask three questions (domain,
@@ -112,7 +112,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.5-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.6-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
@@ -261,6 +261,32 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.6.6-alpha
+
+Fix: Plebeian tile registration failed because `register-plebeian.sh` never
+wrote an nginx fragment, but the torii-base sidecar's `POST /torii/apps`
+unconditionally requires one at `/opt/torii/nginx-fragments/<slug>.conf`.
+External tiles now ship a tiny redirect fragment (`location = /plebeian/`
+→ 302 to `$PLEBEIAN_EXTERNAL_URL`) so the sidecar accepts registration and
+the launcher tile lights up. Same diff-and-write pattern as install-quest.sh.
+
+Also, cosmetic install-flow polish:
+
+- `bootstrap.sh` no longer asks about local vs. remote Ollama. Local is the
+  default (sovereign LLM fallback). Set `OLLAMA_MODE=remote` +
+  `OLLAMA_URL` in the env to point at an existing endpoint.
+- Tightened the Torii ASCII wordmark (removed the double-i gap).
+- Strapline: "one vps · one clanker · a gateway to a decentralised open
+  world of infinite possibilities".
+- Quest stage label "3D world" → "the federated metaverse".
+- New per-stage ASCII banners for Continuum and Quest before their install
+  steps kick in.
+- Spinner glyph now cycles through the same pink/cyan ramp as the wordmark
+  so the whole install reads as one coherent visual system.
+- Finale line prints the strapline in a rainbow ramp after the summary card.
+- Banners fade in line-by-line (~35ms/line). Set `UI_ANIM=0` to skip the
+  animation for scripted / CI runs.
 
 ### New in v0.6.5-alpha
 

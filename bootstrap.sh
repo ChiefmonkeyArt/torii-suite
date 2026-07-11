@@ -194,8 +194,9 @@ elif [[ -e /dev/tty ]]; then
   ui_box_line "3. Your ${UI_CYAN}Nostr npub${UI_RESET} (from a NIP-07 signer)"
   ui_box_line "   ${UI_DIM}Continuum admin login. NEVER an nsec.${UI_RESET}"
   ui_box_rule
-  ui_box_line "${UI_DIM}Optional: point the LLM fallback at a remote Ollama box${UI_RESET}"
-  ui_box_line "${UI_DIM}instead of installing one here.${UI_RESET}"
+  ui_box_line "${UI_DIM}Ollama installs locally by default (sovereign LLM${UI_RESET}"
+  ui_box_line "${UI_DIM}fallback). Set OLLAMA_MODE=remote in the env to${UI_RESET}"
+  ui_box_line "${UI_DIM}point at an existing endpoint instead.${UI_RESET}"
   ui_box_bottom
   printf "\n"
 
@@ -220,26 +221,24 @@ elif [[ -e /dev/tty ]]; then
   [[ "$CONTINUUM_ADMIN_NPUB" =~ ^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$ ]] \
     || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub: 'npub1' + 58 lowercase chars from the bech32 alphabet"
 
-  # Optional 4th question: local Ollama vs. remote endpoint.
-  # Default is "local" — press Enter to keep the old behaviour.
-  OLLAMA_MODE="${OLLAMA_MODE:-}"
-  ui_ask "Ollama LLM fallback: [local] install here, or [remote] use existing?" OLLAMA_MODE
+  # Ollama LLM fallback: default to local install. It's the sovereign
+  # choice - Continuum's LLM stays on this box, no third-party endpoint,
+  # no key rotation, no upstream outage taking us down. Advanced operators
+  # can flip to a remote endpoint by setting OLLAMA_MODE=remote (with
+  # OLLAMA_URL + optional OLLAMA_AUTH_HEADER) in the environment before
+  # running bootstrap, or by editing .env after this run and restarting.
   OLLAMA_MODE="${OLLAMA_MODE:-local}"
-  OLLAMA_MODE="${OLLAMA_MODE,,}"  # lowercase
+  OLLAMA_MODE="${OLLAMA_MODE,,}"
   case "$OLLAMA_MODE" in
     local|remote) ;;
-    "") OLLAMA_MODE="local" ;;
     *) ui_die "OLLAMA_MODE must be 'local' or 'remote' (got: ${OLLAMA_MODE})" ;;
   esac
 
-  OLLAMA_URL=""
-  OLLAMA_AUTH_HEADER=""
+  OLLAMA_URL="${OLLAMA_URL:-}"
+  OLLAMA_AUTH_HEADER="${OLLAMA_AUTH_HEADER:-}"
   if [[ "$OLLAMA_MODE" == "remote" ]]; then
-    ui_ask "Remote Ollama URL (e.g. http://10.0.0.5:11434 or https://ollama.example.com)" OLLAMA_URL
     [[ "$OLLAMA_URL" =~ ^https?://.+ ]] \
-      || ui_die "OLLAMA_URL must start with http:// or https://"
-    # Optional auth header — leave blank for LAN/Tailscale endpoints.
-    ui_ask "Auth header for remote endpoint (or blank if none, e.g. 'Authorization: Bearer sk-...')" OLLAMA_AUTH_HEADER
+      || ui_die "OLLAMA_MODE=remote requires OLLAMA_URL to be set in the environment (http:// or https:// endpoint)"
   fi
 
   ui_ok "writing answers to ${SCRIPT_DIR}/.env (mode 0600)"
@@ -600,6 +599,7 @@ run_stage "install torii-base" _stage_base
 
 if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
   stage_header "Continuum (frontend + agent)"
+  ui_stage_banner continuum
   run_stage "install Continuum" _stage_continuum
 fi
 
@@ -660,7 +660,8 @@ if [[ "$INSTALL_OLLAMA" == "1" ]]; then
 fi
 
 if [[ "$INSTALL_QUEST" == "1" ]]; then
-  stage_header "Torii Quest (3D world)"
+  stage_header "Torii Quest (the federated metaverse)"
+  ui_stage_banner quest
   run_stage "install Quest" _stage_quest
 fi
 
@@ -856,4 +857,6 @@ ui_box_line "Logs         ${UI_DIM}${SUITE_LOG_FILE}${UI_RESET}"
 ui_box_line "Repo         ${UI_DIM}github.com/ChiefmonkeyArt/torii-suite${UI_RESET}"
 ui_box_bottom
 
+printf "\n"
+ui_rainbow "  a gateway to a decentralised open world of infinite possibilities"
 printf "\n"
