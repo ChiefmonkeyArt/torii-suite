@@ -127,7 +127,9 @@ ExecStart=/usr/bin/env node index.mjs
 Restart=on-failure
 RestartSec=3
 
-# Sandboxing
+# Sandboxing. MemoryDenyWriteExecute=true is intentionally omitted:
+# V8's baseline JIT needs mprotect(PROT_WRITE|PROT_EXEC) on code pages,
+# which MDWE blocks -> Node core-dumps with SIGTRAP + errno 12 on startup.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
@@ -139,7 +141,6 @@ ProtectControlGroups=true
 RestrictAddressFamilies=AF_INET AF_INET6
 RestrictNamespaces=true
 LockPersonality=true
-MemoryDenyWriteExecute=true
 RestrictSUIDSGID=true
 CapabilityBoundingSet=
 

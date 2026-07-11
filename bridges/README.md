@@ -113,9 +113,11 @@ suite VPS, one `systemd` unit each:
 Both units are hardened: `NoNewPrivileges`, `ProtectSystem=strict`,
 `ProtectHome=true`, `PrivateTmp`, `PrivateDevices`, `RestrictNamespaces`,
 `LockPersonality`, empty `CapabilityBoundingSet`, and
-`RestrictAddressFamilies=AF_INET AF_INET6`. The CORS proxy additionally
-runs with `MemoryDenyWriteExecute=true`; WebSSH does not, because `ssh2`
-JIT-compiles some crypto paths.
+`RestrictAddressFamilies=AF_INET AF_INET6`. `MemoryDenyWriteExecute` is
+intentionally not set on either unit - V8's baseline JIT needs
+`mprotect(PROT_WRITE|PROT_EXEC)` on code pages, which MDWE blocks (Node
+core-dumps with SIGTRAP + errno 12 on startup). Dropped in v0.6.4-alpha
+after arena-ws hit the same crash live on Ubuntu 26.04.
 
 Traffic is fronted by the suite's existing nginx via
 `/opt/torii/nginx-fragments/bridges.conf`, so both bridges reuse the
