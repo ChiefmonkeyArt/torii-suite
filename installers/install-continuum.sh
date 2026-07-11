@@ -140,12 +140,41 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
 
   # Generate a session secret ourselves so the operator doesn't have to.
   SESSION_SECRET="$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")"
+  # Sanity: 32 bytes hex = exactly 64 chars, [0-9a-f] only. Anything else and
+  # we abort before writing config — a bad secret means anyone can forge tokens.
+  if [[ ! "$SESSION_SECRET" =~ ^[0-9a-f]{64}$ ]]; then
+    die "session_secret generation failed: expected 64 hex chars, got ${#SESSION_SECRET}"
+  fi
 
   # In-place edit via sed. Keys are unique in config.example.yaml so this is safe.
   sudo -u continuum -H sed -i \
     -e "s|^\(\s*admin_npub:\).*|\1 \"${CONTINUUM_ADMIN_NPUB}\"|" \
     -e "s|^\(\s*session_secret:\).*|\1 \"${SESSION_SECRET}\"|" \
     "$CONFIG_FILE"
+
+  # Post-substitution sanity: the file must now contain our secret, not the
+  # placeholder from config.example.yaml. Defence against a silent sed miss.
+  if ! grep -qE "^\s*session_secret:[[:space:]]*\"${SESSION_SECRET}\"\s*$" "$CONFIG_FILE"; then
+    die "session_secret substitution failed — config.yaml still shows the placeholder"
+  fi
+  if grep -qE 'session_secret:.*REPLACE_WITH' "$CONFIG_FILE"; then
+    die "session_secret still contains REPLACE_WITH placeholder in $CONFIG_FILE"
+  fi
+
+  # Session TTL: only rewrite if the operator passed a non-default value.
+  # Whole-number seconds, 60 (1 min) to 604800 (7 days). Anything outside
+  # that range is a footgun and we refuse it.
+  if [[ -n "${CONTINUUM_SESSION_TTL_SEC:-}" && "${CONTINUUM_SESSION_TTL_SEC}" != "86400" ]]; then
+    if [[ ! "${CONTINUUM_SESSION_TTL_SEC}" =~ ^[0-9]+$ ]] \
+       || (( CONTINUUM_SESSION_TTL_SEC < 60 )) \
+       || (( CONTINUUM_SESSION_TTL_SEC > 604800 )); then
+      die "CONTINUUM_SESSION_TTL_SEC must be an integer between 60 (1 min) and 604800 (7 days); got '${CONTINUUM_SESSION_TTL_SEC}'"
+    fi
+    sudo -u continuum -H sed -i \
+      -e "s|^\(\s*session_ttl_sec:\).*|\1 ${CONTINUUM_SESSION_TTL_SEC}|" \
+      "$CONFIG_FILE"
+    log "session_ttl_sec set to ${CONTINUUM_SESSION_TTL_SEC}s"
+  fi
 
   # Make sure the agent listens on the port the nginx fragment will proxy to.
   # (Idempotent: only rewrites if a port: line exists at the top level.)
