@@ -76,7 +76,17 @@ log "building continuum frontend (base=/continuum/)"
 )
 
 WWW_DEST="/var/www/torii/continuum"
-mkdir -p "$WWW_DEST"
+# Only the parent must exist; $WWW_DEST itself is a symlink managed by the
+# atomic flip below. Pre-creating it as a directory breaks first-install
+# because `mv -Tf` refuses to replace a real directory with a symlink.
+mkdir -p "$(dirname "$WWW_DEST")"
+
+# If a previous install (< v0.6.2-alpha) left $WWW_DEST as a real directory,
+# migrate it aside so the symlink flip can succeed. Symlinks pass through.
+if [[ -d "$WWW_DEST" && ! -L "$WWW_DEST" ]]; then
+  log "migrating legacy $WWW_DEST directory aside (pre-v0.6.2 layout)"
+  mv "$WWW_DEST" "${WWW_DEST}.legacy-$(date -u +%Y%m%dT%H%M%SZ)"
+fi
 
 # Snapshot into a release dir + symlink flip. Keeps last install for rollback.
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)-${RESOLVED_REF}"
