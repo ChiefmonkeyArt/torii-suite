@@ -7,7 +7,7 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.1-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer will show you the Torii banner, ask three questions (domain,
@@ -112,7 +112,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.1-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
@@ -261,6 +261,12 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.6.1-alpha
+
+`TORII_QUEST_REF` default: `main` -> `v0.2.367-alpha` (the first Quest tag
+carrying `server/arena-ws.js`). Full multiplayer stack now lights up on a
+fresh install with no overrides.
 
 ### New in v0.6.0-alpha
 
