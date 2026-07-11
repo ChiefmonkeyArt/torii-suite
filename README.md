@@ -7,7 +7,7 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.4-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.5-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer will show you the Torii banner, ask three questions (domain,
@@ -112,7 +112,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.4-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.5-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
@@ -261,6 +261,19 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.6.5-alpha
+
+Fix: Quest install failed at the `npm install --omit=dev` step with
+`EACCES /opt/torii-quest/.npm` when a previous install had created the
+`torii-quest` system user and a later cleanup step removed `/opt/torii-quest`.
+`useradd --create-home` no-ops on the second run (user already exists), so
+the home dir was gone and the following `install -d /opt/torii-quest/mp`
+recreated `/opt/torii-quest` as `root:root` instead of `torii-quest`.
+Then `sudo -u torii-quest -H npm install` set `$HOME=/opt/torii-quest`
+and npm blew up trying to write `.npm/`. Fix: explicit `install -d`
++ `chown` on `/opt/torii-quest` before touching `mp/`. Idempotent on
+first-fresh installs.
 
 ### New in v0.6.4-alpha
 
