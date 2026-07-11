@@ -137,13 +137,16 @@ mkdir -p "$FRAGMENT_DIR"
 FRAGMENT_CONTENT="$(cat <<NGINX
 # /opt/torii/nginx-fragments/quest.conf — written by torii-suite
 
+# See install-continuum.sh for the full explanation of why regex + alias is
+# broken. Same fix here: prefix location for /quest/assets/ and let nginx do
+# the prefix rewrite correctly instead of falling through to the SPA shell.
 location /quest/ {
     alias /var/www/torii/quest/;
     try_files \$uri \$uri/ /quest/index.html;
 
-    # Long-cache hashed assets; never cache the shell.
-    location ~* ^/quest/assets/.*\.(js|css|woff2?|svg|png|jpg|jpeg|webp|glb|gltf|bin|ktx2|hdr)\$ {
-        alias /var/www/torii/quest/;
+    location /quest/assets/ {
+        alias /var/www/torii/quest/assets/;
+        try_files \$uri =404;
         expires 30d;
         add_header Cache-Control "public, max-age=2592000, immutable" always;
     }
