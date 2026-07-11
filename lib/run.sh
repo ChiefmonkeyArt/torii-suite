@@ -43,12 +43,19 @@ export SUITE_LOG_FILE
 # Spinner                                                                     #
 # --------------------------------------------------------------------------- #
 
+# Braille dot cascade - one continuous "orbit" that reads as motion rather
+# than a spinning cursor. Ten frames give the eye enough resolution at 12fps.
 _SPINNER_FRAMES=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
 # If the terminal isn't UTF-8, degrade to a rotating ASCII spinner so we don't
 # print mojibake.
 if [[ "${LANG:-}${LC_ALL:-}${LC_CTYPE:-}" != *[Uu][Tt][Ff]* ]]; then
   _SPINNER_FRAMES=("|" "/" "-" "\\")
 fi
+
+# 256-colour ramp for the spinner glyph - matches the pink/cyan wordmark
+# so the whole install feels visually coherent. Cycles slower than the
+# frames (one colour step per 3 glyph steps) so it reads as a subtle glow.
+_SPINNER_COLORS=($'\e[38;5;201m' $'\e[38;5;207m' $'\e[38;5;213m' $'\e[38;5;219m' $'\e[38;5;159m' $'\e[38;5;123m' $'\e[38;5;87m' $'\e[38;5;51m')
 
 _SPINNER_PID=""
 
@@ -58,11 +65,14 @@ _spinner_start() {
   printf "\e[?25l" > /dev/tty 2>/dev/null || true
   (
     local i=0
+    local fn=${#_SPINNER_FRAMES[@]}
+    local cn=${#_SPINNER_COLORS[@]}
     while :; do
-      local frame="${_SPINNER_FRAMES[$((i % ${#_SPINNER_FRAMES[@]}))]}"
+      local frame="${_SPINNER_FRAMES[$((i % fn))]}"
+      local color="${_SPINNER_COLORS[$(( (i / 3) % cn ))]}"
       # \r rewrites the current terminal line in place. Two trailing spaces
       # prevent leftover chars if the next label is shorter.
-      printf "\r  %s%s%s %s  " "$UI_CYAN" "$frame" "$UI_RESET" "$label" > /dev/tty 2>/dev/null || true
+      printf "\r  %s%s%s %s  " "$color" "$frame" "$UI_RESET" "$label" > /dev/tty 2>/dev/null || true
       sleep 0.08
       i=$((i + 1))
     done

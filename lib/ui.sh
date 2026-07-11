@@ -124,20 +124,49 @@ ui_box_line() {
 # --------------------------------------------------------------------------- #
 
 # ui_banner <version> — the very first thing the operator sees.
-# ASCII wordmark so it works in any terminal that survives SSH.
+# ASCII wordmark so it works in any terminal that survives SSH. Lines are
+# revealed with a subtle stagger (~35ms) unless UI_ANIM=0 or NO_COLOR is set.
 ui_banner() {
   local version="${1:-}"
+  local delay=0.035
+  [[ "${UI_ANIM:-1}" == "0" || "$UI_COLOR" == "0" ]] && delay=0
   printf "\n"
-  printf "%s   ______              _ _   %s\n" "$UI_PINK" "$UI_RESET"
-  printf "%s  /_  __/___  _____   (_|_)  %s\n" "$UI_PINK" "$UI_RESET"
-  printf "%s   / / / __ \\/ ___/  / / /   %s\n" "$UI_PINK" "$UI_RESET"
-  printf "%s  / / / /_/ / /     / / /    %s\n" "$UI_PINK" "$UI_RESET"
-  printf "%s /_/  \\____/_/     /_/_/     %s\n" "$UI_PINK" "$UI_RESET"
-  printf "%s     s u i t e   %s%s%s\n" "$UI_DIM" "$UI_CYAN2" "${version}" "$UI_RESET"
+  printf "%s  ______           _ _%s\n"    "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+  printf "%s /_  __/___  _____(_|_)%s\n"   "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+  printf "%s  / / / __ \\/ ___/ / /%s\n"    "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+  printf "%s / / / /_/ / /  / / /%s\n"     "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+  printf "%s/_/  \\____/_/  /_/_/%s\n"      "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+  printf "%s   s u i t e   %s%s%s\n"       "$UI_DIM"  "$UI_CYAN2" "${version}" "$UI_RESET"
   printf "\n"
-  printf "%s  one vps  ·  one domain  ·  a gateway to a\n" "$UI_DIM"
-  printf "  decentralised open world of infinite possibilities%s\n" "$UI_RESET"
+  printf "%s one vps  ·  one clanker  ·  a gateway to a\n" "$UI_DIM"
+  printf " decentralised open world of infinite possibilities%s\n" "$UI_RESET"
   printf "\n"
+}
+
+# ui_stage_banner <name> - small ASCII wordmark shown at the top of the
+# named stage. Currently supports: continuum, quest. Silently no-ops for
+# unknown names so callers can decorate optionally.
+ui_stage_banner() {
+  local name="${1:-}"
+  local delay=0.025
+  [[ "${UI_ANIM:-1}" == "0" || "$UI_COLOR" == "0" ]] && delay=0
+  case "$name" in
+    continuum)
+      printf "%s  ___         _   _%s\n"                    "$UI_CYAN2" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+      printf "%s / __|___ _ _| |_(_)_ _ _  _ _  _ _ __%s\n"  "$UI_CYAN2" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+      printf "%s| (__/ _ \\ ' \\  _| | ' \\ || | || | '  \\%s\n" "$UI_CYAN2" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+      printf "%s \\___\\___/_||_\\__|_|_||_\\_,_|\\_,_|_|_|_|%s\n" "$UI_CYAN2" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+      printf "%s      an AI-powered app builder%s\n\n"       "$UI_DIM"   "$UI_RESET"
+      ;;
+    quest)
+      printf "%s   ____                  __%s\n"             "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+      printf "%s  / __ \\__  _____  _____/ /_%s\n"           "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+      printf "%s / / / / / / / _ \\/ ___/ __/%s\n"            "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+      printf "%s/ /_/ / /_/ /  __(__  ) /_%s\n"               "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+      printf "%s\\___\\_\\__,_/\\___/____/\\__/%s\n"             "$UI_PINK" "$UI_RESET"; [[ "$delay" != "0" ]] && sleep "$delay"
+      printf "%s     the federated metaverse%s\n\n"          "$UI_DIM"  "$UI_RESET"
+      ;;
+  esac
 }
 
 # ui_stage <n> <total> <label> — coloured stage header with progress meter.
@@ -161,6 +190,34 @@ ui_stage() {
 ui_section() {
   printf "\n%s%s  %s%s%s\n" "$UI_GREY" "$UI_H$UI_H" "$UI_BOLD" "$*" "$UI_RESET"
 }
+
+# --------------------------------------------------------------------------- #
+# Animations                                                                  #
+# --------------------------------------------------------------------------- #
+
+# The stage spinner lives in lib/run.sh (see _spinner_start / _spinner_stop).
+# The helpers below are for standalone flourishes: the rainbow finale line
+# and the box-border pulse used by ui_pulse_box_line.
+
+# ui_rainbow <text>  - print $text with each character mapped through a
+# hot 256-colour ramp (magenta → pink → cyan → blue). Used for the finale
+# line. Falls back to bold when colour is off.
+ui_rainbow() {
+  local text="$*"
+  if [[ "$UI_COLOR" != "1" ]]; then
+    printf "%s%s%s\n" "$UI_BOLD" "$text" "$UI_RESET"
+    return
+  fi
+  local colors=(201 207 213 219 225 195 159 123 87 51 45 39)
+  local n=${#colors[@]}
+  local i ch
+  for ((i=0; i<${#text}; i++)); do
+    ch="${text:$i:1}"
+    printf "\e[38;5;%sm%s" "${colors[$((i % n))]}" "$ch"
+  done
+  printf "%s\n" "$UI_RESET"
+}
+
 
 # --------------------------------------------------------------------------- #
 # Prompts (interactive only — read from /dev/tty, print to /dev/tty)         #
