@@ -170,6 +170,194 @@ log "registering 'quest' with torii sidecar (v${QUEST_VERSION})"
   --desc    "3D open-world quest game on nostr" \
   --version "${QUEST_VERSION}"
 
+# --------------------------------------------------------------------------- #
+# 7. arena-ws multiplayer backend (v0.6.0-alpha, SUITE-VPS-READY-1)           #
+# --------------------------------------------------------------------------- #
+#
+# Quest ships its authoritative multiplayer server as a Node process built to
+# ${SRC}/dist/server/arena-ws.cjs (with a matching dist/package.json declaring
+# the ws runtime dep). This stage:
+#
+#   - creates the torii-quest system user if absent (idempotent)
+#   - copies the built server + its package.json into /opt/torii-quest/mp
+#   - runs `npm install --omit=dev` inside that dir
+#   - writes /etc/systemd/system/torii-arena-ws.service
+#   - writes /opt/torii/nginx-fragments/quest-mp.conf (nginx /mp WSS proxy)
+#   - enables + starts the service, waits for it to answer on 127.0.0.1
+#
+# Set INSTALL_ARENA_WS=0 in .env to skip this entire stage (Quest still
+# publishes as a static bundle at /quest/, MP will just be unreachable).
+
+if [[ "${INSTALL_ARENA_WS:-1}" != "1" ]]; then
+  log "INSTALL_ARENA_WS=0 - skipping arena-ws install (MP will be unreachable)"
+  ARENA_WS_INSTALLED=0
+else
+  ARENA_WS_PORT="${ARENA_WS_PORT:-8788}"
+  ARENA_WS_MODE="${ARENA_WS_MODE:-authoritative}"
+  MP_DIR="/opt/torii-quest/mp"
+  MP_SRC_SERVER="${SRC}/dist/server/arena-ws.cjs"
+  MP_SRC_PKG="${SRC}/dist/package.json"
+
+  # 7a. Preflight - the built server bundle must exist.
+  #
+  # `npm run build` in torii-quest is defined as `build-dashboard && vite build
+  # && npm run build:server`, and `build:server` uses esbuild to emit
+  # dist/server/arena-ws.cjs. If that file is missing, either (a) the pinned
+  # Quest ref pre-dates arena-ws or (b) build:server failed and only the
+  # frontend produced. Either way we cannot install /mp.
+  if [[ ! -f "$MP_SRC_SERVER" ]]; then
+    warn "expected ${MP_SRC_SERVER} but the Quest build did not produce one - the pinned ref may not carry arena-ws yet"
+    warn "install-quest will proceed with the static bundle only; set INSTALL_ARENA_WS=0 to suppress this warning"
+    ARENA_WS_INSTALLED=0
+  else
+    # 7a.1. dist/package.json is NOT emitted by esbuild - it must declare the
+    # `ws` runtime dep for `npm install --omit=dev` to pull it in. Write one
+    # if the Quest build didn't. `ws` version matches what Quest handoff
+    # documents as the tested runtime.
+    if [[ ! -f "$MP_SRC_PKG" ]]; then
+      log "writing ${MP_SRC_PKG} (arena-ws runtime deps manifest)"
+      cat > "$MP_SRC_PKG" <<PKG
+{
+  "name": "torii-quest-arena-ws",
+  "private": true,
+  "description": "Torii Quest arena-ws runtime dependency manifest (written by torii-suite install-quest.sh)",
+  "version": "${QUEST_VERSION}",
+  "main": "server/arena-ws.cjs",
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}
+PKG
+    fi
+
+    if ! node -e "const p=require('${MP_SRC_PKG}'); if(!(p.dependencies&&p.dependencies.ws)) process.exit(1)" 2>/dev/null; then
+      die "${MP_SRC_PKG} does not declare a 'ws' dependency - the pinned Quest ref shipped a broken manifest"
+    fi
+    ARENA_WS_INSTALLED=1
+  fi
+fi
+
+# The rest of the arena-ws install runs only when the preflight left it
+# marked installable. If we set ARENA_WS_INSTALLED=0 above (either because
+# arena-ws was skipped by env or because the Quest build didn't emit the
+# server bundle), skip the rest.
+if [[ "${ARENA_WS_INSTALLED:-0}" == "1" ]]; then
+
+  # 7b. torii-quest system user (idempotent).
+  if ! id -u torii-quest >/dev/null 2>&1; then
+    log "creating torii-quest system user"
+    useradd --system --shell /usr/sbin/nologin --home-dir /opt/torii-quest --create-home torii-quest
+  else
+    log "torii-quest user already present"
+  fi
+
+  # 7c. Install path + copy artifacts.
+  install -d -m 0755 -o torii-quest -g torii-quest "$MP_DIR"
+  cp -f "$MP_SRC_SERVER" "$MP_DIR/arena-ws.cjs"
+  cp -f "$MP_SRC_PKG"    "$MP_DIR/package.json"
+  chown torii-quest:torii-quest "$MP_DIR/arena-ws.cjs" "$MP_DIR/package.json"
+  chmod 0644 "$MP_DIR/arena-ws.cjs" "$MP_DIR/package.json"
+
+  # 7d. npm install --omit=dev inside the MP dir, as the torii-quest user.
+  log "installing arena-ws production dependencies"
+  ( cd "$MP_DIR" && sudo -u torii-quest -H npm install --omit=dev --no-audit --no-fund )
+
+  # 7e. systemd unit (Item M).
+  UNIT_FILE="/etc/systemd/system/torii-arena-ws.service"
+  UNIT_CONTENT="$(cat <<UNIT
+# ${UNIT_FILE} - written by torii-suite install-quest.sh
+[Unit]
+Description=Torii Quest arena-ws (authoritative multiplayer backend)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=torii-quest
+Group=torii-quest
+WorkingDirectory=${MP_DIR}
+ExecStart=/usr/bin/node ${MP_DIR}/arena-ws.cjs
+Environment=NODE_ENV=production
+Environment=PORT=${ARENA_WS_PORT}
+Environment=MP_MODE=${ARENA_WS_MODE}
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=${MP_DIR}
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+)"
+  if [[ ! -f "$UNIT_FILE" ]] || ! diff -q <(printf '%s\n' "$UNIT_CONTENT") "$UNIT_FILE" >/dev/null 2>&1; then
+    log "writing systemd unit ${UNIT_FILE}"
+    printf '%s\n' "$UNIT_CONTENT" > "$UNIT_FILE"
+    chmod 0644 "$UNIT_FILE"
+    systemctl daemon-reload
+  fi
+
+  # 7f. Enable + (re)start the service so a new build actually gets loaded.
+  systemctl enable torii-arena-ws.service >/dev/null 2>&1 || true
+  systemctl restart torii-arena-ws.service
+
+  # Wait up to 10s for the process to bind and answer.
+  arena_ws_ready=0
+  for _i in 1 2 3 4 5 6 7 8 9 10; do
+    if curl -fsS -m 2 "http://127.0.0.1:${ARENA_WS_PORT}/health" >/dev/null 2>&1 \
+       || (echo > "/dev/tcp/127.0.0.1/${ARENA_WS_PORT}") 2>/dev/null; then
+      arena_ws_ready=1
+      break
+    fi
+    sleep 1
+  done
+  if (( arena_ws_ready == 1 )); then
+    log "torii-arena-ws.service is up on 127.0.0.1:${ARENA_WS_PORT}"
+  else
+    die "torii-arena-ws.service did not become ready on 127.0.0.1:${ARENA_WS_PORT} within 10s (check: journalctl -u torii-arena-ws.service)"
+  fi
+
+  # 7g. nginx /mp fragment (Item N). WebSocket upgrade proxy.
+  MP_FRAGMENT_FILE="${FRAGMENT_DIR}/quest-mp.conf"
+  MP_FRAGMENT_CONTENT="$(cat <<NGINX
+# ${MP_FRAGMENT_FILE} - written by torii-suite
+#
+# Torii Quest arena-ws WebSocket proxy. Client dials wss://\$host/mp;
+# nginx upgrades to WebSocket and proxies to the loopback-bound arena-ws
+# process on port ${ARENA_WS_PORT}.
+
+location /mp {
+    proxy_pass http://127.0.0.1:${ARENA_WS_PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+}
+NGINX
+)"
+  if [[ ! -f "$MP_FRAGMENT_FILE" ]] || ! diff -q <(printf '%s\n' "$MP_FRAGMENT_CONTENT") "$MP_FRAGMENT_FILE" >/dev/null 2>&1; then
+    log "writing nginx fragment ${MP_FRAGMENT_FILE}"
+    printf '%s\n' "$MP_FRAGMENT_CONTENT" > "$MP_FRAGMENT_FILE"
+  fi
+
+fi
+export ARENA_WS_INSTALLED
+
 /usr/local/bin/torii reload
 
-log "quest install complete — https://${TORII_DOMAIN}/quest/"
+if [[ "${ARENA_WS_INSTALLED:-0}" == "1" ]]; then
+  log "quest install complete - https://${TORII_DOMAIN}/quest/ + wss://${TORII_DOMAIN}/mp"
+else
+  log "quest install complete - https://${TORII_DOMAIN}/quest/ (MP skipped)"
+fi

@@ -7,7 +7,7 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.5.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.0-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer will show you the Torii banner, ask three questions (domain,
@@ -112,7 +112,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.5.0-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.0-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
@@ -261,6 +261,24 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.6.0-alpha
+
+Two opt-in slices added in this release:
+
+| Variable                                    | What                                                                              |
+| ------------------------------------------- | --------------------------------------------------------------------------------- |
+| `CONTINUUM_RATE_LIMIT_ENABLED`              | `1` (default) enables per-IP rate limiting on `/api/auth/*`. Set `0` for dev only |
+| `CONTINUUM_RATE_LIMIT_CHALLENGE_PER_MIN`    | Max `POST /api/auth/challenge` per IP per minute (default `10`)                   |
+| `CONTINUUM_RATE_LIMIT_VERIFY_PER_MIN`       | Max `POST /api/auth/verify` per IP per minute (default `20`)                      |
+| `CONTINUUM_RATE_LIMIT_MAX_CHALLENGES`       | Hard ceiling on pending in-memory challenges (default `1000`)                     |
+| `INSTALL_ARENA_WS`                          | `1` (default) installs Quest's `arena-ws` multiplayer backend + `/mp` nginx proxy |
+| `ARENA_WS_PORT`                             | Loopback port for `arena-ws` (default `8788`)                                     |
+| `ARENA_WS_MODE`                             | `authoritative` (default) or `advisory` (rollback to MP-1 relay semantics)        |
+
+When `INSTALL_ARENA_WS=1`, `install-quest.sh` builds Quest, brings up
+`torii-arena-ws.service`, and adds a WebSocket-upgrade nginx block so
+authenticated clients can dial `wss://<your-domain>/mp`.
 
 ---
 
