@@ -7,7 +7,7 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.3-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.4-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer will show you the Torii banner, ask three questions (domain,
@@ -112,7 +112,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.3-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.4-alpha/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
@@ -261,6 +261,15 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.6.4-alpha
+
+Fix: `torii-arena-ws.service` (and `torii-cors-proxy.service`) were shipping
+with `MemoryDenyWriteExecute=true` in their systemd units. V8's baseline JIT
+needs `mprotect(PROT_WRITE|PROT_EXEC)` on code pages, which MDWE forbids;
+Node core-dumped with `SIGTRAP` + errno 12 on startup and systemd bounced
+the service in a restart loop. Dropped MDWE from both units; kept the rest
+of the hardening stack. Verified live on Ubuntu 26.04.
 
 ### New in v0.6.3-alpha
 

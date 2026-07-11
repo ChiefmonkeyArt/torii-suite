@@ -283,14 +283,16 @@ Environment=MP_MODE=${ARENA_WS_MODE}
 Restart=on-failure
 RestartSec=5
 
-# Hardening
+# Hardening. MemoryDenyWriteExecute=true is intentionally omitted:
+# V8's baseline JIT calls mprotect(PROT_WRITE|PROT_EXEC) on code pages,
+# which MDWE blocks. Node crashes on startup with SIGTRAP + errno 12.
+# Verified live: torii-arena-ws was core-dumping every 5s on Ubuntu 26.04.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
 ReadWritePaths=${MP_DIR}
 LockPersonality=true
-MemoryDenyWriteExecute=true
 
 [Install]
 WantedBy=multi-user.target
