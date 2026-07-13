@@ -340,15 +340,51 @@ UNIT
     die "torii-arena-ws.service did not become ready on 127.0.0.1:${ARENA_WS_PORT} within 10s (check: journalctl -u torii-arena-ws.service)"
   fi
 
-  # 7g. nginx /mp fragment (Item N). WebSocket upgrade proxy.
+  # 7g. nginx /mp fragment (Item N). Arena-ws proxy.
+  #
+  # /mp now carries BOTH transports:
+  #   * wss://\$host/mp             — the WebSocket arena session (Upgrade)
+  #   * GET  https://\$host/mp/auth-challenge — plain HTTP (session-token login)
+  #   * POST https://\$host/mp/session       — plain HTTP (session-token login)
+  #
+  # A single `location /mp { Connection "upgrade" }` broke the two HTTP auth
+  # endpoints: it forced `Connection: upgrade` on plain requests that carry no
+  # Upgrade header, which the arena-ws Node HTTP server rejects. The idiomatic
+  # fix is a `map $http_upgrade $connection_upgrade` in the http{} scope, but
+  # these fragments are included inside a server{} block (torii-base's sidecar
+  # requires one location fragment per app), where `map` is illegal. So we split
+  # by path instead: the auth endpoints get a clean HTTP proxy, and the arena
+  # session keeps the Upgrade proxy. Same loopback upstream either way.
   MP_FRAGMENT_FILE="${FRAGMENT_DIR}/quest-mp.conf"
   MP_FRAGMENT_CONTENT="$(cat <<NGINX
 # ${MP_FRAGMENT_FILE} - written by torii-suite
 #
-# Torii Quest arena-ws WebSocket proxy. Client dials wss://\$host/mp;
-# nginx upgrades to WebSocket and proxies to the loopback-bound arena-ws
-# process on port ${ARENA_WS_PORT}.
+# Torii Quest arena-ws proxy. Session-token login uses two plain-HTTP
+# endpoints under /mp; the arena itself is a WebSocket upgrade. All three
+# proxy to the loopback-bound arena-ws process on port ${ARENA_WS_PORT}.
 
+# Session-token login (NIP-98): plain HTTP, no Upgrade/Connection rewrite.
+location = /mp/auth-challenge {
+    proxy_pass http://127.0.0.1:${ARENA_WS_PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 30s;
+}
+location = /mp/session {
+    proxy_pass http://127.0.0.1:${ARENA_WS_PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 30s;
+    client_max_body_size 16k;
+}
+
+# Arena WebSocket session. Client dials wss://\$host/mp.
 location /mp {
     proxy_pass http://127.0.0.1:${ARENA_WS_PORT};
     proxy_http_version 1.1;

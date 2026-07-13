@@ -262,6 +262,20 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.6-alpha
+
+`TORII_QUEST_REF` default: `v0.2.374-alpha` -> `v0.2.375-alpha`. Quest moved
+arena auth from a per-session NIP-42 challenge (which re-prompted the Nostr
+signer on every arena entry and reconnect) to a one-time login sign that
+mints a server-issued session token. The arena WebSocket now reuses that
+token — **1 signer prompt at login, 0 in-game**.
+
+The `/mp` nginx fragment gained two plain-HTTP endpoints for that login
+handshake (`GET /mp/auth-challenge`, `POST /mp/session`). Because these
+fragments live inside a `server{}` block (where a `map` directive is
+illegal), the fragment splits `/mp` by path: exact-match HTTP locations for
+the auth endpoints and the existing Upgrade proxy for the arena socket.
+
 ### New in v0.7.1-alpha
 
 `TORII_QUEST_REF` default: `v0.2.369-alpha` -> `v0.2.374-alpha`. The live
