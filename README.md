@@ -262,6 +262,14 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.8-alpha
+
+`TORII_QUEST_REF` default: `v0.2.377-alpha` -> `v0.2.378-alpha`. Quest
+hotfix: forces authoritative MP mode (advisory retired — fixes player/bot hits
+not registering when a stale .env had MP_MODE=advisory), lifts the bot shot
+origin to world frame (fixes bot→player misses), and adds bot targeting
+hysteresis (bots re-acquire a closer player).
+
 ### New in v0.7.7-alpha
 
 `TORII_QUEST_REF` default: `v0.2.375-alpha` -> `v0.2.377-alpha`. Quest
