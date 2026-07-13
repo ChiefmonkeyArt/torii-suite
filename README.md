@@ -262,6 +262,14 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.7-alpha
+
+`TORII_QUEST_REF` default: `v0.2.375-alpha` -> `v0.2.377-alpha`. Quest
+ships server-authoritative bots (v0.2.377-alpha): the arena server runs
+the bot AI on a fixed tick against the live player roster and broadcasts
+bot state + shots; clients render-only in MP. Bots now move + attack
+identically on every screen.
+
 ### New in v0.7.6-alpha
 
 `TORII_QUEST_REF` default: `v0.2.374-alpha` -> `v0.2.375-alpha`. Quest moved
