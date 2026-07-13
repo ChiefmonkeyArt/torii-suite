@@ -298,11 +298,11 @@ SUITE_WORK_DIR="${SUITE_WORK_DIR:-/opt/torii-suite/work}"
 TORII_BASE_REF="${TORII_BASE_REF:-v0.1.1}"
 # Continuum ships tagged releases; suite v0.6.0-alpha pins v0.2.14-alpha (auth
 # rate-limit slice). Quest v0.2.367-alpha is the first tag carrying arena-ws,
-# pinned by suite v0.6.1-alpha. v0.2.373-alpha restores the `/quest/` base on
+# pinned by suite v0.6.1-alpha. v0.2.374-alpha restores the `/quest/` base on
 # the pinned entry URL (Quest froze after ENTER ARENA without it), pinned by
 # suite v0.7.1-alpha.
 TORII_CONTINUUM_REF="${TORII_CONTINUUM_REF:-v0.2.14-alpha}"
-TORII_QUEST_REF="${TORII_QUEST_REF:-v0.2.373-alpha}"
+TORII_QUEST_REF="${TORII_QUEST_REF:-v0.2.374-alpha}"
 CONTINUUM_AGENT_PORT="${CONTINUUM_AGENT_PORT:-8787}"
 PLEBEIAN_EXTERNAL_URL="${PLEBEIAN_EXTERNAL_URL:-https://plebeian.market}"
 SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
