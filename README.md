@@ -264,10 +264,10 @@ port overrides, staging mode).
 
 ### New in v0.7.1-alpha
 
-`TORII_QUEST_REF` default: `v0.2.369-alpha` -> `v0.2.370-alpha`. The live
+`TORII_QUEST_REF` default: `v0.2.369-alpha` -> `v0.2.371-alpha`. The live
 Suite-hosted Quest froze after **ENTER ARENA** because the pinned entry URL
 had lost its `/quest/` base, so the arena bundle 404'd under the mount.
-Quest v0.2.370-alpha restores the base-prefixed entry URL and passes the
+Quest v0.2.371-alpha restores the base-prefixed entry URL and passes the
 real base-path browser regression. Fresh installs now enter the arena
 cleanly with no overrides.
 
@@ -501,7 +501,7 @@ To pin a specific ref (useful for reproducible rollouts):
 # In .env:
 TORII_BASE_REF=main
 TORII_CONTINUUM_REF=v0.2.10-alpha
-TORII_QUEST_REF=v0.2.370-alpha
+TORII_QUEST_REF=v0.2.371-alpha
 ```
 
 ---
