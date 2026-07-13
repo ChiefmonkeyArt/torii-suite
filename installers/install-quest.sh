@@ -62,24 +62,27 @@ log "quest source at commit ${RESOLVED_REF} (v${QUEST_VERSION})"
 # 2. Patch vite.config.js for /quest/ base path                               #
 # --------------------------------------------------------------------------- #
 #
-# torii-quest currently ships without a `base:` in defineConfig and bakes
-# absolute paths (`/assets/torii-entry.js?v=…`) into the inline bootstrap.
-# Rebuilding with `--base=/quest/` alone doesn't rewrite that literal string.
+# torii-quest ships without a `base:` in defineConfig. v0.2.370-alpha made the
+# CSP entry-URL plugin base-aware (it reads config.base), so injecting
+# `base: '/quest/'` is all that's needed on current refs; older refs (<v0.2.370)
+# also had two hardcoded `/assets/torii-entry.js` literals that we rewrite.
 #
 # The patch below:
 #   - injects `base: '/quest/',` into the defineConfig object
-#   - rewrites the two hardcoded `/assets/torii-entry.js` literals to
-#     `/quest/assets/torii-entry.js`
+#   - rewrites any hardcoded `/assets/torii-entry.js` literals to
+#     `/quest/assets/torii-entry.js` (no-op on base-aware v0.2.370+ configs)
 #
-# We apply it only if the file still has the un-patched literals — safe to
-# re-run.
+# Detection keys on the ACTUAL `base: '/quest/'` injection, NOT on a
+# `/quest/assets/torii-entry.js` literal — that literal now appears inside a
+# comment on base-aware configs and would false-match as "already patched",
+# skipping the base injection and building with base `/` (entry 404s under
+# /quest/). Safe to re-run.
 
 CONFIG_FILE="${SRC}/vite.config.js"
 [[ -f "$CONFIG_FILE" ]] || die "expected ${CONFIG_FILE} to exist"
 
-if grep -q "'/quest/assets/torii-entry\.js'" "$CONFIG_FILE" \
-   || grep -q "\"/quest/assets/torii-entry\.js\"" "$CONFIG_FILE"; then
-  log "quest vite.config.js already patched for /quest/ base"
+if grep -qE "base:[[:space:]]*['\"]/?quest/?['\"]" "$CONFIG_FILE"; then
+  log "quest vite.config.js already has base: '/quest/'"
 else
   log "patching quest vite.config.js for /quest/ base"
 
