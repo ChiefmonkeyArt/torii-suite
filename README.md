@@ -337,7 +337,7 @@ legacy real directory aside on re-run.
 
 ### New in v0.6.1-alpha
 
-`TORII_QUEST_REF` default: `main` -> `v0.2.367-alpha` (the first Quest tag
+`TORII_QUEST_REF` default: `main` -> `v0.2.369-alpha` (the first Quest tag
 carrying `server/arena-ws.js`). Full multiplayer stack now lights up on a
 fresh install with no overrides.
 
