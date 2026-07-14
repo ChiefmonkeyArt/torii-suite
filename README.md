@@ -262,6 +262,20 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.12-alpha
+
+`TORII_QUEST_REF` default: `v0.2.382-alpha` -> `v0.2.383-alpha`. Quest fixes the
+player→bot combat regression (shots not registering / bots not dying / headshots
+not working). The server was resolving hits correctly (confirmed via the
+`[SHOT-RESOLVE]` log); the bug was client-side — `applyBotHit`/`applyBotKill`
+updated the bot's sim state but not `botNetState`'s internal `b.hp`/`b.alive`, so
+the next render frame re-read the stale ~15Hz `BOT_STATE` snapshot and reverted
+the event for up to ~67ms (HP snapped back to full, killed bots flickered
+alive). `applyBotHit`/`applyKill` now fold the authoritative event into
+`botNetState` before the render path samples. Position interpolation unchanged;
+single-player byte-identical; bot→player combat unchanged; boss takes damage the
+same way. 8 new race tests + 7 v0.2.382 regression tests green.
+
 ### New in v0.7.11-alpha
 
 `TORII_QUEST_REF` default: `v0.2.381-alpha` -> `v0.2.382-alpha`. Quest ships a
