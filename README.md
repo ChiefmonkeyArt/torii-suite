@@ -262,6 +262,15 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.15-alpha
+
+`TORII_QUEST_REF` default: `v0.2.385-alpha` -> `v0.2.386-alpha`. Quest combat-feel
+fix: Augustink boss render scale 2.5m -> 2.0m (~1.2x the player; combat stats
+unchanged), and the bot hit capsule widened ~15% (body radius 0.26->0.30, head
+0.20->0.23) in server<->client parity so shots that visually hit the body
+register. No change to BOT_HP/damage/the v0.2.383 event-authoritative fix/the
+v0.2.385 lag-comp. 2480 tests passing.
+
 ### New in v0.7.14-alpha
 
 `TORII_QUEST_REF` default: `v0.2.384-alpha` -> `v0.2.385-alpha`. Quest adds
