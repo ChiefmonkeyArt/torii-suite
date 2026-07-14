@@ -262,6 +262,19 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.10-alpha
+
+`TORII_QUEST_REF` default: `v0.2.380-alpha` -> `v0.2.381-alpha`. Quest restores
+the **Augustink boss bot** as a server-authoritative archetype on the existing
+bot roster: per-bot stats (HP 60, speed 1.0, damage 14, radius 0.8, named
+"Augustink", `kind`/`name`/`scale` in the additive BOT_STATE snapshot). One boss
+spawns per arena alongside the regular bots, syncs across all players, and
+renders with the lazy-loaded `augustink4.glb` model (~3.2 m) + a nameplate +
+full-rate death anim. Single-player byte-identical except the boss is present.
+`PROTOCOL_VERSION` unchanged. The GLB ships uncompressed (7.9 MB, lazy-loaded
+via the existing cache-on-use handler — not precached); Draco compression was
+deferred (unverifiable headlessly).
+
 ### New in v0.7.9-alpha
 
 `TORII_QUEST_REF` default: `v0.2.378-alpha` -> `v0.2.380-alpha`. Quest ships
