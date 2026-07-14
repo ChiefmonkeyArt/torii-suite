@@ -262,6 +262,18 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.11-alpha
+
+`TORII_QUEST_REF` default: `v0.2.381-alpha` -> `v0.2.382-alpha`. Quest ships a
+**diagnostic-only** combat build: the server-side `[SHOT-RESOLVE]` log (≤1/sec per
+shooter) is enriched with `originY` / `nearBot` / `botFootY` / `dy` so a live
+playtest where player→bot damage fails to register can be triaged from
+`journalctl -u torii-arena-ws | grep SHOT-RESOLVE`. Headless `resolvePlayerShot`
+correctly HITS torso + head for regular AND boss bots in every realistic
+scenario, so no speculative geometry fix was shipped — the live miss is a
+runtime/input/wire issue to be pinned from the log. Adds 7 player→bot combat
+regression tests. No gameplay/protocol change.
+
 ### New in v0.7.10-alpha
 
 `TORII_QUEST_REF` default: `v0.2.380-alpha` -> `v0.2.381-alpha`. Quest restores
