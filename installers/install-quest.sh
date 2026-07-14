@@ -200,6 +200,10 @@ if [[ "${INSTALL_ARENA_WS:-1}" != "1" ]]; then
 else
   ARENA_WS_PORT="${ARENA_WS_PORT:-8788}"
   ARENA_WS_MODE="${ARENA_WS_MODE:-authoritative}"
+  # Quest admin npub gates the in-game "Update Now" button (v0.7.16-alpha). Defaults
+  # to the Continuum admin npub (same operator) so an existing .env without
+  # QUEST_ADMIN_NPUB keeps working. arena-ws normalises npub->hex at startup.
+  QUEST_ADMIN_NPUB="${QUEST_ADMIN_NPUB:-${CONTINUUM_ADMIN_NPUB:-}}"
   MP_DIR="/opt/torii-quest/mp"
   MP_SRC_SERVER="${SRC}/dist/server/arena-ws.cjs"
   MP_SRC_PKG="${SRC}/dist/package.json"
@@ -295,6 +299,7 @@ ExecStart=/usr/bin/node ${MP_DIR}/arena-ws.cjs
 Environment=NODE_ENV=production
 Environment=PORT=${ARENA_WS_PORT}
 Environment=MP_MODE=${ARENA_WS_MODE}
+Environment=QUEST_ADMIN_NPUB=${QUEST_ADMIN_NPUB}
 Restart=on-failure
 RestartSec=5
 
@@ -384,6 +389,37 @@ location = /mp/session {
     client_max_body_size 16k;
 }
 
+# Admin auto-update surface (v0.7.16-alpha). NIP-98 session + admin-npub gated
+# on the arena-ws side. Plain HTTP, no Upgrade/Connection rewrite.
+location = /mp/admin/update {
+    proxy_pass http://127.0.0.1:${ARENA_WS_PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 30s;
+    client_max_body_size 16k;
+}
+location = /mp/admin/update-status {
+    proxy_pass http://127.0.0.1:${ARENA_WS_PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 30s;
+}
+location = /mp/admin/update-capability {
+    proxy_pass http://127.0.0.1:${ARENA_WS_PORT};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_read_timeout 10s;
+}
+
 # Arena WebSocket session. Client dials wss://\$host/mp.
 location /mp {
     proxy_pass http://127.0.0.1:${ARENA_WS_PORT};
@@ -403,6 +439,41 @@ NGINX
     log "writing nginx fragment ${MP_FRAGMENT_FILE}"
     printf '%s\n' "$MP_FRAGMENT_CONTENT" > "$MP_FRAGMENT_FILE"
   fi
+
+  # 7h. Auto-update infrastructure (v0.7.16-alpha). arena-ws (torii-quest user,
+  # hardened, no sudo) cannot run install-quest.sh itself. It writes a request
+  # file to update-requests/; a root systemd path/service picks it up + runs the
+  # bounded torii-quest-update-runner, which resolves the latest tag ITSELF and
+  # redeploys. See installers/torii-quest-update-runner.sh for the security model.
+  RUNNER_SRC="$(dirname "${BASH_SOURCE[0]}")/torii-quest-update-runner.sh"
+  install -d -m 0770 -o torii-quest -g torii-quest /opt/torii-quest/mp/update-requests
+  install -m 0755 "$RUNNER_SRC" /usr/local/sbin/torii-quest-update-runner
+  : > /var/log/torii-quest-update.log; chmod 0644 /var/log/torii-quest-update.log
+  cat > /etc/systemd/system/torii-quest-update.path <<'UNIT'
+[Unit]
+Description=Torii Quest auto-update trigger watcher
+
+[Path]
+PathChanged=/opt/torii-quest/mp/update-requests
+Unit=torii-quest-update.service
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  cat > /etc/systemd/system/torii-quest-update.service <<'UNIT'
+[Unit]
+Description=Torii Quest auto-update runner (root reinstall of latest tag)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/torii-quest-update-runner
+UNIT
+  chmod 0644 /etc/systemd/system/torii-quest-update.path /etc/systemd/system/torii-quest-update.service
+  systemctl daemon-reload
+  systemctl enable --now torii-quest-update.path >/dev/null 2>&1 || true
 
 fi
 export ARENA_WS_INSTALLED

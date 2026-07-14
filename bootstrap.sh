@@ -221,6 +221,10 @@ elif [[ -e /dev/tty ]]; then
   [[ "$CONTINUUM_ADMIN_NPUB" =~ ^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$ ]] \
     || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub: 'npub1' + 58 lowercase chars from the bech32 alphabet"
 
+  # Quest admin npub defaults to the Continuum admin (same operator) — gates the
+  # in-game "Update Now" button. No separate prompt; override in .env if needed.
+  QUEST_ADMIN_NPUB="${QUEST_ADMIN_NPUB:-$CONTINUUM_ADMIN_NPUB}"
+
   # Ollama LLM fallback: default to local install. It's the sovereign
   # choice - Continuum's LLM stays on this box, no third-party endpoint,
   # no key rotation, no upstream outage taking us down. Advanced operators
@@ -248,6 +252,7 @@ elif [[ -e /dev/tty ]]; then
 TORII_DOMAIN="${TORII_DOMAIN}"
 LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL}"
 CONTINUUM_ADMIN_NPUB="${CONTINUUM_ADMIN_NPUB}"
+QUEST_ADMIN_NPUB="${QUEST_ADMIN_NPUB}"
 OLLAMA_MODE="${OLLAMA_MODE}"
 OLLAMA_URL="${OLLAMA_URL}"
 OLLAMA_AUTH_HEADER="${OLLAMA_AUTH_HEADER}"
@@ -286,6 +291,8 @@ if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
   CONTINUUM_ADMIN_NPUB="${CONTINUUM_ADMIN_NPUB%% }"
   [[ "$CONTINUUM_ADMIN_NPUB" =~ ^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$ ]] \
     || ui_die "CONTINUUM_ADMIN_NPUB must be a bech32 npub: 'npub1' + 58 lowercase chars from the bech32 alphabet"
+  # Quest admin npub defaults to the Continuum admin (same operator).
+  QUEST_ADMIN_NPUB="${QUEST_ADMIN_NPUB:-$CONTINUUM_ADMIN_NPUB}"
 fi
 
 # --- overrides + defaults ---
@@ -302,7 +309,7 @@ TORII_BASE_REF="${TORII_BASE_REF:-v0.1.1}"
 # the pinned entry URL (Quest froze after ENTER ARENA without it), pinned by
 # suite v0.7.1-alpha.
 TORII_CONTINUUM_REF="${TORII_CONTINUUM_REF:-v0.2.14-alpha}"
-TORII_QUEST_REF="${TORII_QUEST_REF:-v0.2.386-alpha}"
+TORII_QUEST_REF="${TORII_QUEST_REF:-v0.2.387-alpha}"
 CONTINUUM_AGENT_PORT="${CONTINUUM_AGENT_PORT:-8787}"
 PLEBEIAN_EXTERNAL_URL="${PLEBEIAN_EXTERNAL_URL:-https://plebeian.market}"
 SKIP_CERTBOT="${SKIP_CERTBOT:-0}"

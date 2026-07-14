@@ -262,6 +262,21 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.16-alpha
+
+Quest auto-update infrastructure. `QUEST_ADMIN_NPUB` (defaults to
+`CONTINUUM_ADMIN_NPUB`) gates a new in-game "Update Now" button (Quest v0.2.387)
+that reinstalls the latest published tag from a browser click. arena-ws (hardened,
+no sudo) cannot run the installer itself, so install-quest.sh now also installs:
+  * `/opt/torii-quest/mp/update-requests/` (root:torii-quest 0770)
+  * `/usr/local/sbin/torii-quest-update-runner` (root, flock single-flight)
+  * `torii-quest-update.path` + `torii-quest-update.service` (root oneshot)
+The runner resolves the latest tag ITSELF (`git ls-remote --tags`), validates it
+against an allowlist regex, and runs the FIXED deploy (`git pull` + `install-quest.sh`).
+It never reads a requested ref from the request file, so a compromised admin session
+cannot pin an arbitrary tag. nginx gains `/mp/admin/update{,-status,-capability}`.
+Also pins `TORII_QUEST_REF=v0.2.387-alpha` (tags-based update check + admin UI + endpoint).
+
 ### New in v0.7.15-alpha
 
 `TORII_QUEST_REF` default: `v0.2.385-alpha` -> `v0.2.386-alpha`. Quest combat-feel
