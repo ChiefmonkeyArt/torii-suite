@@ -262,6 +262,21 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.13-alpha
+
+`TORII_QUEST_REF` default: `v0.2.383-alpha` -> `v0.2.384-alpha`. Quest ships a
+UI / leaderboard / stats truth pass (combat path untouched):
+- Augustink boss render scale 3.2m -> 2.5m (~1.5× the player); combat stats unchanged.
+- Leaderboard title de-mocked (`SCORE — LEADERBOARD`, no `3 ·` prefix); mock rows
+  removed; honest empty/loading state when no local data.
+- LOCAL board now keeps disconnected players on the tally (`scoreLedger.retire()` +
+  reconnect-rekey, no double-count) until the arena-ws process restarts.
+- Personal stats panel + homescreen preview wired to the same authoritative score
+  ledger via a new `EV.SCORE_FRAME` (single-player byte-identical).
+- LOGIN button is now a solid mint/green primary CTA.
+- Lightning-bolt title logo replaced with an inline torii-gate + bolt SVG in both
+  homescreen title spots. 2466 tests passing.
+
 ### New in v0.7.12-alpha
 
 `TORII_QUEST_REF` default: `v0.2.382-alpha` -> `v0.2.383-alpha`. Quest fixes the
