@@ -262,6 +262,21 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.14-alpha
+
+`TORII_QUEST_REF` default: `v0.2.384-alpha` -> `v0.2.385-alpha`. Quest adds
+**bot lag-compensation** for player→bot shots. Player→peer combat already rewound
+peers to the shot timestamp; player→bot did not, so the server tested the player's
+ray against the bots' current positions while the client rendered each bot ~100ms
+in the past — moving bots ate missed shots ("takes more than 2 body / 1 head").
+A new `server/bots/botSnapshotRing.js` records bot positions per sim tick;
+`arenaBotSim.resolvePlayerShot` now rewinds bots to the shot ts (clamped like the
+peer path) before ray-testing, so hits land where the player aimed. No
+BOT_HP/BODY/HEADSHOT/BOSS stats, hit zones, damageTable, or the v0.2.383
+event-authoritative fix touched. Also bundled: ENTER NAP ZONE button recoloured
+orange, torii-gate logo bottom-aligned with the title text, and the centre-card
+title shrunk to fit one line. 2480 tests passing.
+
 ### New in v0.7.13-alpha
 
 `TORII_QUEST_REF` default: `v0.2.383-alpha` -> `v0.2.384-alpha`. Quest ships a
