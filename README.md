@@ -262,6 +262,28 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.9-alpha
+
+`TORII_QUEST_REF` default: `v0.2.378-alpha` -> `v0.2.380-alpha`. Quest ships
+two changes:
+
+- **v0.2.379-alpha (performance):** main renderer DPR cap lowered 2 -> 1.5
+  (matches the existing mirror cap; ~44% fewer pixels on Retina), plus an
+  adaptive quality tier (HIGH/NORMAL/LOW) that drops DPR and disables the
+  UnrealBloom postprocessing pass on sustained frame drops and recovers when
+  smooth — auto-tunes to the player's GPU. A debug perf HUD is available
+  behind `window.__toriiPerf`. Render-only; single-player gameplay unchanged.
+- **v0.2.380-alpha (live leaderboard):** the in-arena leaderboard is now wired
+  end-to-end. The server broadcasts the `SCORE` frame during play (on kill + a
+  ~5s tick) so clients see real-time server-authoritative tallies; the client
+  mounts a toggleable (L / Tab) leaderboard overlay whose LOCAL tab is the
+  default view (0 signer prompts, works with no Nostr login). The existing
+  `PUBLISH MY SCORE` button is reachable from the panel (opt-in, one NIP-07
+  sign on click, never auto), and a GLOBAL tab reads signed score events back
+  from a relay (read-only, graceful empty/offline cache). Additive on
+  PROTOCOL_VERSION=1; no new in-game signer prompts beyond the explicit publish
+  click.
+
 ### New in v0.7.8-alpha
 
 `TORII_QUEST_REF` default: `v0.2.377-alpha` -> `v0.2.378-alpha`. Quest
