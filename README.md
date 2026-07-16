@@ -262,6 +262,15 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.19-alpha
+
+Documents the adoption step for the v0.7.17-hardened Quest update runner: a
+`## Updating` note with the one-line `install -m 0755` command to swap a live VPS
+onto the hardened checkout (so `Update Now` resolves the latest tag from a local
+branch, never a detached HEAD). Does NOT bump the stale `TORII_CONTINUUM_REF` pin
+(`v0.2.14-alpha`) — that needs a confirmed install-compatible tag first (latest
+is `v0.2.45-alpha`; the deployed/known-good server version is `v0.2.29-alpha`).
+
 ### New in v0.7.18-alpha
 
 Applies the same detached-HEAD hardening (shipped for Quest in v0.7.17) to
@@ -670,6 +679,21 @@ TORII_BASE_REF=main
 TORII_CONTINUUM_REF=v0.2.10-alpha
 TORII_QUEST_REF=v0.2.374-alpha
 ```
+
+### Reinstall the hardened Quest update runner
+
+If your VPS still runs the pre-v0.7.17 `/usr/local/sbin/torii-quest-update-runner`
+(it works, but predates the detached-HEAD hardening), adopt the hardened
+checkout at the terminal (root):
+
+```bash
+cd /opt/torii-suite/checkout        # or wherever you cloned it
+git pull --ff-only
+sudo install -m 0755 installers/torii-quest-update-runner.sh /usr/local/sbin/torii-quest-update-runner
+```
+
+The next `Update Now` cycle then resolves the latest tag from a local branch
+(`torii-quest-deploy`), never a detached HEAD. No restart beyond that cycle.
 
 ---
 
