@@ -262,6 +262,18 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.17-alpha
+
+Hardens the Quest deploy checkout against detached-HEAD. `install-quest.sh` is now
+the single Quest source-sync authority: its update branch replaces the fragile
+`git checkout <tag>` + `git pull --ff-only origin <tag>` (a semantically-wrong
+"pull a tag into a detached HEAD", masked by `|| true`) with
+`git checkout -B torii-quest-deploy <tag>` + `git reset --hard <tag>` — idempotent
+and always on a local branch, never a detached HEAD. The auto-update runner drops
+its now-redundant quest fetch/reset/checkout (it still pulls the Suite checkout,
+which safely tracks a branch, sources `.env`, and calls `install-quest.sh`).
+Pins `TORII_QUEST_REF` default `v0.2.387-alpha` -> `v0.2.397-alpha`.
+
 ### New in v0.7.16-alpha
 
 Quest auto-update infrastructure. `QUEST_ADMIN_NPUB` (defaults to

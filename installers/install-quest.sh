@@ -44,8 +44,10 @@ if [[ -d "${SRC}/.git" ]]; then
   # If we patched vite.config.js on a prior run, reset it so `checkout`
   # doesn't fight our own edit.
   git -C "$SRC" checkout -- vite.config.js 2>/dev/null || true
-  git -C "$SRC" checkout "$TORII_QUEST_REF"
-  git -C "$SRC" pull --ff-only origin "$TORII_QUEST_REF" 2>/dev/null || true
+  # Land on a local branch pointed at the ref (never a detached HEAD) and
+  # hard-reset to it. Idempotent on re-run and safe for both tags and branches.
+  git -C "$SRC" checkout -B torii-quest-deploy "$TORII_QUEST_REF"
+  git -C "$SRC" reset --hard "$TORII_QUEST_REF"
 else
   log "cloning torii-quest @ ${TORII_QUEST_REF}"
   git clone --branch "$TORII_QUEST_REF" \

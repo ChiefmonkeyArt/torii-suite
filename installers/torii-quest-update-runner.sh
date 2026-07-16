@@ -26,7 +26,6 @@ set -euo pipefail
 QUEST_REPO_URL="https://github.com/ChiefmonkeyArt/torii-quest.git"
 SUITE_CHECKOUT="/opt/torii-suite/checkout"
 SUITE_WORK_DIR="/opt/torii-suite/work"
-QUEST_SRC="${SUITE_WORK_DIR}/torii-quest"
 REQ_DIR="/opt/torii-quest/mp/update-requests"
 STATUS_FILE="/opt/torii-quest/mp/update-status.json"
 LOG_FILE="/var/log/torii-quest-update.log"
@@ -102,8 +101,9 @@ write_status "running" "$latest" "deploying $latest"
 
 # --- fixed deploy flow (no request-file field is substituted) --------------- #
 # Mirrors the maintainer's manual deploy: pull suite checkout, source .env, set the
-# resolved ref, hard-reset the quest work tree, then let install-quest.sh fetch +
-# checkout + build + restart torii-arena-ws.service.
+# resolved ref, then let install-quest.sh own the Quest source sync (fetch +
+# checkout + hard-reset onto a local branch) + build + restart torii-arena-ws.
+# The suite-checkout pull is safe because that checkout TRACKS A BRANCH (not a tag).
 if bash -c '
     set -euo pipefail
     cd "'"$SUITE_CHECKOUT"'"
@@ -111,9 +111,6 @@ if bash -c '
     set -a; . ./.env; set +a
     export SUITE_WORK_DIR="'"$SUITE_WORK_DIR"'"
     export TORII_QUEST_REF="'"$latest"'"
-    git -C "'"$QUEST_SRC"'" fetch --tags --prune origin
-    git -C "'"$QUEST_SRC"'" reset --hard
-    git -C "'"$QUEST_SRC"'" checkout "'"$latest"'"
     bash installers/install-quest.sh
   '; then
   log "SUCCESS: deployed $latest"
