@@ -262,6 +262,16 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.18-alpha
+
+Applies the same detached-HEAD hardening (shipped for Quest in v0.7.17) to
+`install-continuum.sh`. Both of its source-sync blocks — the frontend checkout and
+the agent-repo checkout — replace the fragile `git checkout <tag>` +
+`git pull --ff-only origin <tag>` (pulling a tag into a detached HEAD, failures
+masked by `|| true`) with `git checkout -B torii-continuum-deploy <tag>` +
+`git reset --hard <tag>` — idempotent and always on a local branch, never detached.
+No behaviour change for clean installs.
+
 ### New in v0.7.17-alpha
 
 Hardens the Quest deploy checkout against detached-HEAD. `install-quest.sh` is now

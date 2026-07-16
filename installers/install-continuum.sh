@@ -48,8 +48,10 @@ SRC="${SUITE_WORK_DIR}/torii-continuum"
 if [[ -d "${SRC}/.git" ]]; then
   log "updating torii-continuum to ${TORII_CONTINUUM_REF}"
   git -C "$SRC" fetch --tags --prune origin
-  git -C "$SRC" checkout "$TORII_CONTINUUM_REF"
-  git -C "$SRC" pull --ff-only origin "$TORII_CONTINUUM_REF" 2>/dev/null || true
+  # Land on a local branch pointed at the ref (never a detached HEAD) and
+  # hard-reset to it. Idempotent on re-run and safe for both tags and branches.
+  git -C "$SRC" checkout -B torii-continuum-deploy "$TORII_CONTINUUM_REF"
+  git -C "$SRC" reset --hard "$TORII_CONTINUUM_REF"
 else
   log "cloning torii-continuum @ ${TORII_CONTINUUM_REF}"
   git clone --branch "$TORII_CONTINUUM_REF" \
@@ -125,8 +127,10 @@ sudo -u continuum -H chmod 700 /home/continuum
 if [[ -d "${AGENT_REPO}/.git" ]]; then
   log "updating continuum agent repo"
   sudo -u continuum -H git -C "$AGENT_REPO" fetch --tags --prune origin
-  sudo -u continuum -H git -C "$AGENT_REPO" checkout "$TORII_CONTINUUM_REF"
-  sudo -u continuum -H git -C "$AGENT_REPO" pull --ff-only origin "$TORII_CONTINUUM_REF" 2>/dev/null || true
+  # Same detached-HEAD hardening as the frontend sync above: land on a local
+  # branch and hard-reset, rather than pulling a tag into a detached HEAD.
+  sudo -u continuum -H git -C "$AGENT_REPO" checkout -B torii-continuum-deploy "$TORII_CONTINUUM_REF"
+  sudo -u continuum -H git -C "$AGENT_REPO" reset --hard "$TORII_CONTINUUM_REF"
 else
   log "cloning continuum agent repo"
   sudo -u continuum -H git clone --branch "$TORII_CONTINUUM_REF" \
