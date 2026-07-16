@@ -262,6 +262,14 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.20-alpha
+
+Bumps the stale `TORII_CONTINUUM_REF` pin (`v0.2.14-alpha` → `v0.2.29-alpha`).
+`v0.2.29-alpha` is the deployed/known-good Continuum server version (running on
+the VPS on Node 22), so it is the strongest install-compatible signal available.
+Newer tags (`v0.2.32`–`v0.2.45-alpha`) exist on GitHub but are not yet
+deployed/verified-for-install — bump further only after testing one.
+
 ### New in v0.7.19-alpha
 
 Documents the adoption step for the v0.7.17-hardened Quest update runner: a
