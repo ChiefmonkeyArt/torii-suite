@@ -262,6 +262,19 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.7.21-alpha
+
+Fixes an `Update Now` deploy regression where `install-quest.sh` aborted at
+`git checkout` with "Your local changes to the following files would be
+overwritten: public/dashboard.html, public/torii-quest-data.json". The Quest
+build rewrites those generated artifacts every deploy; the dirty work tree left
+behind then blocked the next tag's checkout (surfaced first when deploying
+`v0.2.402-alpha`). `install-quest.sh` now `reset --hard`s tracked modifications
+(`node_modules` is untracked, so it is preserved) and strips the two generated
+artifacts before checkout, so a dirty work tree can never block a redeploy.
+No Quest change required — `v0.2.402-alpha` deploys cleanly once the suite
+checkout pulls this fix.
+
 ### New in v0.7.20-alpha
 
 Bumps the stale `TORII_CONTINUUM_REF` pin (`v0.2.14-alpha` → `v0.2.29-alpha`).

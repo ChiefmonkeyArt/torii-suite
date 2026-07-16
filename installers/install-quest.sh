@@ -41,9 +41,16 @@ SRC="${SUITE_WORK_DIR}/torii-quest"
 if [[ -d "${SRC}/.git" ]]; then
   log "updating torii-quest to ${TORII_QUEST_REF}"
   git -C "$SRC" fetch --tags --prune origin
-  # If we patched vite.config.js on a prior run, reset it so `checkout`
-  # doesn't fight our own edit.
-  git -C "$SRC" checkout -- vite.config.js 2>/dev/null || true
+  # Discard ALL tracked local modifications before checkout. The build step
+  # below rewrites generated artifacts (public/dashboard.html,
+  # public/torii-quest-data.json) every deploy, and a prior run's patched
+  # vite.config.js also lingers — any of these would otherwise make
+  # `checkout -B` abort with "Your local changes ... would be overwritten".
+  # reset --hard HEAD touches only tracked files; node_modules (untracked) is
+  # preserved. Also strip the generated artifacts if a prior run left them
+  # untracked, so a newly-tracked file in the target can't conflict either.
+  git -C "$SRC" reset --hard HEAD 2>/dev/null || true
+  git -C "$SRC" clean -f -- public/dashboard.html public/torii-quest-data.json 2>/dev/null || true
   # Land on a local branch pointed at the ref (never a detached HEAD) and
   # hard-reset to it. Idempotent on re-run and safe for both tags and branches.
   git -C "$SRC" checkout -B torii-quest-deploy "$TORII_QUEST_REF"
