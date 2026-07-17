@@ -265,6 +265,20 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.8.1-alpha
+
+Bumps `TORII_BASE_REF` from `v0.1.1` to `v0.1.4`. Fixes the `duplicate
+location "/" in .../torii.conf` nginx error that aborted the `[1/7] torii-base`
+stage on reinstall over an existing box. Root cause: `torii-base` v0.1.1's
+`torii.conf` declares its own `location = /` launcher fallback *and* includes
+`root_app.conf`; once the sidecar had written a `location = /` into
+`root_app.conf` (normal after any `set-root` / homepage activation), the two
+exact-match blocks collided and `nginx -t` failed. v0.1.4 drops the fallback
+from `torii.conf` (making `root_app.conf` the single owner of `/`) and its
+bootstrap reconciles a stale `root_app.conf` into a valid block before the
+nginx reload. v0.1.4 retains the v0.1.1 passwordless-sudo shim the sidecar
+needs to reload nginx, so `torii register` still works.
+
 ### New in v0.8.0-alpha
 
 Adds sovereign Nostr git-mirror infrastructure as a new opt-in stage
