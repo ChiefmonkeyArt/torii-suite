@@ -69,6 +69,8 @@ https://your-domain.com/continuum/      — Continuum (AI-powered app builder)
 https://your-domain.com/agent/          — Continuum agent (Fastify, proxied)
 https://your-domain.com/quest/          — Torii Quest (3D open-world game)
 https://your-domain.com/plebeian/       — Plebeian Market (external tile)
+wss://your-domain.com/relay             — sovereign Nostr relay (strfry)
+https://your-domain.com/git/            — read-only git mirror host (NIP-34)
 ```
 
 Continuum also gets a **local Ollama daemon** on `127.0.0.1:11434` as an LLM
@@ -92,6 +94,7 @@ torii-suite/
 │   ├── install-continuum.sh      # frontend + agent + systemd + nginx fragment
 │   ├── install-ollama.sh         # local LLM daemon (loopback, systemd-managed)
 │   ├── install-quest.sh          # static bundle at /quest/ + nginx fragment
+│   ├── install-nostr-git.sh      # strfry relay + read-only git smart-HTTP host
 │   ├── register-plebeian.sh      # launcher tile only (Plebeian is external)
 │   └── install-bridges.sh        # onboarding bridges: cors-proxy + webssh
 ├── onboarding/
@@ -261,6 +264,35 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.8.0-alpha
+
+Adds sovereign Nostr git-mirror infrastructure as a new opt-in stage
+(`INSTALL_NOSTR_GIT=1`, on by default). The VPS now runs its own Nostr relay
+and a read-only git smart-HTTP host on the shared domain:
+
+- **strfry relay** at `wss://your-domain/relay` — built from a pinned source
+  tag (`STRFRY_REF=1.1.0`). strfry publishes no prebuilt release binaries, so
+  the stage compiles the binary itself from reviewed source (no opaque blob
+  to trust). Loopback-bound behind nginx; the build is skipped on re-run when
+  the binary already exists at the pinned tag.
+- **git host** at `https://your-domain/git/` — git smart-HTTP via fcgiwrap +
+  `git-http-backend`, serving bare repos from `/opt/torii/git`. Read-only by
+  design: fetch/clone is allowed, push (`service=git-receive-pack`) is blocked
+  at nginx (403), with per-repo `http.receivepack=false` as belt-and-braces.
+
+Keyless by design — the VPS holds no nsec and signs nothing. This stage only
+provisions empty infra (`/opt/torii/git` + a running relay); Continuum
+(slice `CONT-NIP34-MIRROR-1`) populates it with browser-signed `kind:30617`
+NIP-34 repos via your NIP-07 signer. New env vars: `INSTALL_NOSTR_GIT`,
+`NOSTR_RELAY_PORT`, `NOSTR_RELAY_DB`, `GIT_HOST_ROOT`, `NOSTR_PUBLIC_RELAYS`,
+`STRFRY_REF`. The bootstrap summary card now reports `RELAY_SMOKE_RESULT`
+(strfry NIP-11 probe) and `GIT_SMOKE_RESULT` (git-http-backend fetch probe).
+
+Note: strfry is [GPLv3](https://github.com/hoytech/strfry/blob/master/LICENSE);
+the suite itself remains MIT. Building strfry pulls in the usual C++ build
+deps (`g++ make libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev
+libsecp256k1-dev libzstd-dev`) on first run.
 
 ### New in v0.7.21-alpha
 
@@ -676,6 +708,64 @@ sudo -u root ollama pull qwen2.5:7b
 sudo -u continuum sed -i 's|llama3.2:3b|qwen2.5:7b|g' /home/continuum/agent/repo/agent/config.yaml
 sudo systemctl restart continuum-agent
 ```
+
+---
+
+## Nostr git-mirror infra
+
+`INSTALL_NOSTR_GIT=1` (on by default) gives the VPS its own sovereign Nostr
+relay and a read-only git mirror host. Both ride the shared torii-base domain.
+
+| Surface | URL | What lives there |
+| --- | --- | --- |
+| Nostr relay | `wss://your-domain/relay` | strfry — the VPS's own Nostr ingress |
+| Git host | `https://your-domain/git/` | read-only bare repos (NIP-34 `clone` targets) |
+
+**strfry is built from source.** strfry publishes no prebuilt release binaries,
+so the stage clones `hoytech/strfry` at the pinned `STRFRY_REF` tag, initialises
+its golpe submodule, and compiles the binary itself. No opaque blob is
+downloaded — you compile from reviewed source, which is the sovereign path.
+The first build pulls in C++ build deps (`g++ make libssl-dev zlib1g-dev
+liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev`) and takes a few
+minutes; re-runs skip the build when the binary already exists at the pinned
+tag. strfry is [GPLv3](https://github.com/hoytech/strfry/blob/master/LICENSE);
+the suite itself stays MIT.
+
+**The VPS is keyless.** It holds no `nsec` and signs nothing. The relay's NIP-11
+identity carries no admin pubkey. This stage only provisions empty infra:
+`/opt/torii/git` (the bare-repo store) plus a running strfry bound to loopback
+behind nginx. Continuum (slice `CONT-NIP34-MIRROR-1`) populates the git store
+with repos you publish from your NIP-07 browser signer (Plebeian Signer,
+nos2x) via `kind:30617` NIP-34 events.
+
+**Read-only by design.** The git host serves fetch/clone only. Push
+(`service=git-receive-pack`) is blocked at nginx with `403`, and per-repo
+`http.receivepack=false` is set by the mirror job as belt-and-braces. No one
+— not even the operator — can push to the mirror over HTTP; repos are
+populated by the on-box Continuum mirror job that writes the bare store
+directly.
+
+### Verifying it works
+
+The bootstrap summary card reports two smokes:
+
+- **`RELAY_SMOKE_RESULT`** — strfry answered a NIP-11 relay-info probe on
+  loopback (`curl -H 'Accept: application/nostr+json' http://127.0.0.1:7777/`).
+- **`GIT_SMOKE_RESULT`** — `git-http-backend` served a smart-HTTP
+  `info/refs?service=git-upload-pack` advert for a throwaway repo under
+  `/opt/torii/git`, and fcgiwrap is active so the nginx→fcgiwrap→backend route
+  has a live adapter.
+
+Once Continuum has published a repo, verify the public path end-to-end:
+
+```bash
+git clone https://your-domain/git/<repo>.git
+# fetch works; push is rejected:
+git push origin main            # -> 403 (service=git-receive-pack blocked)
+```
+
+And confirm the relay speaks Nostr from a client that supports custom relays
+by adding `wss://your-domain/relay` to its relay list.
 
 ---
 

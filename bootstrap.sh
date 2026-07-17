@@ -272,6 +272,7 @@ INSTALL_QUEST="${INSTALL_QUEST:-1}"
 INSTALL_OLLAMA="${INSTALL_OLLAMA:-1}"
 INSTALL_PLEBEIAN="${INSTALL_PLEBEIAN:-1}"
 INSTALL_ONBOARDING_BRIDGES="${INSTALL_ONBOARDING_BRIDGES:-0}"
+INSTALL_NOSTR_GIT="${INSTALL_NOSTR_GIT:-1}"
 
 if [[ "$INSTALL_OLLAMA" == "1" && "$INSTALL_CONTINUUM" != "1" ]]; then
   ui_warn "INSTALL_OLLAMA=1 but INSTALL_CONTINUUM=0 — Ollama has no consumer, disabling"
@@ -345,12 +346,24 @@ WEBSSH_PORT="${WEBSSH_PORT:-8802}"
 WEBSSH_MAX_PER_IP="${WEBSSH_MAX_PER_IP:-3}"
 WEBSSH_MAX_SESSION_MS="${WEBSSH_MAX_SESSION_MS:-900000}"
 
+# Nostr git-mirror infra (v0.8.0-alpha, SUITE-NOSTR-GIT-1). strfry relay +
+# read-only git smart-HTTP host. Keyless: provisions empty infra only;
+# Continuum populates /opt/torii/git with browser-signed kind:30617 repos.
+NOSTR_RELAY_PORT="${NOSTR_RELAY_PORT:-7777}"
+NOSTR_RELAY_DB="${NOSTR_RELAY_DB:-/opt/torii/relay/db}"
+GIT_HOST_ROOT="${GIT_HOST_ROOT:-/opt/torii/git}"
+NOSTR_PUBLIC_RELAYS="${NOSTR_PUBLIC_RELAYS:-wss://relay.damus.io,wss://nos.lol,wss://relay.nostr.band,wss://relay.primal.net}"
+# strfry is built from source (no prebuilt release binaries exist). Pinned to
+# an upstream tag for reproducible, sovereign compiles.
+STRFRY_REF="${STRFRY_REF:-1.1.0}"
+
 export TORII_DOMAIN LETSENCRYPT_EMAIL SKIP_CERTBOT
 export CONTINUUM_ADMIN_NPUB CONTINUUM_AGENT_PORT CONTINUUM_SESSION_TTL_SEC
 export INSTALL_OLLAMA OLLAMA_MODE OLLAMA_BIND OLLAMA_MODELS OLLAMA_URL OLLAMA_AUTH_HEADER OLLAMA_ENDPOINT
 export SUITE_WORK_DIR
 export CORS_PROXY_ORIGIN_ALLOW CORS_PROXY_UPSTREAM_ALLOW CORS_PROXY_PORT
 export WEBSSH_ORIGIN_ALLOW WEBSSH_PORT WEBSSH_MAX_PER_IP WEBSSH_MAX_SESSION_MS
+export INSTALL_NOSTR_GIT NOSTR_RELAY_PORT NOSTR_RELAY_DB GIT_HOST_ROOT NOSTR_PUBLIC_RELAYS STRFRY_REF
 
 # --------------------------------------------------------------------------- #
 # DNS preflight (has to come after we know TORII_DOMAIN)                      #
@@ -431,6 +444,7 @@ _STAGES_TOTAL=1  # base
 [[ "$INSTALL_QUEST"              == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_PLEBEIAN"           == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_NOSTR_GIT"        == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))  # doctor
 
 # Build plan rows via string concatenation — avoids putting user-supplied
@@ -457,6 +471,7 @@ fi
 ui_box_line "Quest       $(_plan_row "$INSTALL_QUEST" "install")"
 ui_box_line "Plebeian    $(_plan_row "$INSTALL_PLEBEIAN" "tile")"
 ui_box_line "Bridges     $(_plan_row "$INSTALL_ONBOARDING_BRIDGES" "install")"
+ui_box_line "Nostr git   $(_plan_row "$INSTALL_NOSTR_GIT" "install ${UI_DIM}(relay +git host)${UI_RESET}")"
 if [[ "$SKIP_CERTBOT" == "1" ]]; then
   ui_box_line "HTTPS       ${UI_YELLOW}skip${UI_RESET}"
 else
@@ -512,6 +527,7 @@ _stage_ollama()         { "${SCRIPT_DIR}/installers/install-ollama.sh"; }
 _stage_quest()          { "${SCRIPT_DIR}/installers/install-quest.sh"; }
 _stage_plebeian()       { "${SCRIPT_DIR}/installers/register-plebeian.sh"; }
 _stage_bridges()        { "${SCRIPT_DIR}/installers/install-bridges.sh"; }
+_stage_nostr_git()      { "${SCRIPT_DIR}/installers/install-nostr-git.sh"; }
 
 # Doctor is a status readout — never fatal.
 _stage_doctor() {
@@ -605,6 +621,11 @@ _stage_auth_smoke() {
 
 stage_header "torii-base (host layer)"
 run_stage "install torii-base" _stage_base
+
+if [[ "$INSTALL_NOSTR_GIT" == "1" ]]; then
+  stage_header "Nostr git-mirror infra (relay + git host)"
+  run_stage "install Nostr relay + git host" _stage_nostr_git
+fi
 
 if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
   stage_header "Continuum (frontend + agent)"
@@ -798,6 +819,89 @@ if [[ "$INSTALL_QUEST" == "1" && "${INSTALL_ARENA_WS:-1}" == "1" ]]; then
   run_stage "verify arena-ws /mp WebSocket" _stage_mp_smoke
 fi
 
+# Nostr git-mirror smoke (v0.8.0-alpha, SUITE-NOSTR-GIT-1). Two probes, both
+# loopback + TLS-independent (so they run whether certbot ran or not):
+#   RELAY: GET / with Accept: application/nostr+json -> strfry NIP-11 info.
+#         Proves the relay process is alive + speaking the Nostr relay role.
+#   GIT:   invoke git-http-backend as a CGI against a throwaway bare repo under
+#         GIT_HOST_ROOT (info/refs?service=git-upload-pack). Proves the backend
+#         + project root are wired + fetch is served. Also checks fcgiwrap is
+#         up so the nginx->fcgiwrap->backend route has a live adapter.
+# Non-fatal: records RELAY_SMOKE_RESULT + GIT_SMOKE_RESULT for the summary card.
+RELAY_SMOKE_RESULT="skipped"
+GIT_SMOKE_RESULT="skipped"
+_stage_nostr_git_smoke() {
+  if [[ "${INSTALL_NOSTR_GIT:-1}" != "1" ]]; then
+    RELAY_SMOKE_RESULT="skipped"
+    GIT_SMOKE_RESULT="skipped"
+    return 0
+  fi
+
+  local port="${NOSTR_RELAY_PORT:-7777}"
+  local root="${GIT_HOST_ROOT:-/opt/torii/git}"
+  local backend
+  backend="$(git --exec-path 2>/dev/null)/git-http-backend"
+
+  # --- RELAY: NIP-11 relay-info over loopback ---
+  local nip11
+  nip11="$(curl -fsS -m 5 -H 'Accept: application/nostr+json' \
+    "http://127.0.0.1:${port}/" 2>>"$SUITE_LOG_FILE" || echo '')"
+  if [[ -n "$nip11" ]] && printf '%s' "$nip11" | grep -qE '"name"[[:space:]]*:'; then
+    ui_ok "strfry NIP-11 relay-info answered on loopback :${port}"
+    RELAY_SMOKE_RESULT="ok"
+  else
+    ui_warn "strfry NIP-11 probe failed on loopback :${port} - see ${SUITE_LOG_FILE}"
+    RELAY_SMOKE_RESULT="relay-fail"
+  fi
+
+  # --- GIT: direct git-http-backend CGI probe against a throwaway repo ---
+  if [[ ! -x "$backend" ]]; then
+    ui_warn "git-http-backend not found at ${backend} - skipping git smoke"
+    GIT_SMOKE_RESULT="backend-missing"
+    return 0
+  fi
+  if [[ ! -S /run/fcgiwrap.socket ]]; then
+    ui_warn "fcgiwrap socket absent at /run/fcgiwrap.socket - nginx /git route will not work"
+    GIT_SMOKE_RESULT="fcgiwrap-down"
+    return 0
+  fi
+
+  local smoke_repo="${root}/torii-smoke.git"
+  rm -rf "$smoke_repo"
+  if ! git init --bare --quiet "$smoke_repo" 2>>"$SUITE_LOG_FILE"; then
+    ui_warn "could not create smoke repo at ${smoke_repo} - see ${SUITE_LOG_FILE}"
+    GIT_SMOKE_RESULT="repo-fail"
+    return 0
+  fi
+  # git-http-backend serves repos readable by the fcgiwrap user (www-data).
+  chmod -R a+rX "$smoke_repo" 2>/dev/null || true
+
+  # Invoke git-http-backend as a CGI: info/refs?service=git-upload-pack.
+  # A successful smart-HTTP advert includes the service marker in the body.
+  local cgi_out
+  cgi_out="$(REQUEST_METHOD=GET \
+    PATH_INFO=/torii-smoke.git/info/refs \
+    QUERY_STRING=service=git-upload-pack \
+    GIT_PROJECT_ROOT="$root" \
+    GIT_HTTP_EXPORT_ALL=1 \
+    "$backend" 2>>"$SUITE_LOG_FILE" || echo '')"
+  rm -rf "$smoke_repo"
+
+  if printf '%s' "$cgi_out" | grep -q 'git-upload-pack'; then
+    ui_ok "git-http-backend serves fetch (info/refs) for ${root}"
+    GIT_SMOKE_RESULT="ok"
+  else
+    ui_warn "git-http-backend did not serve a smart-HTTP advert - see ${SUITE_LOG_FILE}"
+    GIT_SMOKE_RESULT="backend-fail"
+  fi
+  return 0
+}
+
+if [[ "${INSTALL_NOSTR_GIT:-1}" == "1" ]]; then
+  stage_header "Nostr git-mirror smoke test"
+  run_stage "verify relay + git host" _stage_nostr_git_smoke
+fi
+
 # --------------------------------------------------------------------------- #
 # Summary card                                                                #
 # --------------------------------------------------------------------------- #
@@ -843,6 +947,24 @@ if [[ "$INSTALL_QUEST" == "1" && "${INSTALL_ARENA_WS:-1}" == "1" ]]; then
     timeout)         ui_box_line "  ${UI_ARROW} arena-ws   ${UI_YELLOW}handshake timeout${UI_RESET}${UI_DIM}  - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
     error)           ui_box_line "  ${UI_ARROW} arena-ws   ${UI_YELLOW}probe failed${UI_RESET}${UI_DIM}  - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
     skipped)         ui_box_line "  ${UI_ARROW} arena-ws   ${UI_DIM}skipped${UI_RESET}" ;;
+    *)               : ;;
+  esac
+fi
+if [[ "$INSTALL_NOSTR_GIT" == "1" ]]; then
+  ui_box_line "Nostr relay  ${UI_CYAN}wss://${TORII_DOMAIN}/relay${UI_RESET}"
+  case "$RELAY_SMOKE_RESULT" in
+    ok)          ui_box_line "  ${UI_ARROW} strfry     ${UI_GREEN}NIP-11 probe ok${UI_RESET}" ;;
+    relay-fail)  ui_box_line "  ${UI_ARROW} strfry     ${UI_YELLOW}NIP-11 probe failed${UI_RESET}${UI_DIM}  - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    skipped)     ui_box_line "  ${UI_ARROW} strfry     ${UI_DIM}skipped${UI_RESET}" ;;
+    *)           : ;;
+  esac
+  ui_box_line "Git host     ${UI_CYAN}https://${TORII_DOMAIN}/git/${UI_RESET}"
+  case "$GIT_SMOKE_RESULT" in
+    ok)              ui_box_line "  ${UI_ARROW} git-http   ${UI_GREEN}fetch served${UI_RESET}${UI_DIM}  (read-only)${UI_RESET}" ;;
+    backend-missing) ui_box_line "  ${UI_ARROW} git-http   ${UI_YELLOW}backend missing${UI_RESET}${UI_DIM}  - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    fcgiwrap-down)   ui_box_line "  ${UI_ARROW} git-http   ${UI_YELLOW}fcgiwrap down${UI_RESET}${UI_DIM}  - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    backend-fail)    ui_box_line "  ${UI_ARROW} git-http   ${UI_YELLOW}backend probe failed${UI_RESET}${UI_DIM}  - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
+    skipped)         ui_box_line "  ${UI_ARROW} git-http   ${UI_DIM}skipped${UI_RESET}" ;;
     *)               : ;;
   esac
 fi
