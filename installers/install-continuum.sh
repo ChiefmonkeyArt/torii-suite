@@ -104,6 +104,14 @@ mv -Tf "$WWW_DEST.new" "$WWW_DEST"
 find "$(dirname "$RELEASE_DIR")" -maxdepth 1 -mindepth 1 -type d \
   | sort | head -n -3 | xargs -r rm -rf
 
+# Prune stale Continuum failed/quarantine snapshots (from Continuum's own
+# deploy mechanism in /home/continuum/) to prevent ENOSPC disk-full.
+if [[ -d /home/continuum ]]; then
+  find /home/continuum -maxdepth 1 -mindepth 1 -type d \
+    \( -name 'app.failed-*' -o -name 'app.quarantine-*' \) \
+    -exec rm -rf {} + 2>/dev/null || true
+fi
+
 chown -R root:www-data "$RELEASE_DIR"
 find "$RELEASE_DIR" -type d -exec chmod 755 {} +
 find "$RELEASE_DIR" -type f -exec chmod 644 {} +
