@@ -111,7 +111,10 @@ fi
 log "building torii-quest bundle"
 (
   cd "$SRC"
-  npm ci --no-audit --no-fund
+  # Use incremental npm install instead of npm ci: npm ci wipes node_modules
+  # and reinstalls everything from scratch on every deploy (10-15 min on a VPS).
+  # npm install is incremental - only installs new/changed packages.
+  npm install --no-audit --no-fund
   npm run build
 )
 
