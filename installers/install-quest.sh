@@ -121,6 +121,33 @@ log "building torii-quest bundle"
 [[ -d "${SRC}/dist" ]] || die "quest build produced no dist/ directory"
 
 # --------------------------------------------------------------------------- #
+# 3b. Worlds directory (persistent, user-owned)                                #
+# --------------------------------------------------------------------------- #
+#
+# Level 2 Phase 2: custom worlds survive updates. The repo ships
+# worlds/default/world.json as a template. On the VPS, user customizations
+# live in /opt/torii-quest/worlds/ -- outside the git repo, so git reset
+# --hard during updates can NEVER overwrite them.
+#
+# On first install (or if the dir is missing), seed from the repo template.
+# On updates, if /opt/torii-quest/worlds/default/world.json already exists,
+# do NOTHING -- the user's customizations are preserved.
+
+WORLDS_DIR="/opt/torii-quest/worlds"
+if [[ ! -d "${WORLDS_DIR}/default" ]]; then
+  log "seeding worlds directory from repo template (${WORLDS_DIR})"
+  install -d -m 0755 -o torii-quest -g torii-quest "$WORLDS_DIR"
+  if [[ -d "${SRC}/worlds/default" ]]; then
+    cp -a "${SRC}/worlds/default" "${WORLDS_DIR}/default"
+    chown -R torii-quest:torii-quest "${WORLDS_DIR}"
+  else
+    warn "quest source has no worlds/default/ -- worlds dir left empty"
+  fi
+else
+  log "worlds directory already exists -- preserving user customizations (${WORLDS_DIR})"
+fi
+
+# --------------------------------------------------------------------------- #
 # 4. Snapshot + atomic symlink flip                                           #
 # --------------------------------------------------------------------------- #
 
@@ -158,6 +185,16 @@ FRAGMENT_CONTENT="$(cat <<NGINX
 location /quest/ {
     alias /var/www/torii/quest/;
     try_files \$uri \$uri/ /quest/index.html;
+
+    # Level 2 Phase 2: serve custom worlds from persistent storage.
+    # /opt/torii-quest/worlds/ survives updates -- user customizations are
+    # never overwritten by a new release. Takes precedence over the alias
+    # above for /quest/worlds/ paths.
+    location /quest/worlds/ {
+        alias /opt/torii-quest/worlds/;
+        try_files \$uri =404;
+        add_header Cache-Control "no-store" always;
+    }
 
     location /quest/assets/ {
         alias /var/www/torii/quest/assets/;
