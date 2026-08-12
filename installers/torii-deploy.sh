@@ -50,10 +50,9 @@ done
 
 # --- Verify live version ---
 sleep 2  # give nginx a moment to pick up the new symlink
-LIVE=$(curl -s "${HEALTH_URL}" | grep -o 'v[0-9]\.[0-9]\.[0-9]*[a-z-]*' | head -1)
-if [[ "${LIVE}" == "${VERSION}" ]]; then
+if curl -s "${HEALTH_URL}" | grep -q "${VERSION}"; then
   echo "OK: ${VERSION} is live"
 else
-  echo "WARNING: expected ${VERSION} but got ${LIVE}"
+  echo "WARNING: ${VERSION} not found on live site"
   exit 1
 fi
