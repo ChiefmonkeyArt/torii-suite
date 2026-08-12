@@ -497,6 +497,7 @@ NGINX
   RUNNER_SRC="$(dirname "${BASH_SOURCE[0]}")/torii-quest-update-runner.sh"
   install -d -m 0770 -o torii-quest -g torii-quest /opt/torii-quest/mp/update-requests
   install -m 0755 "$RUNNER_SRC" /usr/local/sbin/torii-quest-update-runner
+  install -m 0755 "$(dirname "${BASH_SOURCE[0]}")/torii-deploy.sh" /usr/local/sbin/torii-deploy
   : > /var/log/torii-quest-update.log; chmod 0644 /var/log/torii-quest-update.log
   cat > /etc/systemd/system/torii-quest-update.path <<'UNIT'
 [Unit]
