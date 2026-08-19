@@ -125,26 +125,61 @@ log "building torii-quest bundle"
 # --------------------------------------------------------------------------- #
 #
 # Level 2 Phase 2: custom worlds survive updates. The repo ships
-# worlds/default/world.json as a template. On the VPS, user customizations
-# live in /opt/torii-quest/worlds/ -- outside the git repo, so git reset
-# --hard during updates can NEVER overwrite them.
+# worlds/<template>/world.json manifests (gateway-blank, chiefmonkey-template,
+# …). On the VPS, user customizations live in /opt/torii-quest/worlds/ --
+# outside the git repo, so git reset --hard during updates can NEVER overwrite
+# them.
 #
-# On first install (or if the dir is missing), seed from the repo template.
-# On updates, if /opt/torii-quest/worlds/default/world.json already exists,
-# do NOTHING -- the user's customizations are preserved.
+# On first install (or if the dir is missing), seed EACH shipped template dir
+# under worlds/ (iterate worlds/*/world.json), never overwriting an existing
+# template dir (no clobber — user customizations are preserved on updates).
+# Then write an `active` pointer to the chosen template id (default
+# `gateway-blank`), preserving any existing `active` so a user's chosen world
+# survives re-runs. If `active` is absent but `default/` exists, set
+# active=default for back-compat with the original single-template layout.
 
 WORLDS_DIR="/opt/torii-quest/worlds"
-if [[ ! -d "${WORLDS_DIR}/default" ]]; then
-  log "seeding worlds directory from repo template (${WORLDS_DIR})"
+if [[ ! -d "${WORLDS_DIR}" ]]; then
+  log "seeding worlds directory from repo templates (${WORLDS_DIR})"
   install -d -m 0755 -o torii-quest -g torii-quest "$WORLDS_DIR"
-  if [[ -d "${SRC}/worlds/default" ]]; then
-    cp -a "${SRC}/worlds/default" "${WORLDS_DIR}/default"
-    chown -R torii-quest:torii-quest "${WORLDS_DIR}"
-  else
-    warn "quest source has no worlds/default/ -- worlds dir left empty"
-  fi
+fi
+
+# Seed each shipped template dir under worlds/ (no clobber — skip any that
+# already exist so user customizations survive updates).
+shopt -s nullglob
+if [[ -d "${SRC}/worlds" ]]; then
+  for manifest in "${SRC}/worlds/"*/world.json; do
+    template_dir="$(dirname "$manifest")"
+    template_id="$(basename "$template_dir")"
+    dest="${WORLDS_DIR}/${template_id}"
+    if [[ -d "$dest" ]]; then
+      log "worlds/${template_id} already exists -- preserving user customizations"
+      continue
+    fi
+    log "seeding worlds/${template_id} from repo template"
+    cp -a "$template_dir" "$dest"
+    chown -R torii-quest:torii-quest "$dest"
+  done
 else
-  log "worlds directory already exists -- preserving user customizations (${WORLDS_DIR})"
+  warn "quest source has no worlds/ -- worlds dir left empty"
+fi
+shopt -u nullglob
+
+# `active` pointer to the chosen template id. Default gateway-blank; never
+# clobber an existing `active` (the user may have switched templates). Back-compat:
+# if `active` is absent but `default/` exists, set active=default.
+ACTIVE_LINK="${WORLDS_DIR}/active"
+if [[ -e "$ACTIVE_LINK" || -L "$ACTIVE_LINK" ]]; then
+  log "worlds/active already set -- preserving user choice"
+else
+  if [[ -d "${WORLDS_DIR}/default" ]]; then
+    printf 'default\n' > "$ACTIVE_LINK"
+    log "worlds/active -> default (legacy single-template back-compat)"
+  else
+    printf 'gateway-blank\n' > "$ACTIVE_LINK"
+    log "worlds/active -> gateway-blank (default template)"
+  fi
+  chown torii-quest:torii-quest "$ACTIVE_LINK" 2>/dev/null || true
 fi
 
 # --------------------------------------------------------------------------- #
