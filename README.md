@@ -7,7 +7,7 @@
 On a fresh Ubuntu 22.04 / 24.04 / 26.04 VPS, as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.7-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/main/bootstrap.sh | sudo bash
 ```
 
 The installer will show you the Torii banner, ask three questions (domain,
@@ -115,7 +115,7 @@ torii-suite/
 ### A. One-liner (recommended for non-coders)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.6.7-alpha/bootstrap.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/main/bootstrap.sh | sudo bash
 ```
 
 The installer clones itself to `/opt/torii-suite/checkout/`, asks three
@@ -264,6 +264,23 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.8.4-alpha
+
+Official install now tracks latest. The one-liner pointed at the stale
+`v0.6.7-alpha` tag; it now points at `main`, so a fresh install pulls the
+current installer (which installs Quest/Continuum/base at `main` by default —
+v0.8.3 dropped the hardcoded old ref pins). A brand-new operator types their
+own domain, Let's Encrypt email, and npub at three interactive prompts — no
+`.env` pre-seeding, no files to edit.
+
+### New in v0.8.3-alpha
+
+Fresh installs default to latest instead of stale pins. `bootstrap.sh` no
+longer hardcodes `TORII_BASE_REF`/`TORII_CONTINUUM_REF`/`TORII_QUEST_REF` to
+old release tags (`v0.1.4`/`v0.2.14-alpha`/`v0.2.387-alpha`); all three now
+default to `main`, so a brand-new node is current out of the box. Pin a
+tag via `.env` for reproducible rollouts.
 
 ### New in v0.8.1-alpha
 
