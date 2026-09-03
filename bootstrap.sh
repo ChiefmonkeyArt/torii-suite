@@ -302,15 +302,12 @@ SUITE_WORK_DIR="${SUITE_WORK_DIR:-/opt/torii-suite/work}"
 # runs as the unprivileged torii user) can `sudo -n nginx -t` and
 # `sudo -n nginx -s reload`. Without this the [2/6] Continuum stage fails
 # with 500 {"error":"nginx_reload_failed"} on the torii register call.
-# Pinned by suite v0.6.3-alpha.
-TORII_BASE_REF="${TORII_BASE_REF:-v0.1.4}"
-# Continuum ships tagged releases; suite v0.6.0-alpha pins v0.2.14-alpha (auth
-# rate-limit slice). Quest v0.2.367-alpha is the first tag carrying arena-ws,
-# pinned by suite v0.6.1-alpha. v0.2.374-alpha restores the `/quest/` base on
-# the pinned entry URL (Quest froze after ENTER ARENA without it), pinned by
-# suite v0.7.1-alpha.
-TORII_CONTINUUM_REF="${TORII_CONTINUUM_REF:-v0.2.14-alpha}"
-TORII_QUEST_REF="${TORII_QUEST_REF:-v0.2.387-alpha}"
+# Git refs to install. Default to `main` (latest) on a fresh install so no
+# node is ever pinned to an old build out of the box. Set TORII_*_REF to a
+# specific tag in .env for a reproducible/pinned rollout.
+TORII_BASE_REF="${TORII_BASE_REF:-main}"
+TORII_CONTINUUM_REF="${TORII_CONTINUUM_REF:-main}"
+TORII_QUEST_REF="${TORII_QUEST_REF:-main}"
 CONTINUUM_AGENT_PORT="${CONTINUUM_AGENT_PORT:-8787}"
 PLEBEIAN_EXTERNAL_URL="${PLEBEIAN_EXTERNAL_URL:-https://plebeian.market}"
 SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
