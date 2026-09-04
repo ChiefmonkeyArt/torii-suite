@@ -4,7 +4,7 @@
 # Root update runner for Torii Quest. Installed to /usr/local/sbin/torii-quest-update-runner
 # and triggered by systemd torii-quest-update.path whenever arena-ws (running as the
 # unprivileged torii-quest user) writes a request file to
-# /opt/torii-quest/mp/update-requests/. arena-ws CANNOT run this itself: it runs under
+# /apps/quest/mp/update-requests/. arena-ws CANNOT run this itself: it runs under
 # NoNewPrivileges=true + ProtectSystem=strict and cannot sudo/systemctl. This runner is
 # the single privileged boundary that performs the reinstall.
 #
@@ -16,7 +16,7 @@
 #   * The deploy command is FIXED (cd checkout && git pull && source .env && install-quest.sh).
 #     No request-file field is ever substituted into a shell command.
 #   * Single-flight via flock; extra pending requests are discarded.
-#   * Status is written to /opt/torii-quest/mp/update-status.json (0644, readable by
+#   * Status is written to /apps/quest/mp/update-status.json (0644, readable by
 #     torii-quest so arena-ws can report progress to the admin client).
 #
 # Logs to journald (via systemd) + /var/log/torii-quest-update.log.
@@ -26,8 +26,17 @@ set -euo pipefail
 QUEST_REPO_URL="https://github.com/ChiefmonkeyArt/torii-quest.git"
 SUITE_CHECKOUT="/opt/torii-suite/checkout"
 SUITE_WORK_DIR="/opt/torii-suite/work"
-REQ_DIR="/opt/torii-quest/mp/update-requests"
-STATUS_FILE="/opt/torii-quest/mp/update-status.json"
+# Match the APPS_ROOT the installer used (written to the suite .env). Fall back
+# to /apps — install-quest.sh's default. Must agree with arena-ws's
+# UPDATE_REQUESTS_DIR / UPDATE_STATUS_PATH (set from the same APPS_ROOT in its
+# systemd unit) so the request file and the status land in the same place.
+APPS_ROOT="/apps"
+if [[ -f "${SUITE_CHECKOUT}/.env" ]]; then
+  set -a; . "${SUITE_CHECKOUT}/.env"; set +a
+  APPS_ROOT="${APPS_ROOT:-/apps}"
+fi
+REQ_DIR="${APPS_ROOT}/quest/mp/update-requests"
+STATUS_FILE="${APPS_ROOT}/quest/mp/update-status.json"
 LOG_FILE="/var/log/torii-quest-update.log"
 LOCK_FILE="/var/lock/torii-quest-update.lock"
 # Allowlist: vMAJOR.MINOR.PATCH with optional -prerelease (semver-ish). Rejects anything else.

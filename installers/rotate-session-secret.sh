@@ -27,7 +27,7 @@
 
 set -euo pipefail
 
-CONFIG_FILE="${CONFIG_FILE:-/home/continuum/agent/config.yaml}"
+CONFIG_FILE="${CONFIG_FILE:-/apps/continuum/agent/config.yaml}"
 AGENT_UNIT="${AGENT_UNIT:-continuum-agent.service}"
 AGENT_PORT="${CONTINUUM_AGENT_PORT:-8787}"
 

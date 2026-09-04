@@ -298,6 +298,10 @@ fi
 
 # --- overrides + defaults ---
 SUITE_WORK_DIR="${SUITE_WORK_DIR:-/opt/torii-suite/work}"
+# Apps are served + store runtime data under one per-app dir. The installer
+# (/opt/torii-suite) and the torii-base host layer (nginx + sidecar + relay)
+# live OUTSIDE this root. Override APPS_ROOT in .env to relocate the apps.
+APPS_ROOT="${APPS_ROOT:-/apps}"
 # torii-base v0.1.1 adds /etc/sudoers.d/torii-nginx so the sidecar (which
 # runs as the unprivileged torii user) can `sudo -n nginx -t` and
 # `sudo -n nginx -s reload`. Without this the [2/6] Continuum stage fails
@@ -357,7 +361,7 @@ STRFRY_REF="${STRFRY_REF:-1.1.0}"
 export TORII_DOMAIN LETSENCRYPT_EMAIL SKIP_CERTBOT
 export CONTINUUM_ADMIN_NPUB CONTINUUM_AGENT_PORT CONTINUUM_SESSION_TTL_SEC
 export INSTALL_OLLAMA OLLAMA_MODE OLLAMA_BIND OLLAMA_MODELS OLLAMA_URL OLLAMA_AUTH_HEADER OLLAMA_ENDPOINT
-export SUITE_WORK_DIR
+export SUITE_WORK_DIR APPS_ROOT
 export CORS_PROXY_ORIGIN_ALLOW CORS_PROXY_UPSTREAM_ALLOW CORS_PROXY_PORT
 export WEBSSH_ORIGIN_ALLOW WEBSSH_PORT WEBSSH_MAX_PER_IP WEBSSH_MAX_SESSION_MS
 export INSTALL_NOSTR_GIT NOSTR_RELAY_PORT NOSTR_RELAY_DB GIT_HOST_ROOT NOSTR_PUBLIC_RELAYS STRFRY_REF
@@ -766,7 +770,7 @@ _stage_mp_smoke() {
   # Timeout is 5s. Success = any of: open event fires, or the server sends
   # a HELLO frame. Failure = timeout or connection refused.
   set +e
-  result="$(sudo -u torii-quest -H NODE_PATH=/opt/torii-quest/mp/node_modules \
+  result="$(sudo -u torii-quest -H NODE_PATH=${APPS_ROOT}/quest/mp/node_modules \
     node -e "
       const WebSocket = require('ws');
       const ws = new WebSocket('ws://127.0.0.1:${port}/mp');

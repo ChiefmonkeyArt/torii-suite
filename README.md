@@ -156,9 +156,9 @@ Seven stages, each idempotent (safe to re-run):
    at `/`, and the `torii-base-sidecar` systemd service that owns the app
    registry at `/opt/torii/registry.json`.
 2. **Continuum** — clones torii-continuum, builds the SPA with `base=/continuum/`,
-   snapshots it into `/var/www/torii/continuum-releases/<stamp>/`, atomically
-   flips `/var/www/torii/continuum` to the new release, installs the Fastify
-   agent under the `continuum` system user at `/home/continuum/agent/repo/`,
+   snapshots it into `/apps/continuum/releases/<stamp>/`, atomically
+   flips `/apps/continuum/current` to the new release, installs the Fastify
+   agent under the `continuum` system user at `/apps/continuum/agent/repo/`,
    generates a session secret, writes `continuum-agent.service`, and drops an
    nginx fragment that mounts `/continuum/` (static) and `/agent/` (proxy).
 2b. **Ollama** *(opt-in, on by default when Continuum is installed)* — installs
@@ -169,8 +169,8 @@ Seven stages, each idempotent (safe to re-run):
    choice — Ollama is only used when Routstr is unavailable.
 3. **Quest** — clones torii-quest, patches `vite.config.js` for a `/quest/`
    base path (see [`docs/HOSTING.md`](docs/HOSTING.md) §Quest sub-path), builds,
-   snapshots into `/var/www/torii/quest-releases/<stamp>/`, atomically flips
-   the symlink, drops an nginx fragment.
+   snapshots into `/apps/quest/releases/<stamp>/`, atomically flips the
+   `/apps/quest/current` symlink, drops an nginx fragment.
 4. **Plebeian** — registers a launcher tile that opens
    `$PLEBEIAN_EXTERNAL_URL` (default `https://plebeian.market`). No install,
    no nginx fragment — Plebeian is a hosted external service.
@@ -184,8 +184,11 @@ Seven stages, each idempotent (safe to re-run):
    the agent is reachable, Routstr is up, and the Cashu wallet directory
    exists.
 
-Everything is atomic-symlink deployed. The last 3 releases of each app are
-retained under `<app>-releases/` for rollback via `ln -sfn`.
+Everything is atomic-symlink deployed under `/apps/` (each app gets a
+`current/` symlink plus its own `releases/` + writable `data/`). The installer
+(`/opt/torii-suite`) and the torii-base host layer (nginx + sidecar + relay)
+live outside `/apps/`. The last 3 releases of each app are retained under
+`/apps/<app>/releases/` for rollback via `ln -sfn`.
 
 ---
 
@@ -264,6 +267,30 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.9.0-alpha
+
+Directory layout migrates to a single per-app root. Everything a node serves
+now lives under `/apps/`:
+
+- `/apps/quest/` — static bundle at `current/` (symlink), rollback snapshots in
+  `releases/`, player worlds in `data/worlds/`, and the multiplayer server
+  (`arena-ws`) + its runtime in `mp/`.
+- `/apps/continuum/` — frontend at `current/` + `releases/`, and the Fastify
+  agent under `agent/` (its home, config, and repo all move off `/home/`).
+- `/apps/plebeian/` — reserved for the hosted Plebeian market (external tile
+  for now).
+
+The installer (`/opt/torii-suite`) and the torii-base host layer (nginx +
+sidecar + the shared strfry relay under `/opt/torii/`) stay OUTSIDE `/apps/`.
+Relocating the whole tree is one `APPS_ROOT` override in `.env` (default
+`/apps`). The old `/var/www/torii/*`, `/opt/torii-quest`, and `/home/continuum`
+paths are gone. The auto-update runner, systemd path/service units, arena-ws
+env, nginx fragments, doctor, and the rotate/set-admin helpers all follow the
+new layout. arena-ws now gets `UPDATE_REQUESTS_DIR`/`UPDATE_STATUS_PATH`/
+`BEACON_STATE_PATH` from its systemd unit, so update requests, status, and the
+spatial beacon all live under `/apps/quest/mp/` (replacing arena-ws's old
+hard-coded `/opt/torii-quest/...` defaults).
 
 ### New in v0.8.4-alpha
 
@@ -736,7 +763,7 @@ Security notes:
 
 ```bash
 sudo -u root ollama pull qwen2.5:7b
-sudo -u continuum sed -i 's|llama3.2:3b|qwen2.5:7b|g' /home/continuum/agent/repo/agent/config.yaml
+sudo -u continuum sed -i 's|llama3.2:3b|qwen2.5:7b|g' /apps/continuum/agent/repo/agent/config.yaml
 sudo systemctl restart continuum-agent
 ```
 
@@ -857,8 +884,8 @@ sudo rm -rf /etc/systemd/system/ollama.service.d
 sudo rm /opt/torii/nginx-fragments/continuum.conf
 sudo rm /opt/torii/nginx-fragments/quest.conf
 sudo rm -f /opt/torii/nginx-fragments/bridges.conf
-sudo rm -rf /var/www/torii/{continuum,continuum-releases,quest,quest-releases}
-sudo rm -rf /home/continuum /opt/torii/bridges
+sudo rm -rf /apps/{continuum,quest}
+sudo rm -rf /opt/torii/bridges
 sudo torii reload
 ```
 
