@@ -128,17 +128,21 @@ find "$RELEASE_DIR" -type f -exec chmod 644 {} +
 # 3. Continuum agent — user, install, config                                  #
 # --------------------------------------------------------------------------- #
 
-if ! id continuum >/dev/null 2>&1; then
-  log "creating 'continuum' system user"
-  adduser --system --group --home ${APPS_ROOT}/continuum --disabled-password \
-          --gecos "Torii Continuum agent" continuum
-fi
-
 AGENT_HOME="${APPS_ROOT}/continuum/agent"
 AGENT_REPO="${AGENT_HOME}/repo"
 
-sudo -u continuum -H mkdir -p "$AGENT_HOME"
-sudo -u continuum -H chmod 700 ${APPS_ROOT}/continuum
+if ! id continuum >/dev/null 2>&1; then
+  log "creating 'continuum' system user"
+  adduser --system --group --home "${AGENT_HOME}" --disabled-password \
+          --gecos "Torii Continuum agent" continuum
+fi
+
+# /apps/continuum is the shared app root, root-owned so nginx can serve the
+# frontend from current/. The agent dir lives beneath it, so create it as root
+# and hand it to continuum — the unprivileged user cannot mkdir under a
+# root-owned 755 parent (a fresh install would otherwise trip here).
+mkdir -p "$AGENT_HOME"
+chown -R continuum:continuum "$AGENT_HOME"
 
 if [[ -d "${AGENT_REPO}/.git" ]]; then
   log "updating continuum agent repo"
