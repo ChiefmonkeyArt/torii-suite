@@ -268,6 +268,13 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.2-alpha
+
+The Continuum agent directory is now created as root and handed to the
+`continuum` user, instead of asking the unprivileged user to `mkdir` under a
+root-owned `/apps/continuum` parent — which failed with `Permission denied` on
+both fresh and existing installs.
+
 ### New in v0.9.1-alpha
 
 The source-sync step in every installer (continuum, quest, strfry) now moves a
