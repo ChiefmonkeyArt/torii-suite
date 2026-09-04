@@ -268,6 +268,13 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.1-alpha
+
+The source-sync step in every installer (continuum, quest, strfry) now moves a
+stale or partial checkout aside before cloning, instead of aborting with
+`destination path already exists`. A re-install on a box with a leftover,
+non-git source directory (e.g. an aborted earlier install) now just proceeds.
+
 ### New in v0.9.0-alpha
 
 Directory layout migrates to a single per-app root. Everything a node serves

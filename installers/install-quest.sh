@@ -57,6 +57,13 @@ if [[ -d "${SRC}/.git" ]]; then
   git -C "$SRC" checkout -B torii-quest-deploy "$TORII_QUEST_REF"
   git -C "$SRC" reset --hard "$TORII_QUEST_REF"
 else
+  # Stale/partial checkout (a dir without .git — an aborted clone or a source
+  # copy) makes `git clone` abort with "destination path already exists". Move
+  # it aside first; it is re-cloneable source, so nothing is lost.
+  if [[ -e "${SRC}" ]]; then
+    log "moving stale non-git checkout aside: ${SRC}"
+    mv "${SRC}" "${SRC}.stale-$(date -u +%Y%m%dT%H%M%SZ)"
+  fi
   log "cloning torii-quest @ ${TORII_QUEST_REF}"
   git clone --branch "$TORII_QUEST_REF" \
     https://github.com/ChiefmonkeyArt/torii-quest.git "$SRC" 2>/dev/null \

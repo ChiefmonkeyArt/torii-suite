@@ -97,6 +97,13 @@ if (( need_build == 1 )); then
     git -C "$RELAY_SRC" reset --hard HEAD 2>/dev/null || true
     git -C "$RELAY_SRC" checkout "$STRFRY_REF"
   else
+    # Stale/partial checkout (a dir without .git — an aborted clone) makes
+    # `git clone` abort with "destination path already exists". Move it aside
+    # first; it is re-cloneable source, so nothing is lost.
+    if [[ -e "${RELAY_SRC}" ]]; then
+      log "moving stale non-git checkout aside: ${RELAY_SRC}"
+      mv "${RELAY_SRC}" "${RELAY_SRC}.stale-$(date -u +%Y%m%dT%H%M%SZ)"
+    fi
     log "cloning strfry @ ${STRFRY_REF}"
     git clone https://github.com/hoytech/strfry.git "$RELAY_SRC" 2>/dev/null
     git -C "$RELAY_SRC" checkout "$STRFRY_REF"
