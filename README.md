@@ -268,6 +268,21 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.3-alpha
+
+Three installer fixes that harden the `/apps` migration and fresh installs:
+
+- The Continuum frontend now builds with `VITE_AGENT_URL=/agent`, so the SPA
+  knows its same-origin agent and enables NIP-07 sign-in directly, instead of
+  hiding behind "requires self-hosted agent" once a transient onboarding
+  session in `localStorage` lapsed.
+- `install-continuum.sh` disables the legacy `torii-continuum-deploy.timer`,
+  `.service` and `torii-continuum-agent.service` (the pre-`/apps` self-deploy
+  path), which otherwise kept rewriting the agent unit's `WorkingDirectory`
+  back to `/home/continuum/app` and renaming that dir aside every few minutes.
+- The nginx fragment heredoc no longer runs backticks from comments as shell
+  commands (they mangled the emitted config).
+
 ### New in v0.9.2-alpha
 
 The Continuum agent directory is now created as root and handed to the

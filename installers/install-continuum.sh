@@ -82,7 +82,12 @@ log "building continuum frontend (base=/continuum/)"
   # continuum frontend is a straightforward SPA, so this is enough — no source
   # patching required.
   npm ci --no-audit --no-fund
-  npm run build -- --base=/continuum/
+  # Self-hosted agent discovery: bake the same-origin /agent proxy into the SPA
+  # so the UI reports "agent reachable" and enables NIP-07 sign-in instead of
+  # hiding behind "requires self-hosted agent" (which only triggered off a
+  # transient onboarding session in localStorage). Relative path keeps it
+  # portable across domains — no hardcoded host.
+  VITE_AGENT_URL="/agent" npm run build -- --base=/continuum/
 )
 
 WWW_DEST="${APPS_ROOT}/continuum/current"
@@ -473,6 +478,20 @@ if ! systemctl is-active --quiet continuum-agent.service; then
 fi
 log "continuum-agent active on 127.0.0.1:${CONTINUUM_AGENT_PORT}"
 
+# Legacy pre-/apps deploy cleanup (v0.9.3-alpha): older Continuum installs
+# deployed themselves via a systemd timer (torii-continuum-deploy) into
+# /home/continuum/app and managed their own units. Left enabled, that timer
+# overwrites this unit's WorkingDirectory back to /home/continuum/app and
+# renames that dir aside every few minutes — undoing the /apps migration.
+# Disable + stop them so this installer is the single deploy path.
+for _legacy in torii-continuum-deploy.timer torii-continuum-deploy.service torii-continuum-agent.service; do
+  if systemctl list-unit-files "$_legacy" >/dev/null 2>&1; then
+    log "disabling legacy unit ${_legacy}"
+    systemctl disable "$_legacy" >/dev/null 2>&1 || true
+    systemctl stop "$_legacy" >/dev/null 2>&1 || true
+  fi
+done
+
 # --------------------------------------------------------------------------- #
 # 6. nginx fragment                                                           #
 # --------------------------------------------------------------------------- #
@@ -487,16 +506,20 @@ FRAGMENT_CONTENT="$(cat <<NGINX
 # Frontend static bundle.
 #
 # NOTE (v0.7.0-alpha): the previous fragment used a nested
-# `location ~* ^/continuum/assets/...` with `alias /apps/continuum/current/;`
+# 'location ~* ^/continuum/assets/...' with 'alias /apps/continuum/current/;'
 # to attach cache headers. That pattern is broken: nginx does not strip the
-# location prefix when `alias` is used inside a regex location, so the file
-# lookup fails, the outer `try_files` fallback catches it, and every asset
-# request 301s to `<path>/` and is served the SPA shell as text/html. This
+# location prefix when 'alias' is used inside a regex location, so the file
+# lookup fails, the outer 'try_files' fallback catches it, and every asset
+# request 301s to '<path>/' and is served the SPA shell as text/html. This
 # breaks every hashed JS/CSS bundle -> blank page.
 #
-# Fix: use prefix `location /continuum/assets/` (nginx handles prefix + alias
+# Fix: use prefix 'location /continuum/assets/' (nginx handles prefix + alias
 # correctly), cache the whole /assets/ tree since Vite hashes every file in
 # it, and return 404 on miss instead of falling through to the SPA shell.
+#
+# This heredoc is deliberately UNQUOTED (so ${APPS_ROOT} and the port expand),
+# which means bare backticks are executed as shell. Keep code snippets in
+# single quotes, not backticks.
 location /continuum/ {
     alias ${APPS_ROOT}/continuum/current/;
     try_files \$uri \$uri/ /continuum/index.html;
