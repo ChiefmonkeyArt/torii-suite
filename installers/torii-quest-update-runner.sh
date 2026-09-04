@@ -113,9 +113,14 @@ write_status "running" "$latest" "deploying $latest"
 # resolved ref, then let install-quest.sh own the Quest source sync (fetch +
 # checkout + hard-reset onto a local branch) + build + restart torii-arena-ws.
 # The suite-checkout pull is safe because that checkout TRACKS A BRANCH (not a tag).
+# Self-heal a detached HEAD (e.g. a prior tag checkout left the suite on
+# v0.9.x): `git checkout main` is a no-op when already on main, and puts us back
+# on the tracked branch so `git pull --ff-only` never dies with
+# "You are not currently on a branch".
 if bash -c '
     set -euo pipefail
     cd "'"$SUITE_CHECKOUT"'"
+    git checkout main
     git pull --ff-only
     set -a; . ./.env; set +a
     export SUITE_WORK_DIR="'"$SUITE_WORK_DIR"'"
