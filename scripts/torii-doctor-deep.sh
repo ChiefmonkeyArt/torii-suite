@@ -51,11 +51,11 @@ run "nginx error log (last 30)" tail -n 30 /var/log/nginx/error.log
 hr "CONTINUUM"
 run "continuum agent status"       systemctl status torii-continuum-agent.service --no-pager -l
 run "continuum agent last 50"      journalctl -u torii-continuum-agent.service -n 50 --no-pager
-run "continuum VERSION"            cat /opt/torii-continuum/VERSION 2>/dev/null
-run "continuum root ls"            ls -la /opt/torii-continuum/
-run "continuum dist ls"            ls -la /opt/torii-continuum/dist/ 2>&1
-run "continuum dist index.html"    head -20 /opt/torii-continuum/dist/index.html 2>&1
-run "continuum dist assets"        ls -la /opt/torii-continuum/dist/assets/ 2>&1 | head -15
+run "continuum VERSION"            cat /apps/continuum/current/VERSION 2>/dev/null
+run "continuum root ls"            ls -la /apps/continuum/
+run "continuum dist ls"            ls -la /apps/continuum/current/ 2>&1
+run "continuum dist index.html"    head -20 /apps/continuum/current/index.html 2>&1
+run "continuum dist assets"        ls -la /apps/continuum/current/assets/ 2>&1 | head -15
 run "continuum agent port"         ss -tlnp | grep -E ':(3000|8080)'
 run "GET /api/health (loopback)"   curl -sv http://127.0.0.1:3000/api/health 2>&1 | head -25
 run "GET /continuum/ (loopback)"   curl -sv http://127.0.0.1/continuum/ 2>&1 | head -30
@@ -64,9 +64,9 @@ run "GET /continuum/ body head"    curl -sSL https://$(hostname -f 2>/dev/null |
 run "GET /agent/health (public)"   curl -sv https://$(hostname -f 2>/dev/null || hostname)/agent/api/health 2>&1 | head -25
 
 hr "QUEST"
-run "quest static ls"          ls -la /opt/torii-quest/
-run "quest VERSION"            cat /opt/torii-quest/VERSION 2>/dev/null
-run "quest dist ls"            ls -la /opt/torii-quest/dist/ 2>&1
+run "quest static ls"          ls -la /apps/quest/current/
+run "quest VERSION"            cat /apps/quest/current/VERSION 2>/dev/null
+run "quest dist ls"            ls -la /apps/quest/current/ 2>&1
 run "quest arena-ws status"    systemctl status torii-arena-ws.service --no-pager -l
 run "quest arena-ws last 60"   journalctl -u torii-arena-ws.service -n 60 --no-pager
 run "quest arena-ws port"      ss -tlnp | grep -E ':(8788|8789)'

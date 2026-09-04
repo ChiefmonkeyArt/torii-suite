@@ -202,8 +202,8 @@ After the flow completes, here's where every piece of state ends up:
 | Backup passphrase             | Written down by the user (once shown) | Nowhere else — this is the root  |
 | SHC API key                   | Discarded when the tab closes      | Generate a new one via SHC login  |
 | VPS root password             | The VPS itself (SSH-key-only login) | Recover via SHC console access    |
-| Cashu wallet                  | `/home/continuum/agent/repo/agent/memory/wallet/` on the VPS | Continuum → Wallet export flow    |
-| Continuum session secret      | `/home/continuum/agent/repo/agent/config.yaml` on the VPS | Regenerated on install; rotatable |
+| Cashu wallet                  | `/apps/continuum/agent/repo/agent/memory/wallet/` on the VPS | Continuum → Wallet export flow    |
+| Continuum session secret      | `/apps/continuum/agent/repo/agent/config.yaml` on the VPS | Regenerated on install; rotatable |
 
 The critical property: **losing the browser tab loses nothing that matters.**
 Everything that survives beyond the tab is either on the VPS (behind SSH) or

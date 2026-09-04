@@ -5,9 +5,9 @@
 #
 # What this does (idempotent on re-run):
 #   1. Clones/updates torii-continuum into $SUITE_WORK_DIR/torii-continuum
-#   2. Builds the frontend and copies dist/ into /var/www/torii/continuum/
+#   2. Builds the frontend and copies dist/ into /apps/continuum/current/
 #   3. Creates the `continuum` system user and installs the agent into
-#      /home/continuum/agent/repo/ following the recipe in
+#      /apps/continuum/agent/repo/ following the recipe in
 #      torii-continuum/agent/README.md
 #   4. Writes /etc/systemd/system/continuum-agent.service and starts it
 #   5. Drops an nginx fragment at /opt/torii/nginx-fragments/continuum.conf
@@ -44,6 +44,7 @@ command -v npm  >/dev/null 2>&1 || die "npm not found"
 # 1. Sync source                                                              #
 # --------------------------------------------------------------------------- #
 
+APPS_ROOT="${APPS_ROOT:-/apps}"
 SRC="${SUITE_WORK_DIR}/torii-continuum"
 if [[ -d "${SRC}/.git" ]]; then
   log "updating torii-continuum to ${TORII_CONTINUUM_REF}"
@@ -77,7 +78,7 @@ log "building continuum frontend (base=/continuum/)"
   npm run build -- --base=/continuum/
 )
 
-WWW_DEST="/var/www/torii/continuum"
+WWW_DEST="${APPS_ROOT}/continuum/current"
 # Only the parent must exist; $WWW_DEST itself is a symlink managed by the
 # atomic flip below. Pre-creating it as a directory breaks first-install
 # because `mv -Tf` refuses to replace a real directory with a symlink.
@@ -92,11 +93,11 @@ fi
 
 # Snapshot into a release dir + symlink flip. Keeps last install for rollback.
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)-${RESOLVED_REF}"
-RELEASE_DIR="/var/www/torii/continuum-releases/${STAMP}"
+RELEASE_DIR="${APPS_ROOT}/continuum/releases/${STAMP}"
 mkdir -p "$(dirname "$RELEASE_DIR")"
 cp -a "${SRC}/dist/." "${RELEASE_DIR}/"
 
-# Atomic symlink flip: /var/www/torii/continuum → releases/<stamp>
+# Atomic symlink flip: /apps/continuum/current → releases/<stamp>
 ln -sfn "$RELEASE_DIR" "$WWW_DEST.new"
 mv -Tf "$WWW_DEST.new" "$WWW_DEST"
 
@@ -105,9 +106,9 @@ find "$(dirname "$RELEASE_DIR")" -maxdepth 1 -mindepth 1 -type d \
   | sort | head -n -3 | xargs -r rm -rf
 
 # Prune stale Continuum failed/quarantine snapshots (from Continuum's own
-# deploy mechanism in /home/continuum/) to prevent ENOSPC disk-full.
-if [[ -d /home/continuum ]]; then
-  find /home/continuum -maxdepth 1 -mindepth 1 -type d \
+# deploy mechanism in ${APPS_ROOT}/continuum/) to prevent ENOSPC disk-full.
+if [[ -d ${APPS_ROOT}/continuum ]]; then
+  find ${APPS_ROOT}/continuum -maxdepth 1 -mindepth 1 -type d \
     \( -name 'app.failed-*' -o -name 'app.quarantine-*' \) \
     -exec rm -rf {} + 2>/dev/null || true
 fi
@@ -122,15 +123,15 @@ find "$RELEASE_DIR" -type f -exec chmod 644 {} +
 
 if ! id continuum >/dev/null 2>&1; then
   log "creating 'continuum' system user"
-  adduser --system --group --home /home/continuum --disabled-password \
+  adduser --system --group --home ${APPS_ROOT}/continuum --disabled-password \
           --gecos "Torii Continuum agent" continuum
 fi
 
-AGENT_HOME="/home/continuum/agent"
+AGENT_HOME="${APPS_ROOT}/continuum/agent"
 AGENT_REPO="${AGENT_HOME}/repo"
 
 sudo -u continuum -H mkdir -p "$AGENT_HOME"
-sudo -u continuum -H chmod 700 /home/continuum
+sudo -u continuum -H chmod 700 ${APPS_ROOT}/continuum
 
 if [[ -d "${AGENT_REPO}/.git" ]]; then
   log "updating continuum agent repo"
@@ -475,7 +476,7 @@ FRAGMENT_CONTENT="$(cat <<NGINX
 # Frontend static bundle.
 #
 # NOTE (v0.7.0-alpha): the previous fragment used a nested
-# `location ~* ^/continuum/assets/...` with `alias /var/www/torii/continuum/;`
+# `location ~* ^/continuum/assets/...` with `alias /apps/continuum/current/;`
 # to attach cache headers. That pattern is broken: nginx does not strip the
 # location prefix when `alias` is used inside a regex location, so the file
 # lookup fails, the outer `try_files` fallback catches it, and every asset
@@ -486,17 +487,17 @@ FRAGMENT_CONTENT="$(cat <<NGINX
 # correctly), cache the whole /assets/ tree since Vite hashes every file in
 # it, and return 404 on miss instead of falling through to the SPA shell.
 location /continuum/ {
-    alias /var/www/torii/continuum/;
+    alias ${APPS_ROOT}/continuum/current/;
     try_files \$uri \$uri/ /continuum/index.html;
 
     location /continuum/assets/ {
-        alias /var/www/torii/continuum/assets/;
+        alias ${APPS_ROOT}/continuum/current/assets/;
         try_files \$uri =404;
         expires 30d;
         add_header Cache-Control "public, max-age=2592000, immutable" always;
     }
     location = /continuum/index.html {
-        alias /var/www/torii/continuum/index.html;
+        alias ${APPS_ROOT}/continuum/current/index.html;
         add_header Cache-Control "no-store" always;
     }
 }

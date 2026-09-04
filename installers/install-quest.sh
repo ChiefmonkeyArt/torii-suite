@@ -10,8 +10,8 @@
 #   2. Patches vite.config.js in-place to build with base=/quest/ so all
 #      absolute asset URLs (/assets/torii-entry.js etc.) resolve correctly
 #      when served from a sub-path. See docs/HOSTING.md §Quest sub-path.
-#   3. Builds the bundle, snapshots it into /var/www/torii/quest-releases/
-#      /<stamp>/ and atomically flips /var/www/torii/quest → that dir
+#   3. Builds the bundle, snapshots it into /apps/quest/releases/
+#      /<stamp>/ and atomically flips /apps/quest/current → that dir
 #   4. Drops an nginx fragment at /opt/torii/nginx-fragments/quest.conf
 #   5. Registers "quest" with the torii-base sidecar
 #
@@ -24,6 +24,7 @@ set -euo pipefail
 : "${SUITE_WORK_DIR:?install-quest: SUITE_WORK_DIR not set}"
 
 TORII_QUEST_REF="${TORII_QUEST_REF:-main}"
+APPS_ROOT="${APPS_ROOT:-/apps}"
 
 log()  { printf "\033[36m==>\033[0m %s\n" "$*"; }
 warn() { printf "\033[33m--  %s\033[0m\n" "$*" >&2; }
@@ -126,14 +127,14 @@ log "building torii-quest bundle"
 #
 # Level 2 Phase 2: custom worlds survive updates. The repo ships
 # worlds/default/world.json as a template. On the VPS, user customizations
-# live in /opt/torii-quest/worlds/ -- outside the git repo, so git reset
+# live in /apps/quest/data/worlds/ -- outside the git repo, so git reset
 # --hard during updates can NEVER overwrite them.
 #
 # On first install (or if the dir is missing), seed from the repo template.
-# On updates, if /opt/torii-quest/worlds/default/world.json already exists,
+# On updates, if /apps/quest/data/worlds/default/world.json already exists,
 # do NOTHING -- the user's customizations are preserved.
 
-WORLDS_DIR="/opt/torii-quest/worlds"
+WORLDS_DIR="${APPS_ROOT}/quest/data/worlds"
 if [[ ! -d "${WORLDS_DIR}/default" ]]; then
   log "seeding worlds directory from repo template (${WORLDS_DIR})"
   install -d -m 0755 -o torii-quest -g torii-quest "$WORLDS_DIR"
@@ -151,9 +152,9 @@ fi
 # 4. Snapshot + atomic symlink flip                                           #
 # --------------------------------------------------------------------------- #
 
-WWW_LINK="/var/www/torii/quest"
+WWW_LINK="${APPS_ROOT}/quest/current"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)-${RESOLVED_REF}"
-RELEASE_DIR="/var/www/torii/quest-releases/${STAMP}"
+RELEASE_DIR="${APPS_ROOT}/quest/releases/${STAMP}"
 mkdir -p "$(dirname "$RELEASE_DIR")"
 cp -a "${SRC}/dist/." "${RELEASE_DIR}/"
 
@@ -183,27 +184,27 @@ FRAGMENT_CONTENT="$(cat <<NGINX
 # broken. Same fix here: prefix location for /quest/assets/ and let nginx do
 # the prefix rewrite correctly instead of falling through to the SPA shell.
 location /quest/ {
-    alias /var/www/torii/quest/;
+    alias ${APPS_ROOT}/quest/current/;
     try_files \$uri \$uri/ /quest/index.html;
 
     # Level 2 Phase 2: serve custom worlds from persistent storage.
-    # /opt/torii-quest/worlds/ survives updates -- user customizations are
+    # /apps/quest/data/worlds/ survives updates -- user customizations are
     # never overwritten by a new release. Takes precedence over the alias
     # above for /quest/worlds/ paths.
     location /quest/worlds/ {
-        alias /opt/torii-quest/worlds/;
+        alias ${APPS_ROOT}/quest/data/worlds/;
         try_files \$uri =404;
         add_header Cache-Control "no-store" always;
     }
 
     location /quest/assets/ {
-        alias /var/www/torii/quest/assets/;
+        alias ${APPS_ROOT}/quest/current/assets/;
         try_files \$uri =404;
         expires 30d;
         add_header Cache-Control "public, max-age=2592000, immutable" always;
     }
     location = /quest/index.html {
-        alias /var/www/torii/quest/index.html;
+        alias ${APPS_ROOT}/quest/current/index.html;
         add_header Cache-Control "no-store" always;
     }
 }
@@ -234,7 +235,7 @@ log "registering 'quest' with torii sidecar (v${QUEST_VERSION})"
 # the ws runtime dep). This stage:
 #
 #   - creates the torii-quest system user if absent (idempotent)
-#   - copies the built server + its package.json into /opt/torii-quest/mp
+#   - copies the built server + its package.json into /apps/quest/mp
 #   - runs `npm install --omit=dev` inside that dir
 #   - writes /etc/systemd/system/torii-arena-ws.service
 #   - writes /opt/torii/nginx-fragments/quest-mp.conf (nginx /mp WSS proxy)
@@ -253,7 +254,7 @@ else
   # to the Continuum admin npub (same operator) so an existing .env without
   # QUEST_ADMIN_NPUB keeps working. arena-ws normalises npub->hex at startup.
   QUEST_ADMIN_NPUB="${QUEST_ADMIN_NPUB:-${CONTINUUM_ADMIN_NPUB:-}}"
-  MP_DIR="/opt/torii-quest/mp"
+  MP_DIR="${APPS_ROOT}/quest/mp"
   MP_SRC_SERVER="${SRC}/dist/server/arena-ws.cjs"
   MP_SRC_PKG="${SRC}/dist/package.json"
 
@@ -305,19 +306,19 @@ if [[ "${ARENA_WS_INSTALLED:-0}" == "1" ]]; then
   # 7b. torii-quest system user (idempotent).
   if ! id -u torii-quest >/dev/null 2>&1; then
     log "creating torii-quest system user"
-    useradd --system --shell /usr/sbin/nologin --home-dir /opt/torii-quest --create-home torii-quest
+    useradd --system --shell /usr/sbin/nologin --home-dir ${APPS_ROOT}/quest --create-home torii-quest
   else
     log "torii-quest user already present"
   fi
 
   # 7b.1. Ensure the home dir exists and is torii-quest-owned. If the user was
-  # created on a previous install and /opt/torii-quest was later removed (e.g.
+  # created on a previous install and /apps/quest was later removed (e.g.
   # a partial cleanup), `useradd` skips this run and the home dir is missing.
-  # `install -d $MP_DIR` below would then create /opt/torii-quest as root, and
+  # `install -d $MP_DIR` below would then create /apps/quest as root, and
   # the subsequent `sudo -u torii-quest -H npm install` would EACCES trying to
-  # write /opt/torii-quest/.npm. Belt-and-braces: chown even if it existed.
-  install -d -m 0755 -o torii-quest -g torii-quest /opt/torii-quest
-  chown torii-quest:torii-quest /opt/torii-quest
+  # write /apps/quest/.npm. Belt-and-braces: chown even if it existed.
+  install -d -m 0755 -o torii-quest -g torii-quest ${APPS_ROOT}/quest
+  chown torii-quest:torii-quest ${APPS_ROOT}/quest
 
   # 7c. Install path + copy artifacts.
   install -d -m 0755 -o torii-quest -g torii-quest "$MP_DIR"
@@ -349,6 +350,9 @@ Environment=NODE_ENV=production
 Environment=PORT=${ARENA_WS_PORT}
 Environment=MP_MODE=${ARENA_WS_MODE}
 Environment=QUEST_ADMIN_NPUB=${QUEST_ADMIN_NPUB}
+Environment=UPDATE_REQUESTS_DIR=${APPS_ROOT}/quest/mp/update-requests
+Environment=UPDATE_STATUS_PATH=${APPS_ROOT}/quest/mp/update-status.json
+Environment=BEACON_STATE_PATH=${APPS_ROOT}/quest/mp/beacon-state.json
 Restart=on-failure
 RestartSec=5
 
@@ -495,16 +499,16 @@ NGINX
   # bounded torii-quest-update-runner, which resolves the latest tag ITSELF and
   # redeploys. See installers/torii-quest-update-runner.sh for the security model.
   RUNNER_SRC="$(dirname "${BASH_SOURCE[0]}")/torii-quest-update-runner.sh"
-  install -d -m 0770 -o torii-quest -g torii-quest /opt/torii-quest/mp/update-requests
+  install -d -m 0770 -o torii-quest -g torii-quest ${APPS_ROOT}/quest/mp/update-requests
   install -m 0755 "$RUNNER_SRC" /usr/local/sbin/torii-quest-update-runner
   install -m 0755 "$(dirname "${BASH_SOURCE[0]}")/torii-deploy.sh" /usr/local/sbin/torii-deploy
   : > /var/log/torii-quest-update.log; chmod 0644 /var/log/torii-quest-update.log
-  cat > /etc/systemd/system/torii-quest-update.path <<'UNIT'
+  cat > /etc/systemd/system/torii-quest-update.path <<UNIT
 [Unit]
 Description=Torii Quest auto-update trigger watcher
 
 [Path]
-PathChanged=/opt/torii-quest/mp/update-requests
+PathChanged=${APPS_ROOT}/quest/mp/update-requests
 Unit=torii-quest-update.service
 
 [Install]

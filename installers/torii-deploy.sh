@@ -8,7 +8,7 @@
 set -euo pipefail
 
 VERSION="${1:?Usage: sudo torii-deploy <version>}"
-REQ_DIR="/opt/torii-quest/mp/update-requests"
+REQ_DIR="/apps/quest/mp/update-requests"
 LOG_FILE="/var/log/torii-quest-update.log"
 HEALTH_URL="https://chiefmonkey.art/quest/"
 TIMEOUT_SEC=180
