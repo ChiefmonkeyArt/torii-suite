@@ -268,6 +268,21 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.6-alpha
+
+`install-continuum.sh` now runs `ollama pull` for every model in `$OLLAMA_MODELS`
+on every invocation, not just the first-time `bootstrap.sh` run. The
+`install-ollama.sh` installer pulled models on its own initial run but never
+re-checked the model set on subsequent redeploys, so upgrading the Continuum
+agent to a new default chat model left the VPS stuck on whatever was pulled
+the very first time. `ollama pull` is idempotent (verifies manifest, no-ops
+when current), so the hook is safe to re-run on every deploy — it also gates
+on the Ollama daemon being reachable, so agent-only installs without a local
+Ollama don't spin. `.env.example` also updates the default `OLLAMA_MODELS`
+from `llama3.2:3b` to `qwen3:0.6b`: same footprint as `qwen2.5:0.5b`, agent-loop
+tool-calling score 0.880 vs 0.640 (see [Mike Veerman's Feb 2026 benchmark](https://mikeveerman.be/blog/github-2026-02-06-tool-calling-benchmark/)),
+which pairs with the matching Continuum `v0.2.106-alpha` swap.
+
 ### New in v0.9.5-alpha
 
 Fixes a stale-checkout bug in the source-sync step of the Continuum and Quest
