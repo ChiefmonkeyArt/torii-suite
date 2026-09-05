@@ -22,8 +22,12 @@ The rest of this document walks through each in enough detail to get from
 Every path needs the same three things:
 
 1. **A VPS** running Ubuntu 22.04 LTS or 24.04 LTS with at least
-   **1 vCPU / 2 GB RAM / 20 GB disk** (Continuum + Quest builds are the
-   memory bump — the running services idle at ~200 MB).
+   **1 vCPU / 4 GB RAM / 20 GB disk**. Continuum's default local LLM
+   (`qwen3:0.6b` via Ollama, kept resident for fast turn-taking) sits at
+   ~3.3 GB in RAM once warmed. If you set `OLLAMA_MODE=remote` or
+   `INSTALL_OLLAMA=0`, 2 GB is still enough — the rest of the stack idles
+   around ~200 MB. The bootstrap script refuses to enable local Ollama on
+   hosts below 3 GB and points you at the two escape hatches.
 2. **A domain** with a single `A` record pointing at the VPS's public IP.
    Cheap TLDs work fine; you'll want to control DNS from your registrar.
 3. **A NIP-07 signer** in your browser (Plebeian Signer, nos2x, Alby)
@@ -42,16 +46,18 @@ bills you — it just needs root and a domain.
 
 Any of these will host a Torii comfortably on their smallest paid tier:
 
-- **[Hetzner Cloud](https://www.hetzner.com/cloud)** — CX22 (2 vCPU / 4 GB / 40 GB) ≈ €4.51/mo. Best price/performance in EU.
-- **[DigitalOcean](https://www.digitalocean.com/pricing/droplets)** — Basic 2 GB droplet ≈ $12/mo.
-- **[Vultr](https://www.vultr.com/pricing/)** — Cloud Compute 2 GB ≈ $12/mo.
-- **[Linode](https://www.linode.com/pricing/)** — Shared 2 GB ≈ $12/mo.
-- **[Namecheap VPS](https://www.namecheap.com/hosting/vps/)** — entry tier if you're already registered there.
+- **[Hetzner Cloud](https://www.hetzner.com/cloud)** — CX22 (2 vCPU / 4 GB / 40 GB) ≈ €4.51/mo. Best price/performance in EU; comfortably runs local Ollama.
+- **[DigitalOcean](https://www.digitalocean.com/pricing/droplets)** — Basic **4 GB** droplet ≈ $24/mo (the 2 GB tier only works with `OLLAMA_MODE=remote`).
+- **[Vultr](https://www.vultr.com/pricing/)** — Cloud Compute **4 GB** ≈ $24/mo (2 GB tier: remote Ollama only).
+- **[Linode](https://www.linode.com/pricing/)** — Shared **4 GB** ≈ $24/mo (2 GB tier: remote Ollama only).
+- **[Namecheap VPS](https://www.namecheap.com/hosting/vps/)** — pick a tier with ≥4 GB RAM if you want the local LLM.
 
 ### Steps
 
 ```bash
-# 1. Provision a fresh Ubuntu 22.04 or 24.04 server (2 GB RAM minimum).
+# 1. Provision a fresh Ubuntu 22.04 or 24.04 server (4 GB RAM minimum for
+#    the local LLM; 2 GB is fine only with OLLAMA_MODE=remote or
+#    INSTALL_OLLAMA=0).
 # 2. Point your domain's A record at the server's public IP. Wait for DNS
 #    to resolve (usually a few minutes; check with `dig +short A yourdomain`).
 # 3. SSH in as root and:

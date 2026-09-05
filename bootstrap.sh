@@ -279,6 +279,32 @@ if [[ "$INSTALL_OLLAMA" == "1" && "$INSTALL_CONTINUUM" != "1" ]]; then
   INSTALL_OLLAMA=0
 fi
 
+# --- RAM-safety guard (v0.9.7-alpha, BEKKA-READY-3) ---
+#
+# qwen3:0.6b's ~500 MB disk footprint is misleading: with num_ctx=4096 the KV
+# cache dominates and the model sits at ~3.3 GB resident once warmed. Combined
+# with keep_alive=-1 (agent default so the model doesn't cold-start on every
+# turn) that RAM is committed for the lifetime of the ollama daemon.
+#
+# On a 2 GB VPS (previous advertised minimum) the first chat OOM-kills the
+# agent, ollama, or both. Refuse to enable local Ollama below OLLAMA_MIN_RAM_KB
+# (default 3 GB) and point the operator at OLLAMA_MODE=remote instead. Advanced
+# operators who understand the trade-off can lower or override the threshold.
+if [[ "$INSTALL_OLLAMA" == "1" && "$OLLAMA_MODE" == "local" ]]; then
+  OLLAMA_MIN_RAM_KB="${OLLAMA_MIN_RAM_KB:-3145728}"  # 3 GiB in KiB
+  if [[ -r /proc/meminfo ]]; then
+    _mem_kb="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)"
+    if [[ "$_mem_kb" =~ ^[0-9]+$ ]] && (( _mem_kb > 0 )) && (( _mem_kb < OLLAMA_MIN_RAM_KB )); then
+      _mem_gb="$(awk -v k="$_mem_kb" 'BEGIN { printf "%.1f", k/1024/1024 }')"
+      _min_gb="$(awk -v k="$OLLAMA_MIN_RAM_KB" 'BEGIN { printf "%.1f", k/1024/1024 }')"
+      ui_die "local Ollama needs ${_min_gb} GB RAM (this host has ${_mem_gb} GB). Options: (1) upgrade the VPS to 4 GB, (2) OLLAMA_MODE=remote OLLAMA_URL=https://... to use a remote endpoint, or (3) INSTALL_OLLAMA=0 to skip the local LLM entirely. Advanced: override with OLLAMA_MIN_RAM_KB=<kib> if you accept OOM risk."
+    fi
+    unset _mem_kb _mem_gb _min_gb
+  else
+    ui_warn "cannot read /proc/meminfo — skipping RAM-safety check for local Ollama (if this host has <3 GB RAM the first chat may OOM)"
+  fi
+fi
+
 if [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]; then
   : "${CORS_PROXY_ORIGIN_ALLOW:?set CORS_PROXY_ORIGIN_ALLOW=... (or INSTALL_ONBOARDING_BRIDGES=0)}"
   : "${WEBSSH_ORIGIN_ALLOW:?set WEBSSH_ORIGIN_ALLOW=... (or INSTALL_ONBOARDING_BRIDGES=0)}"
@@ -318,7 +344,14 @@ SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
 OLLAMA_MODE="${OLLAMA_MODE:-local}"
 OLLAMA_MODE="${OLLAMA_MODE,,}"
 OLLAMA_BIND="${OLLAMA_BIND:-127.0.0.1:11434}"
-OLLAMA_MODELS="${OLLAMA_MODELS:-llama3.2:3b}"
+# Default chat model (v0.9.7-alpha, BEKKA-READY-1).
+#
+# qwen3:0.6b: agent-loop tool-calling score 0.880 vs qwen2.5:0.5b's 0.640
+# (Mike Veerman Feb 2026 benchmark). ~500 MB on disk; ~3.3 GB resident once
+# warmed (KV cache at num_ctx=4096 dominates — disk size is misleading), so
+# the RAM-safety guard below refuses local Ollama on hosts with less than
+# 3 GB total RAM to avoid a first-chat OOM.
+OLLAMA_MODELS="${OLLAMA_MODELS:-qwen3:0.6b}"
 OLLAMA_URL="${OLLAMA_URL:-}"
 OLLAMA_AUTH_HEADER="${OLLAMA_AUTH_HEADER:-}"
 
@@ -353,7 +386,12 @@ WEBSSH_MAX_SESSION_MS="${WEBSSH_MAX_SESSION_MS:-900000}"
 NOSTR_RELAY_PORT="${NOSTR_RELAY_PORT:-7777}"
 NOSTR_RELAY_DB="${NOSTR_RELAY_DB:-/opt/torii/relay/db}"
 GIT_HOST_ROOT="${GIT_HOST_ROOT:-/opt/torii/git}"
-NOSTR_PUBLIC_RELAYS="${NOSTR_PUBLIC_RELAYS:-wss://relay.damus.io,wss://nos.lol,wss://relay.nostr.band,wss://relay.primal.net}"
+# v0.9.7-alpha (BEKKA-READY-6): dropped wss://relay.damus.io from the
+# default set — the endpoint has been returning 503 for weeks and every
+# publish/subscribe against it wastes a socket and fills the agent log with
+# noise. Kept in sync with torii-quest's read-path defaults (which dropped
+# damus in v0.2.713) and with .env.example.
+NOSTR_PUBLIC_RELAYS="${NOSTR_PUBLIC_RELAYS:-wss://nos.lol,wss://relay.nostr.band,wss://relay.primal.net}"
 # strfry is built from source (no prebuilt release binaries exist). Pinned to
 # an upstream tag for reproducible, sovereign compiles.
 STRFRY_REF="${STRFRY_REF:-1.1.0}"
@@ -628,12 +666,12 @@ if [[ "$INSTALL_NOSTR_GIT" == "1" ]]; then
   run_stage "install Nostr relay + git host" _stage_nostr_git
 fi
 
-if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
-  stage_header "Continuum (frontend + agent)"
-  ui_stage_banner continuum
-  run_stage "install Continuum" _stage_continuum
-fi
-
+# v0.9.7-alpha (BEKKA-READY-5): install Ollama BEFORE Continuum so
+# ollama.service exists and is active by the time the continuum-agent unit is
+# written and started. Previous ordering (Continuum first) meant
+# `After=ollama.service` was declared against a non-existent unit at install
+# time; the agent booted, hit routstr_first, and — with no wallet balance —
+# failed until the operator manually restarted continuum-agent minutes later.
 OLLAMA_BENCH=""
 if [[ "$INSTALL_OLLAMA" == "1" ]]; then
   if [[ "$OLLAMA_MODE" == "remote" ]]; then
@@ -643,7 +681,18 @@ if [[ "$INSTALL_OLLAMA" == "1" ]]; then
     stage_header "Ollama (local LLM fallback)"
     run_stage "install Ollama + pull ${OLLAMA_MODELS}" _stage_ollama
   fi
+fi
 
+if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
+  stage_header "Continuum (frontend + agent)"
+  ui_stage_banner continuum
+  run_stage "install Continuum" _stage_continuum
+fi
+
+# v0.9.7-alpha (BEKKA-READY-5): benchmark moved out of the Continuum block
+# and gated on INSTALL_OLLAMA=1 so it only runs when there's actually an
+# Ollama endpoint to measure.
+if [[ "$INSTALL_OLLAMA" == "1" ]]; then
   # Live benchmark — measure actual tok/s for whichever endpoint we're going
   # to use. Costs ~15s, gives the operator a real number instead of guessing.
   # For local mode we use the first shipped model; for remote we ask the
@@ -688,6 +737,7 @@ if [[ "$INSTALL_OLLAMA" == "1" ]]; then
     fi
     unset _bench_args _bench_json _eval_count _eval_dur _tps_x100 _tps_int _tps_frac
   fi
+  unset _bench_model
 fi
 
 if [[ "$INSTALL_QUEST" == "1" ]]; then

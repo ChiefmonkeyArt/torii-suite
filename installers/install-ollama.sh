@@ -17,7 +17,7 @@
 #
 # Env contract:
 #   OLLAMA_BIND               (default 127.0.0.1:11434)
-#   OLLAMA_MODELS             (default "llama3.2:3b" — space-separated list)
+#   OLLAMA_MODELS             (default "qwen3:0.6b" — space-separated list)
 #   OLLAMA_HEALTHCHECK_TRIES  (default 20)
 #   OLLAMA_HEALTHCHECK_DELAY  (default 3s)
 
@@ -37,7 +37,11 @@ if [[ "${OLLAMA_MODE:-local}" == "remote" ]]; then
 fi
 
 OLLAMA_BIND="${OLLAMA_BIND:-127.0.0.1:11434}"
-OLLAMA_MODELS="${OLLAMA_MODELS:-llama3.2:3b}"
+# v0.9.7-alpha (BEKKA-READY-1): qwen3:0.6b default. Same 500 MB disk
+# footprint as qwen2.5:0.5b but agent-loop tool-calling score 0.880 vs
+# 0.640 (Mike Veerman Feb 2026 benchmark). Kept in sync with
+# bootstrap.sh and torii-continuum agent/config.example.yaml.
+OLLAMA_MODELS="${OLLAMA_MODELS:-qwen3:0.6b}"
 OLLAMA_HEALTHCHECK_TRIES="${OLLAMA_HEALTHCHECK_TRIES:-20}"
 OLLAMA_HEALTHCHECK_DELAY="${OLLAMA_HEALTHCHECK_DELAY:-3}"
 

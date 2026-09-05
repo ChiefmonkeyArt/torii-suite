@@ -375,16 +375,25 @@ fi
 # leaves the box on whatever was pulled the very first time even after the
 # agent config declares a newer/better model.
 #
-# This stanza closes the gap. If OLLAMA_MODELS is set in the environment (the
-# .env file sources it), Ollama is reachable, and the `ollama` CLI is on
-# PATH, pull every listed model here too. `ollama pull` is idempotent: it
+# This stanza closes the gap. If Ollama is reachable and the `ollama` CLI is
+# on PATH, pull every listed model here too. `ollama pull` is idempotent: it
 # verifies the manifest and no-ops when the model is already current, so this
 # is safe to re-run on every deploy.
 #
-if [[ -n "${OLLAMA_MODELS:-}" ]] && command -v /usr/local/bin/ollama >/dev/null 2>&1; then
+# OLLAMA_MODELS falls back to CONTINUUM_DEFAULT_OLLAMA_MODELS (v0.9.7-alpha,
+# OLLAMA-DEFAULT-1) so that a redeploy without the operator having added the
+# variable to their .env still lands the current recommended chat model. This
+# matches the Continuum agent's own default (agent/config.example.yaml
+# `ollama.models.chat`). Keep the two in sync when the default changes.
+CONTINUUM_DEFAULT_OLLAMA_MODELS="${CONTINUUM_DEFAULT_OLLAMA_MODELS:-qwen3:0.6b}"
+_effective_ollama_models="${OLLAMA_MODELS:-$CONTINUUM_DEFAULT_OLLAMA_MODELS}"
+if [[ -n "${_effective_ollama_models}" ]] && command -v /usr/local/bin/ollama >/dev/null 2>&1; then
   _ollama_probe_bind="${OLLAMA_BIND:-127.0.0.1:11434}"
   if curl -fsS --max-time 3 "http://${_ollama_probe_bind}/api/tags" >/dev/null 2>&1; then
-    for _model in $OLLAMA_MODELS; do
+    if [[ -z "${OLLAMA_MODELS:-}" ]]; then
+      log "OLLAMA_MODELS unset — using installer default: ${_effective_ollama_models}"
+    fi
+    for _model in $_effective_ollama_models; do
       log "ensuring ollama model is present: ${_model} (idempotent — no-op when current)"
       /usr/local/bin/ollama pull "$_model" \
         || warn "failed to pull ${_model} — continuing (agent will fall back to whatever model is already loaded)"
@@ -395,6 +404,7 @@ if [[ -n "${OLLAMA_MODELS:-}" ]] && command -v /usr/local/bin/ollama >/dev/null 
   fi
   unset _ollama_probe_bind
 fi
+unset _effective_ollama_models
 
 # --------------------------------------------------------------------------- #
 # 4c. Rate limit config (v0.6.0-alpha, SUITE-VPS-READY-1)                     #
@@ -483,12 +493,18 @@ unset _rl_enabled _rl_challenge _rl_verify _rl_max _rl_enabled_yaml
 # 5. systemd unit                                                             #
 # --------------------------------------------------------------------------- #
 
+# v0.9.7-alpha (BEKKA-READY-5): declare a soft ordering + want on
+# ollama.service so the agent doesn't come up before the local LLM on a
+# fresh install (bootstrap installs Continuum before Ollama). Both
+# directives are no-ops when ollama.service doesn't exist (remote-Ollama
+# hosts, INSTALL_OLLAMA=0), so we always emit them — systemd tolerates
+# missing units in After=/Wants= dependency lines.
 UNIT_FILE="/etc/systemd/system/continuum-agent.service"
 UNIT_CONTENT="$(cat <<UNIT
 [Unit]
 Description=Continuum Agent (Fastify)
-After=network-online.target
-Wants=network-online.target
+After=network-online.target ollama.service
+Wants=network-online.target ollama.service
 
 [Service]
 Type=simple
