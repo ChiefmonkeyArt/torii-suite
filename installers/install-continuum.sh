@@ -365,6 +365,38 @@ PY
 fi
 
 # --------------------------------------------------------------------------- #
+# 4b¹. Idempotent Ollama model pulls (v0.9.6-alpha, OLLAMA-MODEL-PULL-1)      #
+# --------------------------------------------------------------------------- #
+#
+# `install-ollama.sh` runs `ollama pull` for every model in $OLLAMA_MODELS when
+# the operator first bootstraps Ollama, but subsequent `run-installer
+# install-continuum.sh` invocations (the admin-run path that redeploys the
+# agent without reinstalling Ollama itself) never re-check the model set. That
+# leaves the box on whatever was pulled the very first time even after the
+# agent config declares a newer/better model.
+#
+# This stanza closes the gap. If OLLAMA_MODELS is set in the environment (the
+# .env file sources it), Ollama is reachable, and the `ollama` CLI is on
+# PATH, pull every listed model here too. `ollama pull` is idempotent: it
+# verifies the manifest and no-ops when the model is already current, so this
+# is safe to re-run on every deploy.
+#
+if [[ -n "${OLLAMA_MODELS:-}" ]] && command -v /usr/local/bin/ollama >/dev/null 2>&1; then
+  _ollama_probe_bind="${OLLAMA_BIND:-127.0.0.1:11434}"
+  if curl -fsS --max-time 3 "http://${_ollama_probe_bind}/api/tags" >/dev/null 2>&1; then
+    for _model in $OLLAMA_MODELS; do
+      log "ensuring ollama model is present: ${_model} (idempotent — no-op when current)"
+      /usr/local/bin/ollama pull "$_model" \
+        || warn "failed to pull ${_model} — continuing (agent will fall back to whatever model is already loaded)"
+    done
+    unset _model
+  else
+    warn "ollama not reachable on http://${_ollama_probe_bind}/api/tags — skipping model pulls"
+  fi
+  unset _ollama_probe_bind
+fi
+
+# --------------------------------------------------------------------------- #
 # 4c. Rate limit config (v0.6.0-alpha, SUITE-VPS-READY-1)                     #
 # --------------------------------------------------------------------------- #
 #
