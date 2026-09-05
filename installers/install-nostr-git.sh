@@ -44,7 +44,8 @@ fi
 NOSTR_RELAY_PORT="${NOSTR_RELAY_PORT:-7777}"
 NOSTR_RELAY_DB="${NOSTR_RELAY_DB:-/opt/torii/relay/db}"
 GIT_HOST_ROOT="${GIT_HOST_ROOT:-/opt/torii/git}"
-NOSTR_PUBLIC_RELAYS="${NOSTR_PUBLIC_RELAYS:-wss://relay.damus.io,wss://nos.lol,wss://relay.nostr.band,wss://relay.primal.net}"
+# v0.9.7-alpha (BEKKA-READY-6): dropped damus (503-degraded). See bootstrap.sh.
+NOSTR_PUBLIC_RELAYS="${NOSTR_PUBLIC_RELAYS:-wss://nos.lol,wss://relay.nostr.band,wss://relay.primal.net}"
 STRFRY_REF="${STRFRY_REF:-1.1.0}"
 
 log()  { printf "\033[36m==>\033[0m %s\n" "$*"; }

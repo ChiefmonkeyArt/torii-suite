@@ -41,9 +41,9 @@ What you'll see (roughly):
 
 [3/7]  ████████░░░░░░░░░░░░  Ollama (local LLM fallback)
 
-  ✓ install Ollama + pull llama3.2:3b  (4m18s)
+  ✓ install Ollama + pull qwen3:0.6b  (0m52s)
   → measuring Ollama throughput on this host…
-  ✓ Ollama benchmark: 2.34 tok/s (llama3.2:3b)
+  ✓ Ollama benchmark: 4.35 tok/s (qwen3:0.6b)
 ```
 
 Every stage's stdout streams to `/var/log/torii-suite/install-<timestamp>.log`
@@ -142,8 +142,8 @@ sudo -E ./bootstrap.sh
 ```
 
 Either way, in roughly 10–20 minutes on a small VPS you'll have the full suite
-running behind a Let's Encrypt certificate (add ~5–10 minutes on first install
-while Ollama pulls the 2GB model).
+running behind a Let's Encrypt certificate (add ~1–2 minutes on first install
+while Ollama pulls the default ~500 MB `qwen3:0.6b` model).
 
 ---
 
@@ -164,7 +164,10 @@ Seven stages, each idempotent (safe to re-run):
 2b. **Ollama** *(opt-in, on by default when Continuum is installed)* — installs
    the official Ollama daemon, writes a systemd override binding it to
    `127.0.0.1:11434` with `OLLAMA_ORIGINS` restricted to localhost, pulls the
-   default model (`llama3.2:3b`, ~2 GB), and flips `ollama.enabled: true` in
+   default model (`qwen3:0.6b`, ~500 MB on disk / ~3.3 GB resident once
+   warmed — bootstrap refuses local Ollama below 3 GB RAM; use
+   `OLLAMA_MODE=remote` or `INSTALL_OLLAMA=0` on tiny hosts), and flips
+   `ollama.enabled: true` in
    the Continuum agent config. The agent's model router keeps Routstr as first
    choice — Ollama is only used when Routstr is unavailable.
 3. **Quest** — clones torii-quest, patches `vite.config.js` for a `/quest/`
@@ -267,6 +270,42 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.9.7-alpha
+
+"Bekka-ready" — tightens the one-liner install so a fresh operator doesn't
+hit any of the traps that were latent in v0.9.6-alpha:
+
+- **Model default is now `qwen3:0.6b` everywhere the installer looks.**
+  `bootstrap.sh` and `install-ollama.sh` both had a hardcoded
+  `OLLAMA_MODELS:-llama3.2:3b` fallback; the interactive `.env` writer
+  didn't emit `OLLAMA_MODELS` at all. v0.9.6-alpha's `.env.example` change
+  was cosmetic. Fixed at the source.
+- **RAM-safety guard.** Bootstrap now refuses to enable local Ollama on
+  hosts below 3 GB total RAM (the model sits at ~3.3 GB resident once
+  warmed, not the 500 MB disk size). Escape hatches:
+  `OLLAMA_MODE=remote` + `OLLAMA_URL`, or `INSTALL_OLLAMA=0`.
+  Override the threshold with `OLLAMA_MIN_RAM_KB=<kib>` if you know what
+  you're doing.
+- **Install order flipped.** Ollama installs BEFORE Continuum, so
+  `ollama.service` exists and is active by the time the continuum-agent
+  unit is written and started. Previous ordering meant a fresh install
+  agent booted before the LLM was pulled and — with no Routstr wallet
+  balance — chat failed until the operator manually restarted the agent.
+- **Systemd ordering hardened.** `continuum-agent.service` now declares
+  `After=ollama.service Wants=ollama.service`. Harmless when Ollama isn't
+  installed (systemd tolerates missing units); crucial on reboots.
+- **HOSTING.md minimum bumped to 4 GB RAM** to match reality. The 2 GB
+  minimum still holds if you set `OLLAMA_MODE=remote` or
+  `INSTALL_OLLAMA=0`.
+- **`wss://relay.damus.io` dropped from the default `NOSTR_PUBLIC_RELAYS` set**
+  (503-degraded for weeks). Kept in sync with Quest v0.2.713+'s read-path
+  defaults and with `.env.example`.
+- **README refreshed:** all `llama3.2:3b` and `qwen2.5:0.5b` references
+  swapped to `qwen3:0.6b`; throughput table updated with measured numbers.
+
+No breaking changes for operators already running Continuum with a
+customized `.env` — all defaults are still `${VAR:-default}` overridable.
 
 ### New in v0.9.6-alpha
 
@@ -757,14 +796,14 @@ hosted models via a Nostr provider marketplace, paid per-request in Cashu —
 fast and high-quality. When Routstr is unreachable or your wallet is empty,
 the agent falls back to the local Ollama daemon this installer sets up.
 
-On a CPU-only VPS the default `llama3.2:3b` model will produce roughly:
+On a CPU-only VPS the default `qwen3:0.6b` model will produce roughly:
 
 | Host                       | Approximate throughput             |
 | -------------------------- | ---------------------------------- |
-| 2 vCPU / 4 GB RAM VPS      | 1–3 tok/s — fallback only          |
-| 8 vCPU / 16 GB RAM VPS     | 5–10 tok/s — workable for short prompts |
-| RTX 3060 12 GB (desktop)   | 40–70 tok/s — daily-driver range   |
-| RTX 4090 / A100            | 100+ tok/s                         |
+| 2 vCPU / 4 GB RAM VPS      | 3–5 tok/s — usable for short turns |
+| 8 vCPU / 16 GB RAM VPS     | 10–20 tok/s — daily-driver on CPU  |
+| RTX 3060 12 GB (desktop)   | 80–150 tok/s                       |
+| RTX 4090 / A100            | 200+ tok/s                         |
 
 ### Remote Ollama endpoint
 
@@ -818,7 +857,7 @@ Security notes:
 
 ```bash
 sudo -u root ollama pull qwen2.5:7b
-sudo -u continuum sed -i 's|llama3.2:3b|qwen2.5:7b|g' /apps/continuum/agent/repo/agent/config.yaml
+sudo -u continuum sed -i 's|qwen3:0.6b|qwen2.5:7b|g' /apps/continuum/agent/repo/agent/config.yaml
 sudo systemctl restart continuum-agent
 ```
 
