@@ -49,10 +49,20 @@ SRC="${SUITE_WORK_DIR}/torii-continuum"
 if [[ -d "${SRC}/.git" ]]; then
   log "updating torii-continuum to ${TORII_CONTINUUM_REF}"
   git -C "$SRC" fetch --tags --prune origin
+  # Resolve the ref: prefer origin/<ref> so a BRANCH name ("main") lands on the
+  # just-fetched remote head. `fetch` updates origin/main but never the local
+  # `main`, so checking out the raw name would silently re-deploy the frozen
+  # local branch from the original clone. Tags (and a commit SHA or a full ref)
+  # have no origin/<ref> and fall through unchanged, so tag pins keep working.
+  if git -C "$SRC" rev-parse --verify --quiet "origin/${TORII_CONTINUUM_REF}" >/dev/null 2>&1; then
+    RESOLVED_REF="origin/${TORII_CONTINUUM_REF}"
+  else
+    RESOLVED_REF="${TORII_CONTINUUM_REF}"
+  fi
   # Land on a local branch pointed at the ref (never a detached HEAD) and
   # hard-reset to it. Idempotent on re-run and safe for both tags and branches.
-  git -C "$SRC" checkout -B torii-continuum-deploy "$TORII_CONTINUUM_REF"
-  git -C "$SRC" reset --hard "$TORII_CONTINUUM_REF"
+  git -C "$SRC" checkout -B torii-continuum-deploy "$RESOLVED_REF"
+  git -C "$SRC" reset --hard "$RESOLVED_REF"
 else
   # Stale/partial checkout (a dir without .git — an aborted clone or a source
   # copy) makes `git clone` abort with "destination path already exists". Move
@@ -152,10 +162,16 @@ chown -R continuum:continuum "$AGENT_HOME"
 if [[ -d "${AGENT_REPO}/.git" ]]; then
   log "updating continuum agent repo"
   sudo -u continuum -H git -C "$AGENT_REPO" fetch --tags --prune origin
-  # Same detached-HEAD hardening as the frontend sync above: land on a local
-  # branch and hard-reset, rather than pulling a tag into a detached HEAD.
-  sudo -u continuum -H git -C "$AGENT_REPO" checkout -B torii-continuum-deploy "$TORII_CONTINUUM_REF"
-  sudo -u continuum -H git -C "$AGENT_REPO" reset --hard "$TORII_CONTINUUM_REF"
+  # Same branch-tracking + detached-HEAD hardening as the frontend sync above:
+  # resolve origin/<ref> for branches so `main` means the just-fetched head,
+  # then land on a local branch and hard-reset (never a detached HEAD).
+  if sudo -u continuum -H git -C "$AGENT_REPO" rev-parse --verify --quiet "origin/${TORII_CONTINUUM_REF}" >/dev/null 2>&1; then
+    RESOLVED_REF="origin/${TORII_CONTINUUM_REF}"
+  else
+    RESOLVED_REF="${TORII_CONTINUUM_REF}"
+  fi
+  sudo -u continuum -H git -C "$AGENT_REPO" checkout -B torii-continuum-deploy "$RESOLVED_REF"
+  sudo -u continuum -H git -C "$AGENT_REPO" reset --hard "$RESOLVED_REF"
 else
   log "cloning continuum agent repo"
   sudo -u continuum -H git clone --branch "$TORII_CONTINUUM_REF" \

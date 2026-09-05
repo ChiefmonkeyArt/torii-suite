@@ -52,10 +52,20 @@ if [[ -d "${SRC}/.git" ]]; then
   # untracked, so a newly-tracked file in the target can't conflict either.
   git -C "$SRC" reset --hard HEAD 2>/dev/null || true
   git -C "$SRC" clean -f -- public/dashboard.html public/torii-quest-data.json 2>/dev/null || true
+  # Resolve the ref: prefer origin/<ref> so a BRANCH name ("main") lands on the
+  # just-fetched remote head. `fetch` updates origin/main but never the local
+  # `main`, so checking out the raw name would silently re-deploy the frozen
+  # local branch from the original clone. Tags (and a commit SHA or a full ref)
+  # have no origin/<ref> and fall through unchanged, so tag pins keep working.
+  if git -C "$SRC" rev-parse --verify --quiet "origin/${TORII_QUEST_REF}" >/dev/null 2>&1; then
+    RESOLVED_REF="origin/${TORII_QUEST_REF}"
+  else
+    RESOLVED_REF="${TORII_QUEST_REF}"
+  fi
   # Land on a local branch pointed at the ref (never a detached HEAD) and
   # hard-reset to it. Idempotent on re-run and safe for both tags and branches.
-  git -C "$SRC" checkout -B torii-quest-deploy "$TORII_QUEST_REF"
-  git -C "$SRC" reset --hard "$TORII_QUEST_REF"
+  git -C "$SRC" checkout -B torii-quest-deploy "$RESOLVED_REF"
+  git -C "$SRC" reset --hard "$RESOLVED_REF"
 else
   # Stale/partial checkout (a dir without .git — an aborted clone or a source
   # copy) makes `git clone` abort with "destination path already exists". Move

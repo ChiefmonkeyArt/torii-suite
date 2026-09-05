@@ -268,6 +268,17 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.5-alpha
+
+Fixes a stale-checkout bug in the source-sync step of the Continuum and Quest
+installers. `git fetch` updates `origin/<branch>` but never the local `<branch>`,
+so re-running `install-continuum.sh` (or `install-quest.sh`) with the default
+`main` ref landed on the frozen local `main` from the original clone — every
+redeploy silently kept shipping the original version instead of the latest.
+The installers now resolve a branch ref through `origin/<ref>` (the just-fetched
+remote head) and fall back to the raw ref for tags, commit SHAs and full refs,
+so `main` always means "latest from GitHub" on both fresh installs and re-deploys.
+
 ### New in v0.9.3-alpha
 
 Three installer fixes that harden the `/apps` migration and fresh installs:
