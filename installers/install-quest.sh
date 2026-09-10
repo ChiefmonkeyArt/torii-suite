@@ -151,6 +151,19 @@ log "building torii-quest bundle"
 # On updates, if /apps/quest/data/worlds/default/world.json already exists,
 # do NOTHING -- the user's customizations are preserved.
 
+# --------------------------------------------------------------------------- #
+# 3b-pre. torii-quest system user (idempotent). Must exist BEFORE world seeding
+# below, because `install -d -o torii-quest -g torii-quest` needs the uid/gid to
+# succeed on a clean host (SB-08). Created unconditionally here — the world seed
+# is not gated on arena-ws installability, so neither is this user.
+# --------------------------------------------------------------------------- #
+if ! id -u torii-quest >/dev/null 2>&1; then
+  log "creating torii-quest system user"
+  useradd --system --user-group --shell /usr/sbin/nologin --home-dir "${APPS_ROOT}/quest" torii-quest
+else
+  log "torii-quest user already present"
+fi
+
 WORLDS_DIR="${APPS_ROOT}/quest/data/worlds"
 if [[ ! -d "${WORLDS_DIR}/default" ]]; then
   log "seeding worlds directory from repo template (${WORLDS_DIR})"
@@ -271,6 +284,11 @@ else
   # to the Continuum admin npub (same operator) so an existing .env without
   # QUEST_ADMIN_NPUB keeps working. arena-ws normalises npub->hex at startup.
   QUEST_ADMIN_NPUB="${QUEST_ADMIN_NPUB:-${CONTINUUM_ADMIN_NPUB:-}}"
+  # World presence `world.website` — the public https origin a traveller navigates
+  # to for the gateway hop. Derive it from the install domain so the server-side
+  # presence beacon always carries a reachable destination (ADR-0094), rather than
+  # publishing an empty website and failing the open-travel hop.
+  QUEST_PUBLIC_URL="${QUEST_PUBLIC_URL:-https://${TORII_DOMAIN}/quest/}"
   MP_DIR="${APPS_ROOT}/quest/mp"
   MP_SRC_SERVER="${SRC}/dist/server/arena-ws.cjs"
   MP_SRC_PKG="${SRC}/dist/package.json"
@@ -320,15 +338,8 @@ fi
 # server bundle), skip the rest.
 if [[ "${ARENA_WS_INSTALLED:-0}" == "1" ]]; then
 
-  # 7b. torii-quest system user (idempotent).
-  if ! id -u torii-quest >/dev/null 2>&1; then
-    log "creating torii-quest system user"
-    useradd --system --shell /usr/sbin/nologin --home-dir ${APPS_ROOT}/quest --create-home torii-quest
-  else
-    log "torii-quest user already present"
-  fi
-
-  # 7b.1. Ensure the home dir exists and is torii-quest-owned. If the user was
+  # 7b.1. Ensure the home dir exists and is torii-quest-owned. (The system user
+  # itself is created earlier, before world seeding — see the 3b-pre block.) If the user was
   # created on a previous install and /apps/quest was later removed (e.g.
   # a partial cleanup), `useradd` skips this run and the home dir is missing.
   # `install -d $MP_DIR` below would then create /apps/quest as root, and
@@ -367,6 +378,7 @@ Environment=NODE_ENV=production
 Environment=PORT=${ARENA_WS_PORT}
 Environment=MP_MODE=${ARENA_WS_MODE}
 Environment=QUEST_ADMIN_NPUB=${QUEST_ADMIN_NPUB}
+Environment=QUEST_PUBLIC_URL=${QUEST_PUBLIC_URL}
 Environment=UPDATE_REQUESTS_DIR=${APPS_ROOT}/quest/mp/update-requests
 Environment=UPDATE_STATUS_PATH=${APPS_ROOT}/quest/mp/update-status.json
 Environment=BEACON_STATE_PATH=${APPS_ROOT}/quest/mp/beacon-state.json
