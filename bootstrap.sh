@@ -395,6 +395,10 @@ NOSTR_PUBLIC_RELAYS="${NOSTR_PUBLIC_RELAYS:-wss://nos.lol,wss://relay.nostr.band
 # strfry is built from source (no prebuilt release binaries exist). Pinned to
 # an upstream tag for reproducible, sovereign compiles.
 STRFRY_REF="${STRFRY_REF:-1.1.0}"
+# v0.9.8-alpha (SUITE-RELAY-SUBDOMAIN-1): default the sovereign relay to
+# wss://relay.<TORII_DOMAIN> (dedicated vhost + own cert). Set to empty to
+# skip the subdomain vhost and keep the path-based wss://<domain>/relay only.
+TORII_RELAY_HOST="${TORII_RELAY_HOST:-relay.${TORII_DOMAIN}}"
 
 export TORII_DOMAIN LETSENCRYPT_EMAIL SKIP_CERTBOT
 export CONTINUUM_ADMIN_NPUB CONTINUUM_AGENT_PORT CONTINUUM_SESSION_TTL_SEC
@@ -402,7 +406,7 @@ export INSTALL_OLLAMA OLLAMA_MODE OLLAMA_BIND OLLAMA_MODELS OLLAMA_URL OLLAMA_AU
 export SUITE_WORK_DIR APPS_ROOT
 export CORS_PROXY_ORIGIN_ALLOW CORS_PROXY_UPSTREAM_ALLOW CORS_PROXY_PORT
 export WEBSSH_ORIGIN_ALLOW WEBSSH_PORT WEBSSH_MAX_PER_IP WEBSSH_MAX_SESSION_MS
-export INSTALL_NOSTR_GIT NOSTR_RELAY_PORT NOSTR_RELAY_DB GIT_HOST_ROOT NOSTR_PUBLIC_RELAYS STRFRY_REF
+export INSTALL_NOSTR_GIT NOSTR_RELAY_PORT NOSTR_RELAY_DB GIT_HOST_ROOT NOSTR_PUBLIC_RELAYS STRFRY_REF TORII_RELAY_HOST
 
 # --------------------------------------------------------------------------- #
 # DNS preflight (has to come after we know TORII_DOMAIN)                      #
@@ -423,6 +427,22 @@ if [[ -n "$PUBLIC_IP" ]]; then
     [[ "$SKIP_CERTBOT" == "1" ]] || ui_die "DNS points elsewhere — fix the A record or set SKIP_CERTBOT=1"
   else
     ui_ok "DNS: ${TORII_DOMAIN} → ${PUBLIC_IP}"
+  fi
+
+  # v0.9.8-alpha (SUITE-RELAY-SUBDOMAIN-1): also preflight the relay subdomain
+  # when INSTALL_NOSTR_GIT=1 and TORII_RELAY_HOST is non-empty. Skipping keeps
+  # older operators (path-only mode) unaffected.
+  if [[ "${INSTALL_NOSTR_GIT:-1}" == "1" && -n "${TORII_RELAY_HOST:-}" ]]; then
+    RELAY_IPS="$(dig +short A "$TORII_RELAY_HOST" @1.1.1.1 2>/dev/null | tr '\n' ' ')"
+    if [[ -z "$RELAY_IPS" ]]; then
+      ui_warn "DNS: no A record for ${TORII_RELAY_HOST} — subdomain relay will be HTTP-only"
+      [[ "$SKIP_CERTBOT" == "1" ]] || ui_die "point ${TORII_RELAY_HOST} at this VPS (or set SKIP_CERTBOT=1, or set TORII_RELAY_HOST=\"\" for path-only mode)"
+    elif ! echo " $RELAY_IPS " | grep -q " $PUBLIC_IP "; then
+      ui_warn "DNS: ${TORII_RELAY_HOST} → [${RELAY_IPS% }], but this VPS is ${PUBLIC_IP}"
+      [[ "$SKIP_CERTBOT" == "1" ]] || ui_die "${TORII_RELAY_HOST} points elsewhere — fix the A record or set SKIP_CERTBOT=1"
+    else
+      ui_ok "DNS: ${TORII_RELAY_HOST} → ${PUBLIC_IP}"
+    fi
   fi
 else
   ui_warn "could not determine this VPS's public IP — skipping DNS preflight"
@@ -1002,7 +1022,11 @@ if [[ "$INSTALL_QUEST" == "1" && "${INSTALL_ARENA_WS:-1}" == "1" ]]; then
   esac
 fi
 if [[ "$INSTALL_NOSTR_GIT" == "1" ]]; then
-  ui_box_line "Nostr relay  ${UI_CYAN}wss://${TORII_DOMAIN}/relay${UI_RESET}"
+  if [[ -n "${TORII_RELAY_HOST:-}" ]]; then
+    ui_box_line "Nostr relay  ${UI_CYAN}wss://${TORII_RELAY_HOST}${UI_RESET} ${UI_DIM}(+ wss://${TORII_DOMAIN}/relay fallback)${UI_RESET}"
+  else
+    ui_box_line "Nostr relay  ${UI_CYAN}wss://${TORII_DOMAIN}/relay${UI_RESET}"
+  fi
   case "$RELAY_SMOKE_RESULT" in
     ok)          ui_box_line "  ${UI_ARROW} strfry     ${UI_GREEN}NIP-11 probe ok${UI_RESET}" ;;
     relay-fail)  ui_box_line "  ${UI_ARROW} strfry     ${UI_YELLOW}NIP-11 probe failed${UI_RESET}${UI_DIM}  - see ${SUITE_LOG_FILE}${UI_RESET}" ;;
