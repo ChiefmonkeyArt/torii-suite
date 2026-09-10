@@ -271,6 +271,29 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.8-alpha
+
+Relay endpoint moves to a dedicated subdomain by default:
+
+- **`wss://relay.<TORII_DOMAIN>` is the new default relay URL** — dedicated
+  `sites-available` vhost with its own Let's Encrypt cert, provisioned by
+  `install-nostr-git.sh`. This matches what NIP-17 clients look for (and
+  what Continuum's `nap-bridge` now auto-defaults to) and keeps relay
+  traffic off the main-domain app fragments.
+- **Backward compatible:** the old `wss://<TORII_DOMAIN>/relay` fragment is
+  still written, so existing clients pointing at the path-based URL keep
+  working. Both reverse-proxy to the same loopback `strfry`.
+- **DNS preflight** for the subdomain runs in `bootstrap.sh` (same rules as
+  the apex domain: fatal unless `SKIP_CERTBOT=1`).
+- **Opt-out:** set `TORII_RELAY_HOST=""` to skip the subdomain vhost and
+  keep path-only mode.
+
+One env override (in `.env.example`):
+
+```
+# TORII_RELAY_HOST=relay.example.com   # default: relay.<TORII_DOMAIN>
+```
+
 ### New in v0.9.7-alpha
 
 "Bekka-ready" — tightens the one-liner install so a fresh operator doesn't

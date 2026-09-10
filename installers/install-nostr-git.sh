@@ -28,7 +28,19 @@
 #
 # Env (inherited from bootstrap.sh):
 #   TORII_DOMAIN, SUITE_WORK_DIR, NOSTR_RELAY_PORT, NOSTR_RELAY_DB,
-#   GIT_HOST_ROOT, NOSTR_PUBLIC_RELAYS, STRFRY_REF
+#   GIT_HOST_ROOT, NOSTR_PUBLIC_RELAYS, STRFRY_REF,
+#   TORII_RELAY_HOST (default: relay.<TORII_DOMAIN>), LETSENCRYPT_EMAIL,
+#   SKIP_CERTBOT (default: 0)
+#
+# Subdomain mode (v0.9.8-alpha, SUITE-RELAY-SUBDOMAIN-1):
+# The default relay endpoint is now wss://relay.<TORII_DOMAIN> served from a
+# dedicated sites-available vhost with its own Let's Encrypt cert. This is
+# the recommended path -- it matches what NIP-17 clients (and the Continuum
+# nap-bridge) look for by default (`relay.<domain>`), and it keeps the main
+# domain's app fragments unaffected by relay traffic. The path-based
+# wss://<TORII_DOMAIN>/relay fragment is still written (backward compat with
+# any existing clients pointed at it), but the subdomain is preferred. Set
+# TORII_RELAY_HOST="" to skip subdomain provisioning (path-only mode).
 
 set -euo pipefail
 
@@ -47,6 +59,12 @@ GIT_HOST_ROOT="${GIT_HOST_ROOT:-/opt/torii/git}"
 # v0.9.7-alpha (BEKKA-READY-6): dropped damus (503-degraded). See bootstrap.sh.
 NOSTR_PUBLIC_RELAYS="${NOSTR_PUBLIC_RELAYS:-wss://nos.lol,wss://relay.nostr.band,wss://relay.primal.net}"
 STRFRY_REF="${STRFRY_REF:-1.1.0}"
+
+# Subdomain relay host. Empty string opts out (path-only mode). Anything else
+# is provisioned as a dedicated vhost with its own Let's Encrypt cert.
+TORII_RELAY_HOST="${TORII_RELAY_HOST:-relay.${TORII_DOMAIN}}"
+LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
+SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
 
 log()  { printf "\033[36m==>\033[0m %s\n" "$*"; }
 warn() { printf "\033[33m--  %s\033[0m\n" "$*" >&2; }
@@ -383,12 +401,204 @@ if [[ ! -f "$GIT_FRAGMENT_FILE" ]] || ! diff -q <(printf '%s\n' "$GIT_FRAGMENT_C
 fi
 
 # --------------------------------------------------------------------------- #
+# 7c. Subdomain relay vhost + Let's Encrypt cert                               #
+# --------------------------------------------------------------------------- #
+#
+# Recommended endpoint: wss://${TORII_RELAY_HOST} (default relay.<domain>).
+# Provisions a dedicated sites-available vhost with its own cert. The
+# path-based /relay fragment above stays in place for backward compat --
+# both endpoints reverse-proxy to the same loopback strfry process.
+#
+# Skipped cleanly when TORII_RELAY_HOST is empty (path-only mode).
+#
+# DNS check: we resolve TORII_RELAY_HOST and refuse to touch certbot when the
+# subdomain does not resolve to a public IP that includes THIS host's IP. The
+# check is only fatal when SKIP_CERTBOT!=1; a warned-through install (no cert)
+# still writes the plain-HTTP vhost so `certbot certonly` can be run later.
+
+RELAY_SUBDOMAIN_OK=0
+if [[ -n "$TORII_RELAY_HOST" ]]; then
+  log "provisioning subdomain relay vhost for ${TORII_RELAY_HOST}"
+
+  # DNS preflight (soft when SKIP_CERTBOT=1, hard otherwise).
+  RELAY_DNS_OK=0
+  PUBLIC_IP="$(curl -fsS --max-time 5 https://api.ipify.org 2>/dev/null || echo "")"
+  if [[ -z "$PUBLIC_IP" ]]; then
+    PUBLIC_IP="$(curl -fsS --max-time 5 https://ifconfig.me 2>/dev/null || echo "")"
+  fi
+  RELAY_A_RECORDS="$(dig +short A "$TORII_RELAY_HOST" @1.1.1.1 2>/dev/null | tr '\n' ' ')"
+  if [[ -z "$RELAY_A_RECORDS" ]]; then
+    warn "DNS: no A record for ${TORII_RELAY_HOST} - Let's Encrypt will fail"
+    [[ "$SKIP_CERTBOT" == "1" ]] || die "DNS: point ${TORII_RELAY_HOST} at this VPS (or set SKIP_CERTBOT=1 to install without HTTPS)"
+  elif [[ -n "$PUBLIC_IP" ]] && ! echo " $RELAY_A_RECORDS " | grep -q " $PUBLIC_IP "; then
+    warn "DNS: ${TORII_RELAY_HOST} -> [${RELAY_A_RECORDS% }], but this VPS is ${PUBLIC_IP}"
+    [[ "$SKIP_CERTBOT" == "1" ]] || die "DNS: ${TORII_RELAY_HOST} points elsewhere - fix the A record or set SKIP_CERTBOT=1"
+  else
+    log "DNS: ${TORII_RELAY_HOST} -> ${PUBLIC_IP:-<unknown host IP>}"
+    RELAY_DNS_OK=1
+  fi
+
+  # certbot's webroot; torii-base bootstrap installs /var/www/certbot but
+  # the sidecar user cannot recreate it if missing. Be idempotent.
+  install -d -m 0755 /var/www/certbot
+
+  RELAY_VHOST="/etc/nginx/sites-available/${TORII_RELAY_HOST}.conf"
+  RELAY_VHOST_LINK="/etc/nginx/sites-enabled/${TORII_RELAY_HOST}.conf"
+  RELAY_CERT_DIR="/etc/letsencrypt/live/${TORII_RELAY_HOST}"
+
+  # Stage 1: plain-HTTP vhost so certbot --webroot can validate. We serve the
+  # ACME challenge here and 301 everything else -- keeps the vhost useful
+  # even before HTTPS is obtained.
+  install -d -m 0755 /etc/nginx/sites-available
+  install -d -m 0755 /etc/nginx/sites-enabled
+  cat > "${RELAY_VHOST}.acme" <<ACME_VHOST
+# ${RELAY_VHOST}.acme - written by torii-suite install-nostr-git.sh
+# Temporary HTTP-only vhost served during Let's Encrypt HTTP-01 validation.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${TORII_RELAY_HOST};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+ACME_VHOST
+  chmod 0644 "${RELAY_VHOST}.acme"
+
+  # Obtain a cert if we don't already have one and DNS + certbot are green.
+  if [[ ! -f "${RELAY_CERT_DIR}/fullchain.pem" ]]; then
+    if [[ "$SKIP_CERTBOT" == "1" ]]; then
+      warn "SKIP_CERTBOT=1 - not issuing cert for ${TORII_RELAY_HOST} (vhost will be HTTP-only)"
+    elif (( RELAY_DNS_OK == 0 )); then
+      warn "DNS check failed - skipping cert issuance for ${TORII_RELAY_HOST}"
+    else
+      command -v certbot >/dev/null 2>&1 \
+        || die "certbot not found (torii-base must run first)"
+      log "issuing Let's Encrypt cert for ${TORII_RELAY_HOST} (HTTP-only vhost active)"
+      # Swap the temp vhost into place so certbot HTTP-01 can validate.
+      install -m 0644 "${RELAY_VHOST}.acme" "$RELAY_VHOST"
+      ln -sf "$RELAY_VHOST" "$RELAY_VHOST_LINK"
+      nginx -t && systemctl reload nginx
+      CERTBOT_EMAIL_ARG=()
+      if [[ -n "$LETSENCRYPT_EMAIL" ]]; then
+        CERTBOT_EMAIL_ARG=(--email "$LETSENCRYPT_EMAIL")
+      else
+        CERTBOT_EMAIL_ARG=(--register-unsafely-without-email)
+      fi
+      certbot certonly --webroot -w /var/www/certbot -d "$TORII_RELAY_HOST" \
+        --non-interactive --agree-tos "${CERTBOT_EMAIL_ARG[@]}" \
+        || die "certbot failed for ${TORII_RELAY_HOST} - see /var/log/letsencrypt/letsencrypt.log"
+    fi
+  else
+    log "cert already present for ${TORII_RELAY_HOST} - skipping issuance"
+  fi
+
+  # Stage 2: write the real vhost. If the cert exists, serve TLS + WSS. If it
+  # doesn't (SKIP_CERTBOT or DNS failure), fall back to the acme vhost so
+  # nginx still validates on reload.
+  rm -f "${RELAY_VHOST}.acme"
+
+  if [[ -f "${RELAY_CERT_DIR}/fullchain.pem" ]]; then
+    RELAY_VHOST_CONTENT="$(cat <<VHOST
+# ${RELAY_VHOST} - written by torii-suite install-nostr-git.sh
+# Torii sovereign Nostr relay (strfry) - subdomain vhost + Let's Encrypt.
+#
+# strfry serves BOTH the Nostr WebSocket protocol AND NIP-11 relay-info (plain
+# HTTP GET with Accept: application/nostr+json) on the same socket. We pass
+# the client's own Connection header through so plain-HTTP NIP-11 GETs work
+# without forcing an upgrade on them.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${TORII_RELAY_HOST};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${TORII_RELAY_HOST};
+
+    ssl_certificate     ${RELAY_CERT_DIR}/fullchain.pem;
+    ssl_certificate_key ${RELAY_CERT_DIR}/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+
+    location / {
+        proxy_pass         http://127.0.0.1:${NOSTR_RELAY_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host              \$host;
+        proxy_set_header X-Real-IP         \$remote_addr;
+        proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade           \$http_upgrade;
+        proxy_set_header Connection        \$http_connection;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
+VHOST
+)"
+    RELAY_SUBDOMAIN_OK=1
+  else
+    RELAY_VHOST_CONTENT="$(cat <<VHOST
+# ${RELAY_VHOST} - written by torii-suite install-nostr-git.sh
+# HTTP-only vhost - no cert on disk (SKIP_CERTBOT or DNS failed).
+# Re-run install-nostr-git.sh after DNS/cert are ready to upgrade to TLS.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${TORII_RELAY_HOST};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+    location / {
+        return 200 "torii-relay: no TLS cert on disk yet\n";
+        add_header Content-Type text/plain;
+    }
+}
+VHOST
+)"
+  fi
+
+  if [[ ! -f "$RELAY_VHOST" ]] || ! diff -q <(printf '%s\n' "$RELAY_VHOST_CONTENT") "$RELAY_VHOST" >/dev/null 2>&1; then
+    log "writing nginx vhost ${RELAY_VHOST}"
+    printf '%s\n' "$RELAY_VHOST_CONTENT" > "$RELAY_VHOST"
+    chmod 0644 "$RELAY_VHOST"
+  fi
+  ln -sf "$RELAY_VHOST" "$RELAY_VHOST_LINK"
+else
+  log "TORII_RELAY_HOST empty - skipping subdomain vhost (path-only mode)"
+fi
+
+# --------------------------------------------------------------------------- #
 # 8. Reload nginx via the torii sidecar                                        #
 # --------------------------------------------------------------------------- #
 
 /usr/local/bin/torii reload
 
-RELAY_WS_URL="wss://${TORII_DOMAIN}/relay"
+if (( RELAY_SUBDOMAIN_OK == 1 )); then
+  RELAY_WS_URL="wss://${TORII_RELAY_HOST}"
+  RELAY_WS_ALT="wss://${TORII_DOMAIN}/relay"
+  log "nostr-git infra complete - relay ${RELAY_WS_URL} (subdomain, TLS) + fallback ${RELAY_WS_ALT}"
+else
+  RELAY_WS_URL="wss://${TORII_DOMAIN}/relay"
+  log "nostr-git infra complete - relay ${RELAY_WS_URL} (path mode)"
+fi
 GIT_HTTP_URL="https://${TORII_DOMAIN}/git"
-log "nostr-git infra complete - relay ${RELAY_WS_URL} + git host ${GIT_HTTP_URL}/"
+log "                            + git host ${GIT_HTTP_URL}/"
 log "git host root is empty; Continuum populates ${GIT_HOST_ROOT} with mirrored repos"
