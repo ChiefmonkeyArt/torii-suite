@@ -578,6 +578,7 @@ _stage_base() {
     TORII_DOMAIN="$TORII_DOMAIN" \
     LETSENCRYPT_EMAIL="$LETSENCRYPT_EMAIL" \
     SKIP_CERTBOT="$SKIP_CERTBOT" \
+    TORII_ADMIN_NPUB="$CONTINUUM_ADMIN_NPUB" \
       ./bootstrap.sh
   )
 }
