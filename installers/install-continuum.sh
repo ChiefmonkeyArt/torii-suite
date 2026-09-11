@@ -25,9 +25,26 @@ set -euo pipefail
 # Preflight                                                                   #
 # --------------------------------------------------------------------------- #
 
-: "${TORII_DOMAIN:?install-continuum: TORII_DOMAIN not set (run via bootstrap.sh)}"
-: "${SUITE_WORK_DIR:?install-continuum: SUITE_WORK_DIR not set}"
-: "${CONTINUUM_ADMIN_NPUB:?install-continuum: CONTINUUM_ADMIN_NPUB not set}"
+# Self-source the suite .env (auto-exported) so a direct `install-continuum.sh`
+# run without bootstrap.sh's exported environment still resolves TORII_DOMAIN,
+# CONTINUUM_ADMIN_NPUB, OLLAMA_* etc. The .env stores plain `KEY="value"` lines
+# and bash never auto-exports a plain assignment, so wrap the source in
+# `set -a` to export them to this process and the npm/systemd children it
+# spawns. Idempotent: re-sourcing the same file over an already-exported value
+# is a no-op, so a bootstrap.sh-driven run is unaffected.
+SUITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -f "${SUITE_DIR}/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1090,SC1091
+  source "${SUITE_DIR}/.env"
+  set +a
+fi
+# bootstrap.sh defaults the work dir to /opt/torii-suite/work; mirror that
+# here so a manual run doesn't have to pass SUITE_WORK_DIR explicitly.
+SUITE_WORK_DIR="${SUITE_WORK_DIR:-/opt/torii-suite/work}"
+
+: "${TORII_DOMAIN:?install-continuum: TORII_DOMAIN not set (set it in ${SUITE_DIR}/.env or export it)}"
+: "${CONTINUUM_ADMIN_NPUB:?install-continuum: CONTINUUM_ADMIN_NPUB not set (set it in ${SUITE_DIR}/.env or export it)}"
 
 TORII_CONTINUUM_REF="${TORII_CONTINUUM_REF:-main}"
 CONTINUUM_AGENT_PORT="${CONTINUUM_AGENT_PORT:-8787}"
