@@ -15,6 +15,10 @@
 #     but the ciphertext on disk is unchanged; next login re-unlocks it.
 #   - Break the install. Config write is atomic (tmp + mv), agent restart
 #     is verified, we roll back on failure.
+#   - Re-key the encrypted at-rest secret store. The agent keys its NWC /
+#     Routstr records (memory/secrets/*.enc) from session_secret, so rotation
+#     makes them undecryptable. Keep the old-key backup until the operator
+#     re-logs in AND /api/health/secrets reports ok (audit A25).
 #
 # Usage (on the VPS):
 #   sudo bash /opt/torii-suite/installers/rotate-session-secret.sh
@@ -104,4 +108,12 @@ done
 
 log "agent healthy on port ${AGENT_PORT}"
 log "done. every prior session token is now invalid."
-log "backup kept at $BACKUP  (safe to delete once you have re-logged in)"
+# A25 hold: a clean login does NOT prove the NWC/Routstr secretstore records
+# are still decryptable under the new key. The backup must not be declared
+# disposable on HTTP health alone.
+log "SESSION SECRET ROTATED — the encrypted at-rest secret store is now keyed to the NEW secret."
+log "The old-key backup at $BACKUP is NOT disposable until the store verifies:"
+log "  1. re-login in the browser;"
+log "  2. GET /api/health/secrets (admin) must return {\"ok\":true} with no undecryptable names."
+log "If any NWC/routstr record is undecryptable, restore $BACKUP and re-key before deleting it —"
+log "deleting the backup would permanently lose those credentials (audit A25)."
