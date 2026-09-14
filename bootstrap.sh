@@ -290,7 +290,7 @@ fi
 # agent, ollama, or both. Refuse to enable local Ollama below OLLAMA_MIN_RAM_KB
 # (default 3 GB) and point the operator at OLLAMA_MODE=remote instead. Advanced
 # operators who understand the trade-off can lower or override the threshold.
-if [[ "$INSTALL_OLLAMA" == "1" && "$OLLAMA_MODE" == "local" ]]; then
+if [[ "$INSTALL_OLLAMA" == "1" && "${OLLAMA_MODE:-local}" == "local" ]]; then
   OLLAMA_MIN_RAM_KB="${OLLAMA_MIN_RAM_KB:-3145728}"  # 3 GiB in KiB
   if [[ -r /proc/meminfo ]]; then
     _mem_kb="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo 0)"
@@ -398,7 +398,9 @@ STRFRY_REF="${STRFRY_REF:-1.1.0}"
 # v0.9.8-alpha (SUITE-RELAY-SUBDOMAIN-1): default the sovereign relay to
 # wss://relay.<TORII_DOMAIN> (dedicated vhost + own cert). Set to empty to
 # skip the subdomain vhost and keep the path-based wss://<domain>/relay only.
-TORII_RELAY_HOST="${TORII_RELAY_HOST:-relay.${TORII_DOMAIN}}"
+# SB-13: `${var-default}` (no colon) so an EXPLICIT empty value is honoured as
+# the documented opt-out instead of being overwritten back to the default.
+TORII_RELAY_HOST="${TORII_RELAY_HOST-relay.${TORII_DOMAIN}}"
 
 export TORII_DOMAIN LETSENCRYPT_EMAIL SKIP_CERTBOT
 export CONTINUUM_ADMIN_NPUB CONTINUUM_AGENT_PORT CONTINUUM_SESSION_TTL_SEC

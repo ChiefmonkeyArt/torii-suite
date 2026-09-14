@@ -271,6 +271,19 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.18-alpha
+
+`bootstrap.sh` fixes the two opt-out bugs from audit **SB-13**:
+
+- **`TORII_RELAY_HOST` empty opt-out was broken.** `${var:-default}` treated an
+  explicit empty value as unset and restored `relay.<domain>`, so setting it
+  empty no longer skipped the subdomain vhost. Now `${var-default}` — empty is
+  honoured as the documented opt-out, unset still falls back.
+- **Ollama RAM guard read `OLLAMA_MODE` before its fallback.** On a path where
+  the interactive block that assigns `OLLAMA_MODE:-local` had not run, the guard
+  saw an empty value and silently skipped the low-RAM refusal. The guard now
+  self-contains its own `${OLLAMA_MODE:-local}` default.
+
 ### New in v0.9.17-alpha
 
 `torii-deploy.sh` and `torii-quest-update-runner.sh` fix audit **SB-14**:
