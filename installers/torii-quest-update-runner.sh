@@ -89,7 +89,7 @@ latest="$(git ls-remote --tags --refs "$QUEST_REPO_URL" 'refs/tags/v*' 2>/dev/nu
     rl.on("line",t=>{t=t.trim();if(t)tags.push(t);});
     rl.on("close",()=>{
       function cp(v){v=String(v).replace(/^v/,"");const [c="",p=""]=v.split("-");const core=c.split(".").map(n=>parseInt(n,10)||0);while(core.length<3)core.push(0);return{core:core.slice(0,3),pre:p?p.split("."):[]};}
-      function cmp(a,b){const A=cp(a),B=cp(b);for(let i=0;i<3;i++){if(A.core[i]!==B.core[i])return A.core[i]<B.core[i]?-1:1;}if(!A.pre.length&&!B.pre.length)return 0;if(!A.pre.length)return 1;if(!B.pre.length)return -1;const L=Math.max(A.pre.length,B.pre.length);for(let i=0;i<L;i++){if(A.pre[i]===undefined)return -1;if(B.pre[i]===undefined)return 1;}return 0;}
+      function cmp(a,b){const A=cp(a),B=cp(b);for(let i=0;i<3;i++){if(A.core[i]!==B.core[i])return A.core[i]<B.core[i]?-1:1;}if(!A.pre.length&&!B.pre.length)return 0;if(!A.pre.length)return 1;if(!B.pre.length)return -1;const L=Math.max(A.pre.length,B.pre.length);for(let i=0;i<L;i++){if(A.pre[i]===undefined)return -1;if(B.pre[i]===undefined)return 1;const an=/^[0-9]+$/.test(A.pre[i]),bn=/^[0-9]+$/.test(B.pre[i]);if(an&&bn){if(parseInt(A.pre[i],10)!==parseInt(B.pre[i],10))return parseInt(A.pre[i],10)<parseInt(B.pre[i],10)?-1:1;}else if(an)return -1;else if(bn)return 1;else if(A.pre[i]!==B.pre[i])return A.pre[i]<B.pre[i]?-1:1;}return 0;}
       tags.sort(cmp);
       process.stdout.write(tags.length?tags[tags.length-1]:"");
     });
