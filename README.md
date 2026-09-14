@@ -271,6 +271,23 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.17-alpha
+
+`torii-deploy.sh` and `torii-quest-update-runner.sh` fix audit **SB-14**:
+
+- **Correct prerelease semver ordering.** The runner's tag comparator compared
+  prerelease *lengths* but never the component *values*, so `v0.2.4-alpha.2` vs
+  `v0.2.4-alpha.10` (equal length) compared equal and `alpha` vs `beta` were
+  indistinguishable. It now compares identifiers per semver: numeric components
+  numerically, alphanumeric lexically, numeric before alphanumeric, longer
+  prerelease wins on an equal prefix, and any release outranks a prerelease.
+- **Honest deploy-helper contract.** `torii-deploy.sh` no longer presents a
+  `target` version as if the runner would pin it, and no longer curls a
+  hardcoded operator origin to verify. It requests "latest approved tag", then
+  reads the runner's authoritative status file and reports the version that
+  actually deployed (with a mismatch note if an advisory reference was given).
+  The latest-only security boundary is unchanged.
+
 ### New in v0.9.16-alpha
 
 `install-continuum.sh` fixes audit **SB-16** on the local-model pull path:
