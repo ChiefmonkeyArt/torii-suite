@@ -24,6 +24,11 @@ set -euo pipefail
 : "${SUITE_WORK_DIR:?install-quest: SUITE_WORK_DIR not set}"
 
 TORII_QUEST_REF="${TORII_QUEST_REF:-main}"
+# SB-10 artifact fast path. When 1, install-quest.sh downloads the CI-built
+# release tarball for TORII_QUEST_REF (which MUST then be a v<semver> tag),
+# verifies its checksum, and promotes it — NO clone, NO npm install, NO build
+# on the box. Default 0 keeps the source-build path exactly as before.
+TORII_QUEST_ARTIFACT="${TORII_QUEST_ARTIFACT:-0}"
 APPS_ROOT="${APPS_ROOT:-/apps}"
 
 log()  { printf "\033[36m==>\033[0m %s\n" "$*"; }
@@ -39,7 +44,56 @@ command -v npm  >/dev/null 2>&1 || die "npm not found"
 # --------------------------------------------------------------------------- #
 
 SRC="${SUITE_WORK_DIR}/torii-quest"
-if [[ -d "${SRC}/.git" ]]; then
+
+# ── 1a. artifact fast path (SB-10) ─────────────────────────────────────────────
+if [[ "${TORII_QUEST_ARTIFACT}" == "1" ]]; then
+  command -v curl      >/dev/null 2>&1 || die "curl not found (required for TORII_QUEST_ARTIFACT=1)"
+  command -v tar       >/dev/null 2>&1 || die "tar not found"
+  command -v sha256sum >/dev/null 2>&1 || die "sha256sum not found"
+
+  TAG="${TORII_QUEST_REF}"
+  [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] \
+    || die "TORII_QUEST_ARTIFACT=1 needs a v<semver> release tag (got '${TAG}'); branches/SHAs have no release artifact"
+
+  ARTIFACT_CACHE="${ARTIFACT_CACHE:-${SUITE_WORK_DIR}/artifacts}"
+  mkdir -p "$ARTIFACT_CACHE"
+  TARBALL="${ARTIFACT_CACHE}/torii-quest-${TAG}.tar.gz"
+  SUMFILE="${TARBALL}.sha256"
+  BASE_URL="https://github.com/ChiefmonkeyArt/torii-quest/releases/download/${TAG}"
+
+  if [[ ! -s "$TARBALL" || ! -s "$SUMFILE" ]]; then
+    log "downloading quest release artifact for ${TAG}"
+    rm -f -- "$TARBALL" "$SUMFILE"
+    curl -fsSL --max-time 300 -o "${TARBALL}.part" -- "${BASE_URL}/torii-quest-${TAG}.tar.gz" \
+      || { rm -f -- "${TARBALL}.part"; die "failed to download quest artifact for ${TAG}"; }
+    curl -fsSL --max-time 60  -o "${SUMFILE}.part"  -- "${BASE_URL}/torii-quest-${TAG}.tar.gz.sha256" \
+      || { rm -f -- "${SUMFILE}.part"; die "failed to download quest artifact checksum for ${TAG}"; }
+    mv -- "${TARBALL}.part" "$TARBALL"
+    mv -- "${SUMFILE}.part" "$SUMFILE"
+  fi
+
+  # Fail-closed verify before we touch anything live. The .sha256 sidecar is
+  # sha256sum -c compatible.
+  ( cd "$(dirname "$TARBALL")" && sha256sum -c "$(basename "$SUMFILE")" ) \
+    || { rm -f -- "$TARBALL" "$SUMFILE"; die "checksum verification failed for quest artifact ${TAG}"; }
+
+  # Extract the prebuilt tree (dist/ + worlds/ + VERSION + MANIFEST.json) into a
+  # fresh staging dir. Never mutates a git checkout.
+  EXTRACT_ROOT="${SUITE_WORK_DIR}/torii-quest-artifact"
+  rm -rf "$EXTRACT_ROOT"
+  mkdir -p "$EXTRACT_ROOT"
+  tar -xzf "$TARBALL" -C "$EXTRACT_ROOT"
+  SRC="${EXTRACT_ROOT}/torii-quest-${TAG}"
+  [[ -d "${SRC}/dist" ]]   || die "artifact ${TAG} is missing dist/ after extract"
+  [[ -f "${SRC}/VERSION" ]] || die "artifact ${TAG} is missing VERSION"
+
+  RESOLVED_REF="$(sed -nE 's/.*"commit"[[:space:]]*:[[:space:]]*"([0-9a-f]+)".*/\1/p' "${SRC}/MANIFEST.json" 2>/dev/null | head -1)"
+  [[ -z "$RESOLVED_REF" ]] && RESOLVED_REF="$TAG"
+  RESOLVED_REF="${RESOLVED_REF:0:7}"
+  QUEST_VERSION="$(cat "${SRC}/VERSION" 2>/dev/null || echo "unknown")"
+  QUEST_VERSION="${QUEST_VERSION#v}"
+  log "quest artifact ${TAG} staged (commit ${RESOLVED_REF}, v${QUEST_VERSION}, NO source build)"
+elif [[ -d "${SRC}/.git" ]]; then
   log "updating torii-quest to ${TORII_QUEST_REF}"
   git -C "$SRC" fetch --tags --prune origin
   # Discard ALL tracked local modifications before checkout. The build step
@@ -81,13 +135,18 @@ else
   git -C "$SRC" checkout "$TORII_QUEST_REF"
 fi
 
-RESOLVED_REF="$(git -C "$SRC" rev-parse --short HEAD)"
-QUEST_VERSION="$(node -p "require('${SRC}/package.json').version" 2>/dev/null || echo "unknown")"
-log "quest source at commit ${RESOLVED_REF} (v${QUEST_VERSION})"
+if [[ "${TORII_QUEST_ARTIFACT}" != "1" ]]; then
+  RESOLVED_REF="$(git -C "$SRC" rev-parse --short HEAD)"
+  QUEST_VERSION="$(node -p "require('${SRC}/package.json').version" 2>/dev/null || echo "unknown")"
+  log "quest source at commit ${RESOLVED_REF} (v${QUEST_VERSION})"
+fi
 
 # --------------------------------------------------------------------------- #
-# 2. Patch vite.config.js for /quest/ base path                               #
+# 2. Patch vite.config.js for /quest/ base path (SOURCE-BUILD PATH ONLY)      #
 # --------------------------------------------------------------------------- #
+# The CI-built artifact already ships dist/ compiled with base=/quest/, so this
+# patch and the build below are skipped under TORII_QUEST_ARTIFACT=1.
+if [[ "${TORII_QUEST_ARTIFACT}" != "1" ]]; then
 #
 # torii-quest ships without a `base:` in defineConfig. v0.2.370-alpha made the
 # CSP entry-URL plugin base-aware (it reads config.base), so injecting
@@ -137,6 +196,7 @@ log "building torii-quest bundle"
 )
 
 [[ -d "${SRC}/dist" ]] || die "quest build produced no dist/ directory"
+fi
 
 # --------------------------------------------------------------------------- #
 # 3b. Worlds directory (persistent, user-owned)                                #
