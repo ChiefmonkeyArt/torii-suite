@@ -130,31 +130,11 @@ if [[ -d "$WWW_DEST" && ! -L "$WWW_DEST" ]]; then
   mv "$WWW_DEST" "${WWW_DEST}.legacy-$(date -u +%Y%m%dT%H%M%SZ)"
 fi
 
-# Snapshot into a release dir + symlink flip. Keeps last install for rollback.
-STAMP="$(date -u +%Y%m%dT%H%M%SZ)-${RESOLVED_REF}"
-RELEASE_DIR="${APPS_ROOT}/continuum/releases/${STAMP}"
-mkdir -p "$(dirname "$RELEASE_DIR")"
-cp -a "${SRC}/dist/." "${RELEASE_DIR}/"
-
-# Atomic symlink flip: /apps/continuum/current → releases/<stamp>
-ln -sfn "$RELEASE_DIR" "$WWW_DEST.new"
-mv -Tf "$WWW_DEST.new" "$WWW_DEST"
-
-# Retain last 3 releases.
-find "$(dirname "$RELEASE_DIR")" -maxdepth 1 -mindepth 1 -type d \
-  | sort | head -n -3 | xargs -r rm -rf
-
-# Prune stale Continuum failed/quarantine snapshots (from Continuum's own
-# deploy mechanism in ${APPS_ROOT}/continuum/) to prevent ENOSPC disk-full.
-if [[ -d ${APPS_ROOT}/continuum ]]; then
-  find ${APPS_ROOT}/continuum -maxdepth 1 -mindepth 1 -type d \
-    \( -name 'app.failed-*' -o -name 'app.quarantine-*' \) \
-    -exec rm -rf {} + 2>/dev/null || true
-fi
-
-chown -R root:www-data "$RELEASE_DIR"
-find "$RELEASE_DIR" -type d -exec chmod 755 {} +
-find "$RELEASE_DIR" -type f -exec chmod 644 {} +
+# SB-06: the frontend promote (release dir + `current` symlink flip) is
+# deferred to AFTER the agent is built and restarted — see the promote step
+# later in this file. Flipping `current` before the backend restart served the
+# new SPA against the old agent (a transient new-frontend/old-backend mismatch).
+# The build above still produces ${SRC}/dist ready to copy at promote time.
 
 # --------------------------------------------------------------------------- #
 # 3. Continuum agent — user, install, config                                  #
@@ -558,6 +538,55 @@ if ! systemctl is-active --quiet continuum-agent.service; then
   die "continuum-agent failed to start (see status above)"
 fi
 log "continuum-agent active on 127.0.0.1:${CONTINUUM_AGENT_PORT}"
+
+# SB-05: the public NPC voice (nap-bridge) runs npc-gateway.mjs from the SAME
+# agent tree (${AGENT_REPO}/agent) this deploy just replaced. Restart it
+# alongside continuum-agent so Nakama picks up the new release instead of
+# serving the previous one. The bridge is optional (present only when the owner
+# enabled the public voice), so its being inactive is a no-op and a post-restart
+# failure is a WARN (public voice), not a hard deploy failure.
+if systemctl is-active --quiet torii-nap-bridge.service 2>/dev/null; then
+  systemctl restart torii-nap-bridge.service >/dev/null 2>&1 || true
+  if systemctl is-active --quiet torii-nap-bridge.service; then
+    log "torii-nap-bridge restarted (shares ${AGENT_REPO}/agent)"
+  else
+    warn "torii-nap-bridge failed after restart — Nakama may be down or serving the previous release"
+  fi
+else
+  log "torii-nap-bridge not active (public voice disabled) — no restart needed"
+fi
+
+# --------------------------------------------------------------------------- #
+# Promote the frontend (deferred from above — SB-06)                          #
+# --------------------------------------------------------------------------- #
+# The agent is now running the new release. Only now flip `current` so the SPA
+# and backend switch atomically together — never serve the new frontend against
+# the old backend, and if the agent deploy failed above (`die`) the frontend is
+# left on the previous release too.
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)-${RESOLVED_REF}"
+RELEASE_DIR="${APPS_ROOT}/continuum/releases/${STAMP}"
+mkdir -p "$(dirname "$RELEASE_DIR")"
+cp -a "${SRC}/dist/." "${RELEASE_DIR}/"
+
+# Atomic symlink flip: /apps/continuum/current → releases/<stamp>
+ln -sfn "$RELEASE_DIR" "$WWW_DEST.new"
+mv -Tf "$WWW_DEST.new" "$WWW_DEST"
+
+# Retain last 3 releases.
+find "$(dirname "$RELEASE_DIR")" -maxdepth 1 -mindepth 1 -type d \
+  | sort | head -n -3 | xargs -r rm -rf
+
+# Prune stale Continuum failed/quarantine snapshots (from Continuum's own
+# deploy mechanism in ${APPS_ROOT}/continuum/) to prevent ENOSPC disk-full.
+if [[ -d ${APPS_ROOT}/continuum ]]; then
+  find ${APPS_ROOT}/continuum -maxdepth 1 -mindepth 1 -type d \
+    \( -name 'app.failed-*' -o -name 'app.quarantine-*' \) \
+    -exec rm -rf {} + 2>/dev/null || true
+fi
+
+chown -R root:www-data "$RELEASE_DIR"
+find "$RELEASE_DIR" -type d -exec chmod 755 {} +
+find "$RELEASE_DIR" -type f -exec chmod 644 {} +
 
 # Legacy pre-/apps deploy cleanup (v0.9.3-alpha): older Continuum installs
 # deployed themselves via a systemd timer (torii-continuum-deploy) into
