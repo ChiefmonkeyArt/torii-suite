@@ -271,6 +271,26 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.15-alpha
+
+`install-continuum.sh` fixes audit **SB-05** and **SB-06** on the live deploy
+path:
+
+- **SB-05 — restart the public NPC voice too.** `continuum-agent.service` was
+  restarted after a deploy, but `torii-nap-bridge.service` (the public greeter)
+  runs `npc-gateway.mjs` from the SAME `/apps/continuum/agent/repo/agent` tree
+  this installer replaces, so Nakama kept serving the previous release. The
+  installer now restarts the nap-bridge alongside the agent when it is active
+  (a no-op when the public voice is disabled; its post-restart failure is a
+  WARN, not a hard deploy failure).
+- **SB-06 — promote the frontend only after the backend is ready.** The
+  `current` symlink previously flipped before the backend was restarted,
+  serving the new SPA against the old agent. The frontend is now staged and
+  atomically promoted (release dir + `current` flip + retention + prune) AFTER
+  the agent is built, restarted, and verified — so the SPA and backend switch
+  together, and a failed backend deploy leaves the frontend on the previous
+  release.
+
 ### New in v0.9.14-alpha
 
 `run_stage` (the bootstrap stage runner) fixes audit **SB-07** — it no longer
