@@ -102,6 +102,19 @@ trap _ui_cleanup EXIT INT TERM
 # run_stage                                                                   #
 # --------------------------------------------------------------------------- #
 
+# Result channel. Stages run in a subshell (so errexit stays correct), which
+# means a plain shell assignment made inside a stage does NOT reach the caller.
+# A stage that must hand a result back writes KEY=VALUE lines through
+# `stage_result`; run_stage imports them into the caller after the stage
+# returns. SB-07: the old code lost AUTH_SMOKE_RESULT / MP_SMOKE_RESULT this
+# way, so the summary card always showed "skipped" and the auth-smoke gate
+# never ran the rate-limit probe.
+stage_result() {
+  local file="${SUITE_STAGE_RESULT_FILE:-}"
+  [[ -n "$file" ]] || return 0
+  printf '%s\n' "$@" >> "$file"
+}
+
 # run_stage <label> <cmd> [<args>...]
 #
 # In quiet mode: shows a spinner, tees the child output to the log file, prints
@@ -123,19 +136,51 @@ run_stage() {
     printf "============================================================\n"
   } >> "$SUITE_LOG_FILE"
 
+  # Per-stage result channel: the stage writes KEY=VALUE lines with
+  # `stage_result`; import them here so cross-stage results survive the
+  # subshell boundary (SB-07 — see stage_result above).
+  local result_file
+  result_file="$(mktemp "${TMPDIR:-/tmp}/.torii-suite-stage-XXXXXX")"
+  export SUITE_STAGE_RESULT_FILE="$result_file"
+
   local rc=0
+  # Run the stage in a subshell with errexit EXPLICITLY re-enabled. The old
+  # `( "$@" ) ... || rc=$?` form put the subshell on the LEFT of `||`, which
+  # suppressed errexit inside it — an early `false` followed by a success
+  # reported success (SB-07). Parent errexit is off around the call so we
+  # capture the stage's rc instead of aborting the whole install.
   if [[ "$SUITE_QUIET" == "1" ]]; then
     _spinner_start "$label"
-    # Run in a subshell so `set -e` propagates cleanly. `|| rc=$?` captures the
-    # failure exit code without tripping the parent's set -e.
-    ( "$@" ) >> "$SUITE_LOG_FILE" 2>&1 || rc=$?
+    set +e
+    ( set -e; "$@" ) >> "$SUITE_LOG_FILE" 2>&1
+    rc=$?
+    set -e
     _spinner_stop
   else
     # Loud mode: stream and log simultaneously.
     printf "\n  %s%s%s %s%s%s\n" "$UI_CYAN" "$UI_ARROW" "$UI_RESET" "$UI_BOLD" "$label" "$UI_RESET"
-    ( "$@" ) 2>&1 | tee -a "$SUITE_LOG_FILE"
+    set +e
+    ( set -e; "$@" ) 2>&1 | tee -a "$SUITE_LOG_FILE"
     rc=${PIPESTATUS[0]}
+    set -e
   fi
+
+  # Import the stage's structured results into the caller.
+  if [[ -s "$result_file" ]]; then
+    local _key _val
+    while IFS= read -r line; do
+      case "$line" in
+        *=*)
+          _key="${line%%=*}"
+          _val="${line#*=}"
+          [[ "$_key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+          printf -v "$_key" '%s' "$_val"
+          ;;
+      esac
+    done < "$result_file"
+  fi
+  rm -f "$result_file"
+  unset SUITE_STAGE_RESULT_FILE
 
   local elapsed=$(( SECONDS - start ))
   local mins=$(( elapsed / 60 ))

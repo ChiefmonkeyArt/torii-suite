@@ -271,6 +271,23 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.14-alpha
+
+`run_stage` (the bootstrap stage runner) fixes audit **SB-07** — it no longer
+masks stage failures or drops cross-stage results:
+
+- **errexit restored:** the old `( "$@" ) ... || rc=$?` form put the stage's
+  subshell on the left of `||`, which suppressed errexit inside it — an early
+  failing command followed by a success reported success. Stages now run in a
+  subshell with `set -e` explicitly enabled, so the first failing command
+  aborts the stage and surfaces as a non-zero stage exit.
+- **structured result channel:** a stage that must hand a result back now
+  writes `KEY=VALUE` through `stage_result`; `run_stage` imports it into the
+  caller. This fixes the live bug where `AUTH_SMOKE_RESULT` / `MP_SMOKE_RESULT`
+  (set inside a stage subprocess) never reached the summary card, so every
+  smoke test always showed "skipped" and the auth-smoke gate never ran the
+  `/api/auth/rate-limit` probe.
+
 ### New in v0.9.13-alpha
 
 `rotate-session-secret.sh` now matches the Continuum A25 dedicated-key model:

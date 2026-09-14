@@ -616,7 +616,7 @@ _stage_auth_smoke() {
     tries=$(( tries + 1 ))
     if (( tries >= max_tries )); then
       ui_warn "agent /api/health did not respond after ${max_tries} tries — skipping auth smoke"
-      AUTH_SMOKE_RESULT="health-timeout"
+      stage_result "AUTH_SMOKE_RESULT=health-timeout"
       return 0
     fi
     sleep "$backoff"
@@ -629,7 +629,7 @@ _stage_auth_smoke() {
   ch_body="$(curl -fsS -m 5 -X POST -H 'Content-Type: application/json' -d '{}' "${base}/api/auth/challenge" 2>>"$SUITE_LOG_FILE" || echo '')"
   if [[ -z "$ch_body" ]]; then
     ui_warn "/api/auth/challenge did not respond"
-    AUTH_SMOKE_RESULT="challenge-failed"
+    stage_result "AUTH_SMOKE_RESULT=challenge-failed"
     return 0
   fi
   local challenge
@@ -637,13 +637,13 @@ _stage_auth_smoke() {
   if [[ -z "$challenge" ]]; then
     ui_warn "/api/auth/challenge returned malformed body (see log)"
     printf '%s\n' "$ch_body" >> "$SUITE_LOG_FILE"
-    AUTH_SMOKE_RESULT="challenge-malformed"
+    stage_result "AUTH_SMOKE_RESULT=challenge-malformed"
     return 0
   fi
   local ch_len=${#challenge}
   if (( ch_len < 32 )); then
     ui_warn "/api/auth/challenge returned suspiciously short challenge (${ch_len} chars)"
-    AUTH_SMOKE_RESULT="challenge-short"
+    stage_result "AUTH_SMOKE_RESULT=challenge-short"
     return 0
   fi
   ui_ok "/api/auth/challenge issued ${ch_len}-char challenge"
@@ -666,12 +666,12 @@ _stage_auth_smoke() {
   if [[ "$vf_http" == "200" ]] && printf '%s' "$vf_body" | grep -qE '"ok"[[:space:]]*:[[:space:]]*true'; then
     ui_warn "SECURITY: /api/auth/verify accepted a bogus event — investigate immediately"
     printf '%s\n' "$vf_body" >> "$SUITE_LOG_FILE"
-    AUTH_SMOKE_RESULT="SECURITY-FAIL"
+    stage_result "AUTH_SMOKE_RESULT=SECURITY-FAIL"
     return 0
   fi
   ui_ok "/api/auth/verify correctly rejected a bogus event (HTTP ${vf_http})"
 
-  AUTH_SMOKE_RESULT="ok"
+  stage_result "AUTH_SMOKE_RESULT=ok"
   return 0
 }
 
@@ -786,7 +786,7 @@ _stage_auth_smoke_rate() {
   # disabled it explicitly, we mark 'skipped' on the summary card rather
   # than probing a limiter that isn't there.
   if [[ "${CONTINUUM_RATE_LIMIT_ENABLED:-1}" != "1" ]]; then
-    AUTH_SMOKE_RATE_RESULT="skipped"
+    stage_result "AUTH_SMOKE_RATE_RESULT=skipped"
     ui_info "CONTINUUM_RATE_LIMIT_ENABLED=0 - not probing /api/auth/challenge limiter"
     return 0
   fi
@@ -810,10 +810,10 @@ _stage_auth_smoke_rate() {
 
   if [[ "$last" == "429" ]]; then
     ui_ok "/api/auth/challenge returned 429 on request #${n} (limit=${max}/min)"
-    AUTH_SMOKE_RATE_RESULT="ok"
+    stage_result "AUTH_SMOKE_RATE_RESULT=ok"
   else
     ui_warn "expected 429 on request #${n}, got ${last} - limiter may not be enforced"
-    AUTH_SMOKE_RATE_RESULT="not-enforced"
+    stage_result "AUTH_SMOKE_RATE_RESULT=not-enforced"
   fi
   return 0
 }
@@ -826,11 +826,11 @@ _stage_auth_smoke_rate() {
 MP_SMOKE_RESULT="skipped"
 _stage_mp_smoke() {
   if [[ "${INSTALL_QUEST:-1}" != "1" ]]; then
-    MP_SMOKE_RESULT="skipped"
+    stage_result "MP_SMOKE_RESULT=skipped"
     return 0
   fi
   if [[ "${INSTALL_ARENA_WS:-1}" != "1" ]]; then
-    MP_SMOKE_RESULT="skipped"
+    stage_result "MP_SMOKE_RESULT=skipped"
     ui_info "INSTALL_ARENA_WS=0 - not probing /mp WebSocket"
     return 0
   fi
@@ -858,19 +858,19 @@ _stage_mp_smoke() {
   case "$result" in
     ok)
       ui_ok "wss loopback probe to /mp connected (arena-ws is alive)"
-      MP_SMOKE_RESULT="ok"
+      stage_result "MP_SMOKE_RESULT=ok"
       ;;
     timeout)
       ui_warn "/mp WebSocket did not complete handshake within 5s"
-      MP_SMOKE_RESULT="timeout"
+      stage_result "MP_SMOKE_RESULT=timeout"
       ;;
     error:*)
       ui_warn "/mp WebSocket probe failed (${result})"
-      MP_SMOKE_RESULT="error"
+      stage_result "MP_SMOKE_RESULT=error"
       ;;
     *)
       ui_warn "/mp WebSocket probe returned unexpected result (rc=${rc}, result=${result})"
-      MP_SMOKE_RESULT="error"
+      stage_result "MP_SMOKE_RESULT=error"
       ;;
   esac
   return 0
@@ -904,8 +904,8 @@ RELAY_SMOKE_RESULT="skipped"
 GIT_SMOKE_RESULT="skipped"
 _stage_nostr_git_smoke() {
   if [[ "${INSTALL_NOSTR_GIT:-1}" != "1" ]]; then
-    RELAY_SMOKE_RESULT="skipped"
-    GIT_SMOKE_RESULT="skipped"
+    stage_result "RELAY_SMOKE_RESULT=skipped"
+    stage_result "GIT_SMOKE_RESULT=skipped"
     return 0
   fi
 
@@ -920,21 +920,21 @@ _stage_nostr_git_smoke() {
     "http://127.0.0.1:${port}/" 2>>"$SUITE_LOG_FILE" || echo '')"
   if [[ -n "$nip11" ]] && printf '%s' "$nip11" | grep -qE '"name"[[:space:]]*:'; then
     ui_ok "strfry NIP-11 relay-info answered on loopback :${port}"
-    RELAY_SMOKE_RESULT="ok"
+    stage_result "RELAY_SMOKE_RESULT=ok"
   else
     ui_warn "strfry NIP-11 probe failed on loopback :${port} - see ${SUITE_LOG_FILE}"
-    RELAY_SMOKE_RESULT="relay-fail"
+    stage_result "RELAY_SMOKE_RESULT=relay-fail"
   fi
 
   # --- GIT: direct git-http-backend CGI probe against a throwaway repo ---
   if [[ ! -x "$backend" ]]; then
     ui_warn "git-http-backend not found at ${backend} - skipping git smoke"
-    GIT_SMOKE_RESULT="backend-missing"
+    stage_result "GIT_SMOKE_RESULT=backend-missing"
     return 0
   fi
   if [[ ! -S /run/fcgiwrap.socket ]]; then
     ui_warn "fcgiwrap socket absent at /run/fcgiwrap.socket - nginx /git route will not work"
-    GIT_SMOKE_RESULT="fcgiwrap-down"
+    stage_result "GIT_SMOKE_RESULT=fcgiwrap-down"
     return 0
   fi
 
@@ -942,7 +942,7 @@ _stage_nostr_git_smoke() {
   rm -rf "$smoke_repo"
   if ! git init --bare --quiet "$smoke_repo" 2>>"$SUITE_LOG_FILE"; then
     ui_warn "could not create smoke repo at ${smoke_repo} - see ${SUITE_LOG_FILE}"
-    GIT_SMOKE_RESULT="repo-fail"
+    stage_result "GIT_SMOKE_RESULT=repo-fail"
     return 0
   fi
   # git-http-backend serves repos readable by the fcgiwrap user (www-data).
@@ -961,10 +961,10 @@ _stage_nostr_git_smoke() {
 
   if printf '%s' "$cgi_out" | grep -q 'git-upload-pack'; then
     ui_ok "git-http-backend serves fetch (info/refs) for ${root}"
-    GIT_SMOKE_RESULT="ok"
+    stage_result "GIT_SMOKE_RESULT=ok"
   else
     ui_warn "git-http-backend did not serve a smart-HTTP advert - see ${SUITE_LOG_FILE}"
-    GIT_SMOKE_RESULT="backend-fail"
+    stage_result "GIT_SMOKE_RESULT=backend-fail"
   fi
   return 0
 }
