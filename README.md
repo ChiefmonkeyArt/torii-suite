@@ -271,6 +271,22 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.16-alpha
+
+`install-continuum.sh` fixes audit **SB-16** on the local-model pull path:
+
+- **Respect the local/remote Ollama mode gate.** The idempotent model-pull
+  stanza previously ran whenever the `ollama` CLI and endpoint were reachable,
+  without consulting `OLLAMA_MODE`. A remote-mode operator (external Ollama
+  endpoint, no local daemon) could therefore have a local model pulled into the
+  box on redeploy. The stanza now skips model pulls entirely under
+  `OLLAMA_MODE=remote`, mirroring `install-ollama.sh`'s existing daemon guard.
+- **Document the owner/NPC model divergence as intentional.** The owner/agent
+  chat model is `qwen3:0.6b` (better agent-loop tool-calling); the isolated
+  public NPC voice deliberately uses a non-thinking `llama3.2:1b` via the
+  hermes/nap standalone installers. Noted in `install-ollama.sh` so the
+  two-voice boundary is not re-flagged as drift.
+
 ### New in v0.9.15-alpha
 
 `install-continuum.sh` fixes audit **SB-05** and **SB-06** on the live deploy

@@ -41,6 +41,10 @@ OLLAMA_BIND="${OLLAMA_BIND:-127.0.0.1:11434}"
 # footprint as qwen2.5:0.5b but agent-loop tool-calling score 0.880 vs
 # 0.640 (Mike Veerman Feb 2026 benchmark). Kept in sync with
 # bootstrap.sh and torii-continuum agent/config.example.yaml.
+# This is the OWNER/agent chat model. The isolated public NPC voice
+# intentionally uses a non-thinking model (llama3.2:1b) via the hermes/nap
+# standalone installers — that divergence is deliberate (two-voice boundary),
+# not drift.
 OLLAMA_MODELS="${OLLAMA_MODELS:-qwen3:0.6b}"
 OLLAMA_HEALTHCHECK_TRIES="${OLLAMA_HEALTHCHECK_TRIES:-20}"
 OLLAMA_HEALTHCHECK_DELAY="${OLLAMA_HEALTHCHECK_DELAY:-3}"

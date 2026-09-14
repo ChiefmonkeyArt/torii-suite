@@ -383,7 +383,17 @@ fi
 # matches the Continuum agent's own default (agent/config.example.yaml
 # `ollama.models.chat`). Keep the two in sync when the default changes.
 CONTINUUM_DEFAULT_OLLAMA_MODELS="${CONTINUUM_DEFAULT_OLLAMA_MODELS:-qwen3:0.6b}"
-_effective_ollama_models="${OLLAMA_MODELS:-$CONTINUUM_DEFAULT_OLLAMA_MODELS}"
+# OLLAMA_MODE=remote means the agent talks to an external Ollama endpoint and no
+# local daemon is installed — pulling a local model here is wrong. Mirror
+# install-ollama.sh's remote guard so a remote-mode redeploy never drags a model
+# into the box (SB-16: the gate was consulted for the daemon install but not the
+# model pull).
+if [[ "${OLLAMA_MODE:-local}" == "remote" ]]; then
+  log "OLLAMA_MODE=remote — skipping local Ollama model pulls (no local daemon to pull into)"
+  _effective_ollama_models=""
+else
+  _effective_ollama_models="${OLLAMA_MODELS:-$CONTINUUM_DEFAULT_OLLAMA_MODELS}"
+fi
 if [[ -n "${_effective_ollama_models}" ]] && command -v /usr/local/bin/ollama >/dev/null 2>&1; then
   _ollama_probe_bind="${OLLAMA_BIND:-127.0.0.1:11434}"
   if curl -fsS --max-time 3 "http://${_ollama_probe_bind}/api/tags" >/dev/null 2>&1; then
