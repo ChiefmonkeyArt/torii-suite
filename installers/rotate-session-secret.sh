@@ -16,9 +16,12 @@
 #   - Break the install. Config write is atomic (tmp + mv), agent restart
 #     is verified, we roll back on failure.
 #   - Re-key the encrypted at-rest secret store. The agent keys its NWC /
-#     Routstr records (memory/secrets/*.enc) from session_secret, so rotation
-#     makes them undecryptable. Keep the old-key backup until the operator
-#     re-logs in AND /api/health/secrets reports ok (audit A25).
+#     Routstr records (memory/secrets/*.enc) from a DEDICATED secretstore_key
+#     when one is configured, else from session_secret (legacy fallback).
+#     Rotating session_secret is SAFE only when a secretstore_key is set;
+#     otherwise the records become undecryptable. Keep the old-key backup
+#     until /api/health/secrets reports ok when no dedicated key exists
+#     (audit A25).
 #
 # Usage (on the VPS):
 #   sudo bash /opt/torii-suite/installers/rotate-session-secret.sh
@@ -108,12 +111,21 @@ done
 
 log "agent healthy on port ${AGENT_PORT}"
 log "done. every prior session token is now invalid."
-# A25 hold: a clean login does NOT prove the NWC/Routstr secretstore records
-# are still decryptable under the new key. The backup must not be declared
-# disposable on HTTP health alone.
-log "SESSION SECRET ROTATED — the encrypted at-rest secret store is now keyed to the NEW secret."
-log "The old-key backup at $BACKUP is NOT disposable until the store verifies:"
-log "  1. re-login in the browser;"
-log "  2. GET /api/health/secrets (admin) must return {\"ok\":true} with no undecryptable names."
-log "If any NWC/routstr record is undecryptable, restore $BACKUP and re-key before deleting it —"
-log "deleting the backup would permanently lose those credentials (audit A25)."
+# A25 follow-up: whether rotation orphans the NWC/Routstr records depends on the
+# at-rest key model. A DEDICATED secretstore_key decouples the store from
+# session_secret (rotation is then session-revocation only); without one the
+# store falls back to session_secret and rotation makes records undecryptable.
+# A clean login never proves records are decryptable, so only the dedicated-key
+# path may call the backup disposable on HTTP health alone.
+if grep -qE '^[[:space:]]*secretstore_key:[[:space:]]*"[^"[:space:]]+"' "$CONFIG_FILE"; then
+  log "dedicated secretstore_key is set — the NWC/Routstr store is keyed independently of session_secret."
+  log "rotation revoked sessions only; at-rest credentials remain decryptable."
+  log "the backup $BACKUP holds only the pre-rotation config and may be removed after this healthy restart."
+else
+  log "no dedicated secretstore_key found — the store falls back to session_secret (legacy)."
+  log "the old-key backup at $BACKUP is NOT disposable until the store verifies:"
+  log "  1. re-login in the browser;"
+  log "  2. GET /api/health/secrets (admin) must return {\"ok\":true} with no undecryptable names."
+  log "if any NWC/routstr record is undecryptable, restore $BACKUP and re-key before deleting it —"
+  log "deleting the backup would permanently lose those credentials (audit A25)."
+fi

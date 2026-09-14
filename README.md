@@ -271,6 +271,19 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.13-alpha
+
+`rotate-session-secret.sh` now matches the Continuum A25 dedicated-key model:
+
+- **Dedicated `secretstore_key`:** when the agent config sets a
+  `secretstore_key`, rotating `session_secret` only revokes sessions — the
+  encrypted NWC/Routstr store is keyed independently, so the pre-rotation
+  config backup can be removed once the agent is back and healthy.
+- **Legacy fallback (no `secretstore_key`):** the store is keyed from
+  `session_secret`, so rotation orphans the records. The tool keeps the A25
+  hold — it does not call the backup disposable until `GET /api/health/secrets`
+  (admin) returns `ok` with no undecryptable names.
+
 ### New in v0.9.8-alpha
 
 Relay endpoint moves to a dedicated subdomain by default:
