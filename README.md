@@ -271,6 +271,24 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.19-alpha
+
+`install-quest.sh` gains a flag-gated release-artifact fast path for audit
+**SB-10** — the first half of removing Quest's ~393 MB build toolchain from the
+VPS work tree. Mirror of Continuum's `OPS-ARTIFACT-1`:
+
+- **`TORII_QUEST_ARTIFACT=1`** downloads the CI-built `torii-quest-<tag>.tar.gz`
+  for `TORII_QUEST_REF` (which must then be a `v<semver>` tag), verifies its
+  `.sha256` sidecar, and promotes the prebuilt `dist/` + `worlds/` — **no clone,
+  no `npm install`, no build on the box**.
+- **Default is unchanged (`0`)** — the source-build path (clone + `base=/quest/`
+  patch + `npm run build`) remains intact for today's git-driven updater. The
+  opt-in is deliberately conservative: artifact promotion is turned on only
+  after the fresh-install / rerun / rollback / offline-restart matrix passes.
+- The artifact path extracts into a **separate staging root** and never removes
+  `.git` or the active working tree, so a failed artifact deploy can always
+  fall back to `TORII_QUEST_ARTIFACT=0`.
+
 ### New in v0.9.18-alpha
 
 `bootstrap.sh` fixes the two opt-out bugs from audit **SB-13**:
