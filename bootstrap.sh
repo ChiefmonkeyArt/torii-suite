@@ -281,8 +281,8 @@ fi
 
 # --- RAM-safety guard (v0.9.7-alpha, BEKKA-READY-3) ---
 #
-# qwen3:0.6b's ~500 MB disk footprint is misleading: with num_ctx=4096 the KV
-# cache dominates and the model sits at ~3.3 GB resident once warmed. Combined
+# A model's disk footprint is misleading: with num_ctx=4096 the KV cache
+# dominates and the model sits several GB resident once warmed. Combined
 # with keep_alive=-1 (agent default so the model doesn't cold-start on every
 # turn) that RAM is committed for the lifetime of the ollama daemon.
 #
@@ -344,14 +344,16 @@ SKIP_CERTBOT="${SKIP_CERTBOT:-0}"
 OLLAMA_MODE="${OLLAMA_MODE:-local}"
 OLLAMA_MODE="${OLLAMA_MODE,,}"
 OLLAMA_BIND="${OLLAMA_BIND:-127.0.0.1:11434}"
-# Default chat model (v0.9.7-alpha, BEKKA-READY-1).
+# Default chat model — must stay in lockstep with Continuum's `ollama.model`
+# fallback so a fresh install always pulls the model the agent actually calls.
 #
-# qwen3:0.6b: agent-loop tool-calling score 0.880 vs qwen2.5:0.5b's 0.640
-# (Mike Veerman Feb 2026 benchmark). ~500 MB on disk; ~3.3 GB resident once
-# warmed (KV cache at num_ctx=4096 dominates — disk size is misleading), so
-# the RAM-safety guard below refuses local Ollama on hosts with less than
-# 3 GB total RAM to avoid a first-chat OOM.
-OLLAMA_MODELS="${OLLAMA_MODELS:-qwen3:0.6b}"
+# llama3.2:1b is the only valid local fallback. A qwen3 (thinking) model over
+# Ollama's /v1/chat/completions emits its reply into the `reasoning` field and
+# returns empty `content`, so the fallback looks dead (NAP-BRIDGE-4 / "qwen3
+# thinking-mode bug" — see agent/core/ollama.mjs defensive check). ~1.3 GB on
+# disk; the RAM-safety guard below still refuses local Ollama on hosts under
+# its threshold because the KV cache at num_ctx=4096 dominates for any model.
+OLLAMA_MODELS="${OLLAMA_MODELS:-llama3.2:1b}"
 OLLAMA_URL="${OLLAMA_URL:-}"
 OLLAMA_AUTH_HEADER="${OLLAMA_AUTH_HEADER:-}"
 

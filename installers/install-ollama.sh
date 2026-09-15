@@ -17,7 +17,7 @@
 #
 # Env contract:
 #   OLLAMA_BIND               (default 127.0.0.1:11434)
-#   OLLAMA_MODELS             (default "qwen3:0.6b" — space-separated list)
+#   OLLAMA_MODELS             (default "llama3.2:1b" — space-separated list)
 #   OLLAMA_HEALTHCHECK_TRIES  (default 20)
 #   OLLAMA_HEALTHCHECK_DELAY  (default 3s)
 
@@ -37,15 +37,15 @@ if [[ "${OLLAMA_MODE:-local}" == "remote" ]]; then
 fi
 
 OLLAMA_BIND="${OLLAMA_BIND:-127.0.0.1:11434}"
-# v0.9.7-alpha (BEKKA-READY-1): qwen3:0.6b default. Same 500 MB disk
-# footprint as qwen2.5:0.5b but agent-loop tool-calling score 0.880 vs
-# 0.640 (Mike Veerman Feb 2026 benchmark). Kept in sync with
-# bootstrap.sh and torii-continuum agent/config.example.yaml.
-# This is the OWNER/agent chat model. The isolated public NPC voice
-# intentionally uses a non-thinking model (llama3.2:1b) via the hermes/nap
-# standalone installers — that divergence is deliberate (two-voice boundary),
-# not drift.
-OLLAMA_MODELS="${OLLAMA_MODELS:-qwen3:0.6b}"
+# The local fallback model for the OWNER (Continuum) agent. Must stay in
+# lockstep with bootstrap.sh and torii-continuum agent/config.example.yaml
+# (`ollama.model`). llama3.2:1b is the only valid choice: a qwen3 (thinking)
+# model emits its reply into the `reasoning` field and returns empty `content`
+# over Ollama's /v1/chat/completions (NAP-BRIDGE-4 / qwen3 thinking-mode bug),
+# so the fallback looks dead. The two-voice boundary is a privilege/payment
+# split (owner = Routstr-paid + full tools + secrets; NPC = local-Ollama-only,
+# no secrets), not a model-name split — both use llama3.2:1b locally.
+OLLAMA_MODELS="${OLLAMA_MODELS:-llama3.2:1b}"
 OLLAMA_HEALTHCHECK_TRIES="${OLLAMA_HEALTHCHECK_TRIES:-20}"
 OLLAMA_HEALTHCHECK_DELAY="${OLLAMA_HEALTHCHECK_DELAY:-3}"
 

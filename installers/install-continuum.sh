@@ -382,7 +382,7 @@ fi
 # variable to their .env still lands the current recommended chat model. This
 # matches the Continuum agent's own default (agent/config.example.yaml
 # `ollama.models.chat`). Keep the two in sync when the default changes.
-CONTINUUM_DEFAULT_OLLAMA_MODELS="${CONTINUUM_DEFAULT_OLLAMA_MODELS:-qwen3:0.6b}"
+CONTINUUM_DEFAULT_OLLAMA_MODELS="${CONTINUUM_DEFAULT_OLLAMA_MODELS:-llama3.2:1b}"
 # OLLAMA_MODE=remote means the agent talks to an external Ollama endpoint and no
 # local daemon is installed — pulling a local model here is wrong. Mirror
 # install-ollama.sh's remote guard so a remote-mode redeploy never drags a model
