@@ -526,9 +526,8 @@ server {
 }
 
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name ${TORII_RELAY_HOST};
 
     ssl_certificate     ${RELAY_CERT_DIR}/fullchain.pem;
