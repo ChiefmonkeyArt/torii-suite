@@ -271,6 +271,14 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.21-alpha
+
+The relay/git subdomain vhost (`relay.<domain>.conf`) uses `listen 443 ssl
+http2;` instead of the `http2 on;` directive. `http2 on;` requires nginx 1.25.1+,
+which Ubuntu 24.04 (nginx 1.24.0) does not ship, so fresh installs on 24.04
+failed at the relay vhost with `unknown directive "http2"`. Pairs with the same
+revert in torii-base v0.1.13 for the main `torii.conf`.
+
 ### New in v0.9.20-alpha
 
 Onboarding closes audit **SB-19** — the SHC hosting-account password was derived
