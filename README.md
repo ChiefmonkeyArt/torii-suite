@@ -271,6 +271,19 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.22-alpha
+
+The default local Ollama model is corrected to `llama3.2:1b` (was `qwen3:0.6b`),
+fixing a fresh-install bug where the Continuum chat fallback silently failed.
+The agent's `ollama.model` has always been `llama3.2:1b` — a qwen3 "thinking"
+model returns empty `content` over Ollama's `/v1/chat/completions`
+(NAP-BRIDGE-4 / qwen3 thinking-mode bug) — but the Suite pulled `qwen3:0.6b`,
+so the fallback hit "model not found" on every fresh box before a wallet was
+connected. `OLLAMA_MODELS` now defaults to `llama3.2:1b` in `.env.example`,
+`bootstrap.sh`, `install-ollama.sh`, and `install-continuum.sh` so the pulled
+model always matches the agent config. Pairs with the fresh-bot `/api/chat`
+null-covenant fix in torii-continuum v0.2.177-alpha.
+
 ### New in v0.9.21-alpha
 
 The relay/git subdomain vhost (`relay.<domain>.conf`) uses `listen 443 ssl
