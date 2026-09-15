@@ -271,6 +271,22 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.20-alpha
+
+Onboarding closes audit **SB-19** — the SHC hosting-account password was derived
+from the public npub (`npubHex.slice(0, 32) + "!Aa1"`), so anyone who knows the
+npub could recompute the account login. The fix:
+
+- The password is now **cryptographically random** (`crypto.getRandomValues`,
+  32 bytes → base64, plus a fixed `!Aa1` policy suffix), never derived from the
+  npub.
+- The fresh-tab **resume path persists only the short-lived operate-scoped
+  apiKey** (plus the already npub-derived email) in localStorage keyed by npub —
+  never the durable password. On resume the token is restored and `register` is
+  skipped until the key expires; the password itself remains only in the
+  downloaded recovery file + encrypted backup, which is the fallback once the
+  token lapses.
+
 ### New in v0.9.19-alpha
 
 `install-quest.sh` gains a flag-gated release-artifact fast path for audit

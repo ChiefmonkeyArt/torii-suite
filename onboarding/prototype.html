@@ -542,6 +542,47 @@ function pickCatalogItem(catalog) {
   return toEntry(items[0], pricingsOf(items[0])[0] || {});
 }
 
+// SB-19 — cryptographically random SHC account password, never derived from
+// the public npub (on-network the npub is visible to anyone, so any npub-derived
+// value is publicly guessable and would hand an attacker the SHC login).
+// 32 random bytes → 43 base64url alnum chars, plus a fixed "!Aa1" suffix so the
+// result still satisfies the typical password policy (upper/lower/digit/special).
+function randomPassword() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  const rand = btoa(bin).replace(/[+/=]/g, "");
+  return rand + "!Aa1";
+}
+
+// SB-19 — resume the per-npub SHC account WITHOUT persisting the durable
+// password. We store only the short-lived operate-scoped apiKey (+ email, which
+// is already npub-derived) in localStorage, keyed by npubHex. A later fresh tab
+// restores the token and skips register until it expires — at which point the
+// password (held in the recovery file / encrypted backup) is required again.
+const SHC_LS_PREFIX = "torii-shc-";
+
+function loadSavedShc(npubHex) {
+  try {
+    const raw = localStorage.getItem(SHC_LS_PREFIX + npubHex);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved?.email || !saved?.apiKey || !saved?.expiresAt) return null;
+    if (Date.parse(saved.expiresAt) <= Date.now()) return null; // expired token
+    return saved;
+  } catch {
+    return null;
+  }
+}
+
+function saveShc(npubHex, { email, apiKey, expiresAt }) {
+  try {
+    localStorage.setItem(SHC_LS_PREFIX + npubHex, JSON.stringify({ email, apiKey, expiresAt }));
+  } catch {
+    // Best-effort — a failed write only means a later resume falls back to register.
+  }
+}
+
 // Screen 6 → screen 7 handshake. Runs the full SHC ordering sequence
 // end-to-end. Any failure sets buildStatus=failed and stores buildError so
 // the review screen re-renders with a readable message; the caller then
@@ -574,26 +615,37 @@ async function runOrderingFlow() {
     });
   }
 
-  // 3. Register (or reuse) an SHC account. We use the npub-hex as a stable
-  //    per-tab identity — every fresh browser session gets its own account,
-  //    which is fine because the API key is DM'd to the npub for recovery.
+  // 3. Register (or resume) the SHC account. The email is a stable anonymous
+  //    identity derived from the npub; the password is RANDOM (SB-19 — never
+  //    derived from the public npub, which would make the login guessable).
   const email = `${state.npubHex.slice(0, 16)}@torii.anon.invalid`;
-  const password = state.npubHex.slice(0, 32) + "!Aa1"; // meets typical policy
-  // Persist so the recovery DM can carry the SHC login. Written before the
-  // register call so a re-run that hits the getSession() early-out still has
-  // matching values in state (the credentials themselves are deterministic
-  // per-npub, so this is safe even without a fresh register call).
   state.shcEmail = email;
-  state.shcPassword = password;
+  // Resume (SB-19): restore the short-lived operate-scoped apiKey from
+  // localStorage so a fresh tab reuses the SAME per-npub account without the
+  // password. The durable password is deliberately NOT persisted here — it
+  // lives only in the recovery file + encrypted backup.
+  const saved = !shc.getSession() ? loadSavedShc(state.npubHex) : null;
+  if (saved) {
+    shc.setCredentials({ email: saved.email, apiKey: saved.apiKey });
+    state.shcApiKey = saved.apiKey;
+    state.keyExpiresAt = saved.expiresAt;
+    // state.shcPassword intentionally left empty on resume: the password is
+    // not recoverable (or needed) here — the recovery file already holds it.
+  }
   if (!shc.getSession()) {
+    // Fresh account: mint a random password (kept in state + recovery outputs).
+    state.shcPassword = state.shcPassword || randomPassword();
     const reg = await shc.register({
       email,
-      password,
+      password: state.shcPassword,
       firstName: "torii",
       lastName: state.name.slice(0, 24),
     });
     state.keyExpiresAt = reg?.api_key?.expires_at || null;
     state.shcApiKey = reg?.api_key?.key || null;
+    if (state.shcApiKey && state.keyExpiresAt) {
+      saveShc(state.npubHex, { email, apiKey: state.shcApiKey, expiresAt: state.keyExpiresAt });
+    }
   }
 
   // 4. Load the catalog and pick a plan.
