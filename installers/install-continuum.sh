@@ -666,7 +666,11 @@ location /agent/ {
     proxy_set_header   X-Forwarded-Proto \$scheme;
     proxy_set_header   Upgrade           \$http_upgrade;
     proxy_set_header   Connection        "upgrade";
-    proxy_read_timeout 60s;
+    # Keep the proxy outside Continuum's 100s provider budget and 115s client
+    # deadline. A 60s proxy cuts off the paid-to-local fallback mid-turn.
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
     client_max_body_size 1m;
 }
 NGINX

@@ -271,6 +271,27 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.23-alpha
+
+Continuum's `/agent/` nginx proxy now uses a 5-second connection timeout and
+120-second read/send timeouts, preserving the existing deadline order:
+agent total budget 100 seconds < browser deadline 115 seconds < proxy 120 seconds.
+Previously this installer wrote 60 seconds, cutting off real chat before its
+bounded paid-provider/local-model fallback could finish. The separate `/api/`
+proxy's settings do not apply to `/agent/api/chat`.
+
+Re-run this version's `installers/install-continuum.sh` using the existing
+operator environment to update the fragment through the normal installer.
+Do not change credentials, wallet state, model selection, or provider budgets
+to repair this proxy mismatch. A longer proxy limit does not make a slow model
+faster or guarantee a successful provider response.
+
+Regression tests: `bash test/install-continuum-timeout.test.sh`. They render
+the actual installer fragment and, when nginx is installed, exercise a delayed
+chat response through real nginx with proportionally scaled deadlines.
+The old installer produces a 504 in that regression test; the updated fragment
+returns the delayed response intact. All eight Suite test suites pass locally.
+
 ### New in v0.9.22-alpha
 
 The default local Ollama model is corrected to `llama3.2:1b` (was `qwen3:0.6b`),
