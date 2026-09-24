@@ -271,7 +271,7 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
-### Candidate v0.9.24-alpha: background FIPS transport
+### New in v0.9.24-alpha: background FIPS transport
 
 Quest installations with a local home relay now provision pinned FIPS v0.5.1
 automatically, unless the operator sets `INSTALL_FIPS=0`. Players get no new
@@ -283,8 +283,8 @@ node key, an isolated mesh relay endpoint, bounded volatile logs and default-den
 service firewall rules. Existing independent FIPS installations are not overwritten.
 
 See [FIPS operations and rollout](docs/FIPS.md) for peer enrollment, limits,
-rollback and the acceptance boundary. This candidate is not a production
-deployment claim; each node operator approves their own rollout.
+rollback and the acceptance boundary. Each node operator approves and performs
+their own rollout; a primary-node installation does not establish a live peer.
 
 ### New in v0.9.23-alpha
 

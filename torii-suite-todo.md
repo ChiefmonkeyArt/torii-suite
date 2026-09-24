@@ -1,12 +1,12 @@
 # Torii Suite - Master TODO
 
-## FIPS candidate v0.9.24-alpha
+## FIPS release v0.9.24-alpha
 
 - [x] Pinned/checksummed minimal runtime, idempotent identity, isolated relay proxy and default-deny firewall.
 - [x] Automatic Suite Quest hook and same-origin presence route, with operator opt-out.
 - [x] Tests, CI install/rerun proof, operations guide and coordinated Quest dependency.
 - [x] Pass fresh Ubuntu service/firewall and Quest real two-node transport CI.
-- [ ] Resolve approved root installation on the primary VPS; obtain separate second-operator approval.
+- [x] Primary operator approved coordinated merge/tag/deploy through the existing fixed root updater. Verify the result in the deployment receipt; the second operator performs their own approved installation.
 - [ ] Complete actual heartbeat exchange, disk/resource soak and player UX acceptance before declaring shipped.
 
 > Torii Suite is the operator-facing deployment layer: `bootstrap.sh` + the `installers/` set that provision `torii-base`, Continuum, Quest, Ollama, cors-proxy, webssh, and (optionally) the sovereign nostr-git relay.

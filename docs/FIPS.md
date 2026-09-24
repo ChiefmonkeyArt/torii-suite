@@ -1,6 +1,6 @@
 # FIPS background node integration
 
-Candidate release v0.9.24-alpha, paired with Quest v0.2.888-alpha. This is the first two-node implementation slice, not the broader hybrid/collector rollout.
+Release v0.9.24-alpha, paired with Quest v0.2.888-alpha. Primary-node rollout was approved on 24 September 2026; this is the first two-node implementation slice, not the broader hybrid/collector rollout.
 
 ## Player behavior
 
@@ -56,4 +56,4 @@ The GitHub build test provisions a fresh runner twice, checks stable key identit
 
 For rollback, stop and disable `torii-fips-relay.service` and `torii-fips.service`, keep the default-deny firewall rules, and set the peer list to empty before restarting Quest. Set `INSTALL_FIPS=0` to prevent future provisioning. Do not remove the transport key unless deliberately retiring that node identity; do not delete any relay database or owned world.
 
-Before production acceptance, complete the coordinated PR/tag/live release process, operator-approved peer enrollment, real strfry exchange, resource/storage soak and the player-performance thresholds recorded in [Quest ADR-0126](https://github.com/ChiefmonkeyArt/torii-quest/blob/feat/fips-two-node-presence/docs/adr/0126-fips-two-node-background-presence.md). No live rollout is implied by this candidate documentation.
+Before two-operator production acceptance, complete operator-approved peer enrollment, real strfry exchange, resource/storage soak and the player-performance thresholds recorded in [Quest ADR-0126](https://github.com/ChiefmonkeyArt/torii-quest/blob/feat/fips-two-node-presence/docs/adr/0126-fips-two-node-background-presence.md). Primary-node rollout is approved; the deployment receipt records its actual outcome.

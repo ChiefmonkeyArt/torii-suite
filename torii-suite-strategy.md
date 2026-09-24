@@ -2,7 +2,7 @@
 
 ## Active direction: FIPS background node build
 
-Candidate v0.9.24-alpha integrates FIPS provisioning with the Suite Quest path, paired with Quest ADR-0126. Keep player UI, world storage and multiplayer unchanged; use a separate stable node key, one known peer and bounded services. Broader collectors and mutual discovery remain outside scope. Historical version markers below describe earlier work, not the current release.
+Release v0.9.24-alpha integrates FIPS provisioning with the Suite Quest path, paired with Quest ADR-0126. The primary operator approved rollout on 24 September 2026. Keep player UI, world storage and multiplayer unchanged; use a separate stable node key, one known peer and bounded services. Broader collectors and mutual discovery remain outside scope. Historical version markers below describe earlier work, not the current release.
 
 **Repo:** https://github.com/ChiefmonkeyArt/torii-suite
 **Purpose:** one-shot installer that stands up the full Torii self-hosted stack on a fresh VPS — Continuum agent, Quest, Plebeian, onboarding bridges, and (optionally) local Ollama for LLM fallback.

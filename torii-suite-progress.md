@@ -1,13 +1,11 @@
 # Torii Suite Progress
 
-## In-flight v0.9.24-alpha: FIPS integration
+## Release v0.9.24-alpha: FIPS integration
 
-Implementation candidate on `feat/fips-node-build`, not merged/tagged/deployed. Seventeen local installer-contract checks and all existing Suite scripts pass. Actual Ubuntu install/rerun proof passed, including stable identity, running services and valid nftables rules: [run 36027157590](https://github.com/ChiefmonkeyArt/torii-suite/actions/runs/36027157590). Quest's real two-node heartbeat/firewall proof also passed. Pair with Quest v0.2.888-alpha / ADR-0126; do not ship a half-updated stack. Previous live Suite remains v0.9.23-alpha; historical markers below are not the current release state.
+The operator approved paired merge/tag/primary-VPS rollout on 24 September 2026. Seventeen local installer-contract checks and all existing Suite scripts pass. The [Ubuntu install/rerun proof](https://github.com/ChiefmonkeyArt/torii-suite/actions/runs/36028624132) verifies stable identity, running services and valid firewall rules; Quest's real two-node proof also passes. Pair with Quest v0.2.888-alpha / ADR-0126 and verify main/tag/live equality. The Project deployment receipt records the actual live result; cross-operator enrollment and long-soak/player acceptance remain separate.
 
 **Repo:** https://github.com/ChiefmonkeyArt/torii-suite
-**Current version:** v0.9.22-alpha
-**Current branch on origin/main:** clean, tagged `v0.9.22-alpha`
-**Pinned install one-liner:** `curl -fsSL https://raw.githubusercontent.com/ChiefmonkeyArt/torii-suite/v0.9.22-alpha/bootstrap.sh | sudo bash`
+Current release: v0.9.24-alpha. Merge/tag status and live source commit must be checked against the deployment receipt rather than inferred from this version label.
 
 > **Note:** Many intermediate tags shipped between v0.6.1-alpha and v0.9.8-alpha (v0.7.x, v0.8.x, v0.9.0–0.9.7-alpha) without narrated entries in this file — sourced from git history if you need details. The next entry below is v0.9.11-alpha; historical v0.6.1-alpha entry follows.
 
