@@ -5,7 +5,7 @@
 - [x] Pinned/checksummed minimal runtime, idempotent identity, isolated relay proxy and default-deny firewall.
 - [x] Automatic Suite Quest hook and same-origin presence route, with operator opt-out.
 - [x] Tests, CI install/rerun proof, operations guide and coordinated Quest dependency.
-- [ ] Pass fresh Ubuntu service/firewall and Quest real two-node transport CI.
+- [x] Pass fresh Ubuntu service/firewall and Quest real two-node transport CI.
 - [ ] Resolve approved root installation on the primary VPS; obtain separate second-operator approval.
 - [ ] Complete actual heartbeat exchange, disk/resource soak and player UX acceptance before declaring shipped.
 

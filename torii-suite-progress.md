@@ -2,7 +2,7 @@
 
 ## In-flight v0.9.24-alpha: FIPS integration
 
-Implementation candidate on `feat/fips-node-build`, not merged/tagged/deployed. Seventeen local installer-contract checks pass; actual nftables/TUN service validation must run on the Ubuntu CI host because this sandbox kernel lacks both facilities. Pair with Quest v0.2.886-alpha and do not ship a half-updated stack. Previous live Suite remains v0.9.23-alpha; historical markers below are not the current release state.
+Implementation candidate on `feat/fips-node-build`, not merged/tagged/deployed. Seventeen local installer-contract checks and all existing Suite scripts pass. Actual Ubuntu install/rerun proof passed, including stable identity, running services and valid nftables rules: [run 36027157590](https://github.com/ChiefmonkeyArt/torii-suite/actions/runs/36027157590). Quest's real two-node heartbeat/firewall proof also passed. Pair with Quest v0.2.887-alpha / ADR-0126; do not ship a half-updated stack. Previous live Suite remains v0.9.23-alpha; historical markers below are not the current release state.
 
 **Repo:** https://github.com/ChiefmonkeyArt/torii-suite
 **Current version:** v0.9.22-alpha
