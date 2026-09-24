@@ -1,0 +1,38 @@
+name: FIPS node build
+on:
+  pull_request:
+    paths: ['fips/**', 'installers/install-fips.sh', 'installers/install-quest.sh', 'test/install-fips.test.sh', '.github/workflows/fips-build.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provision:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test-only home relay prerequisite
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nginx nftables
+          sudo mkdir -p /opt/torii/relay
+          sudo touch /opt/torii/relay/strfry.conf
+          sudo modprobe tun
+      - name: First install and idempotent rerun
+        run: |
+          sudo env PATH="$PATH" bash installers/install-fips.sh
+          sudo sha256sum /etc/torii/fips/fips.key > /tmp/key-before
+          sudo env PATH="$PATH" bash installers/install-fips.sh
+          sudo sha256sum /etc/torii/fips/fips.key > /tmp/key-after
+          diff /tmp/key-before /tmp/key-after
+          sudo systemctl is-active torii-fips torii-fips-relay
+          sudo nft -c -f fips/mesh.nft
+          bash test/install-fips.test.sh
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          sudo systemctl status torii-fips torii-fips-relay torii-fips-firewall --no-pager || true
+          sudo journalctl --namespace=torii-fips -n 60 --no-pager

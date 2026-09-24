@@ -1,0 +1,13 @@
+[Unit]
+Description=Torii default-deny FIPS service boundary
+Before=torii-fips.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /opt/torii/fips/mesh.nft
+# Deliberately retain deny rules on stop. Never briefly expose wildcard-bound
+# admin services while the mesh interface is still being torn down.
+
+[Install]
+WantedBy=multi-user.target

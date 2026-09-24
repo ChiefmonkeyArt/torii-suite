@@ -1,0 +1,31 @@
+[Unit]
+Description=Torii FIPS background transport
+After=network-online.target torii-fips-firewall.service
+Wants=network-online.target
+Requires=torii-fips-firewall.service
+BindsTo=torii-fips-firewall.service
+
+[Service]
+Type=simple
+ExecStart=/opt/torii/fips/bin/fips --config /etc/torii/fips/fips.yaml
+Restart=on-failure
+RestartSec=15
+RuntimeDirectory=torii-fips
+RuntimeDirectoryMode=0700
+ProtectSystem=strict
+ReadWritePaths=/etc/torii/fips
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+ProtectKernelModules=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+CPUQuota=20%
+MemoryMax=192M
+TasksMax=64
+LogNamespace=torii-fips
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=30
+
+[Install]
+WantedBy=multi-user.target

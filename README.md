@@ -271,6 +271,21 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.24-alpha: background FIPS transport
+
+Quest installations with a local home relay now provision pinned FIPS v0.5.1
+automatically, unless the operator sets `INSTALL_FIPS=0`. Players get no new
+network settings. This does not move world downloads or multiplayer onto FIPS.
+
+The first slice reads one configured peer's existing heartbeat. It adds no
+visited-world cache or general relay replication. Setup uses a separate persistent
+node key, an isolated mesh relay endpoint, bounded volatile logs and default-deny
+service firewall rules. Existing independent FIPS installations are not overwritten.
+
+See [FIPS operations and rollout](docs/FIPS.md) for peer enrollment, limits,
+rollback and the acceptance boundary. Each node operator approves and performs
+their own rollout; a primary-node installation does not establish a live peer.
+
 ### New in v0.9.23-alpha
 
 Continuum's `/agent/` nginx proxy now uses a 5-second connection timeout and
