@@ -5,7 +5,7 @@ I="$ROOT/installers/install-fips.sh"
 pass=0; fail=0
 ok(){ echo "  ok   $1"; pass=$((pass+1)); }
 bad(){ echo "  FAIL $1" >&2; fail=$((fail+1)); }
-has(){ rg -qF "$1" "$2" && ok "$3" || bad "$3"; }
+has(){ grep -qF "$1" "$2" && ok "$3" || bad "$3"; }
 
 bash -n "$I" && ok "installer parses" || bad "installer parses"
 has 'INSTALL_FIPS:-1' "$I" "FIPS is a default build component with operator opt-out"
