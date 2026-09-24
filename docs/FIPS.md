@@ -1,6 +1,6 @@
 # FIPS background node integration
 
-Candidate release v0.9.24-alpha, paired with Quest v0.2.887-alpha. This is the first two-node implementation slice, not the broader hybrid/collector rollout.
+Candidate release v0.9.24-alpha, paired with Quest v0.2.888-alpha. This is the first two-node implementation slice, not the broader hybrid/collector rollout.
 
 ## Player behavior
 
