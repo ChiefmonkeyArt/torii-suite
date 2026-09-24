@@ -39,6 +39,12 @@ die()  { printf "\033[31mxx  %s\033[0m\n" "$*" >&2; exit 1; }
 command -v node >/dev/null 2>&1 || die "node not found (torii-base bootstrap should have installed it)"
 command -v npm  >/dev/null 2>&1 || die "npm not found"
 
+# Provision networking before changing the active Quest build. Existing
+# INSTALL_NOSTR_GIT=0 installations remain usable without a local mesh endpoint.
+if [[ "${INSTALL_FIPS:-1}" == 1 && -f /opt/torii/relay/strfry.conf ]]; then
+  bash "$(dirname -- "${BASH_SOURCE[0]}")/install-fips.sh"
+fi
+
 # --------------------------------------------------------------------------- #
 # 1. Sync source                                                              #
 # --------------------------------------------------------------------------- #
@@ -442,6 +448,7 @@ Environment=QUEST_PUBLIC_URL=${QUEST_PUBLIC_URL}
 Environment=UPDATE_REQUESTS_DIR=${APPS_ROOT}/quest/mp/update-requests
 Environment=UPDATE_STATUS_PATH=${APPS_ROOT}/quest/mp/update-status.json
 Environment=BEACON_STATE_PATH=${APPS_ROOT}/quest/mp/beacon-state.json
+Environment=QUEST_FIPS_PEERS_PATH=/etc/torii/fips/peers.json
 Restart=on-failure
 RestartSec=5
 
@@ -519,6 +526,12 @@ location = /mp/auth-challenge {
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto \$scheme;
     proxy_read_timeout 30s;
+}
+location = /mp/node-presence {
+    proxy_pass http://127.0.0.1:${ARENA_WS_PORT};
+    proxy_http_version 1.1;
+    proxy_read_timeout 5s;
+    add_header Cache-Control "no-store" always;
 }
 location = /mp/session {
     proxy_pass http://127.0.0.1:${ARENA_WS_PORT};

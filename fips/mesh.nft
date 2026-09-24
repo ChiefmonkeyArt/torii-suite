@@ -1,0 +1,18 @@
+#!/usr/sbin/nft -f
+add table inet torii_fips
+flush table inet torii_fips
+table inet torii_fips {
+  chain input {
+    type filter hook input priority -10; policy accept;
+    iifname != "fips0" return
+    ct state established,related accept
+    meta nfproto ipv6 icmpv6 type echo-request limit rate 5/second accept
+    tcp dport 7778 accept
+    counter drop
+  }
+  chain forward {
+    type filter hook forward priority -10; policy accept;
+    iifname "fips0" drop
+    oifname "fips0" drop
+  }
+}

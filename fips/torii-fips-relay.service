@@ -1,0 +1,25 @@
+[Unit]
+Description=Torii home relay mesh endpoint
+After=torii-fips.service torii-relay.service
+Wants=torii-fips.service
+
+[Service]
+Type=simple
+DynamicUser=yes
+ExecStart=/usr/sbin/nginx -c /opt/torii/fips/relay-nginx.conf -g "daemon off;"
+Restart=on-failure
+RestartSec=15
+RuntimeDirectory=torii-fips-relay
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CPUQuota=10%
+MemoryMax=64M
+TasksMax=16
+LogNamespace=torii-fips
+
+[Install]
+WantedBy=multi-user.target
