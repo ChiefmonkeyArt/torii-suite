@@ -2,7 +2,7 @@
 
 ## Release v0.9.24-alpha: FIPS integration
 
-The operator approved paired merge/tag/primary-VPS rollout on 24 September 2026. Seventeen local installer-contract checks and all existing Suite scripts pass. The [Ubuntu install/rerun proof](https://github.com/ChiefmonkeyArt/torii-suite/actions/runs/36028624132) verifies stable identity, running services and valid firewall rules; Quest's real two-node proof also passes. Pair with Quest v0.2.888-alpha / ADR-0126 and verify main/tag/live equality. The Project deployment receipt records the actual live result; cross-operator enrollment and long-soak/player acceptance remain separate.
+The operator approved paired merge/tag/primary-VPS rollout on 24 September 2026. Seventeen local installer-contract checks and all existing Suite scripts pass. The [Ubuntu install/rerun proof](https://github.com/ChiefmonkeyArt/torii-suite/actions/runs/36028624132) verifies stable identity, running services and valid firewall rules; Quest's real two-node proof also passes. Pair with Quest v0.2.889-alpha / ADR-0126 and verify main/tag/live equality. The Project deployment receipt records the actual live result; cross-operator enrollment and long-soak/player acceptance remain separate.
 
 **Repo:** https://github.com/ChiefmonkeyArt/torii-suite
 Current release: v0.9.24-alpha. Merge/tag status and live source commit must be checked against the deployment receipt rather than inferred from this version label.

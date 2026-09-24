@@ -2,7 +2,7 @@
 
 ## FIPS release: v0.9.24-alpha
 
-Suite v0.9.24-alpha pairs with Quest v0.2.888-alpha; the operator approved merge/tag and primary-VPS rollout on 24 September 2026. The existing fixed updater runs the reviewed installer with operator authority; no widening of the restricted admin dispatcher is needed. `install-fips.sh` is called by the Suite Quest installer when the home relay exists; it manages only Torii-owned transport state and does not adopt an independent FIPS install.
+Suite v0.9.24-alpha pairs with Quest v0.2.889-alpha; the operator approved merge/tag and primary-VPS rollout on 24 September 2026. The existing fixed updater runs the reviewed installer with operator authority; no widening of the restricted admin dispatcher is needed. `install-fips.sh` is called by the Suite Quest installer when the home relay exists; it manages only Torii-owned transport state and does not adopt an independent FIPS install.
 
 New root-owned peer configuration: `/etc/torii/fips/peers.json`. One verified introduction is required after each operator's install; the player does no setup. The runtime key is distinct from personal and heartbeat keys. Services are `torii-fips`, `torii-fips-firewall` and `torii-fips-relay`; the existing admin dispatcher does not yet allow arbitrary operations on them, so use only a reviewed, operator-approved root provisioning path.
 

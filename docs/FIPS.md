@@ -1,6 +1,6 @@
 # FIPS background node integration
 
-Release v0.9.24-alpha, paired with Quest v0.2.888-alpha. Primary-node rollout was approved on 24 September 2026; this is the first two-node implementation slice, not the broader hybrid/collector rollout.
+Release v0.9.24-alpha, paired with Quest v0.2.889-alpha. Primary-node rollout was approved on 24 September 2026; this is the first two-node implementation slice, not the broader hybrid/collector rollout.
 
 ## Player behavior
 
