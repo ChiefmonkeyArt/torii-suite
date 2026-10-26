@@ -34,6 +34,10 @@ APPS_ROOT="${APPS_ROOT:-/apps}"
 log()  { printf "\033[36m==>\033[0m %s\n" "$*"; }
 warn() { printf "\033[33m--  %s\033[0m\n" "$*" >&2; }
 die()  { printf "\033[31mxx  %s\033[0m\n" "$*" >&2; exit 1; }
+# v0.9.25-alpha: Quest security headers + per-build CSP (lib/quest-headers.sh).
+# shellcheck source=../lib/quest-headers.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/../lib/quest-headers.sh"
+QUEST_SNIPPET_DIR="${QUEST_SNIPPET_DIR:-/opt/torii/nginx-snippets}"
 
 [[ $EUID -eq 0 ]] || die "install-quest must run as root"
 command -v node >/dev/null 2>&1 || die "node not found (torii-base bootstrap should have installed it)"
@@ -265,6 +269,15 @@ chown -R root:www-data "$RELEASE_DIR"
 find "$RELEASE_DIR" -type d -exec chmod 755 {} +
 find "$RELEASE_DIR" -type f -exec chmod 644 {} +
 
+# v0.9.25-alpha (Quest ADR-0149): security headers + this release's validated CSP,
+# copied to a stable path. The CSP hash changes every build; the `torii reload` at
+# the end of this script (nginx -t && reload) applies it. QUEST_CSP_ENFORCE=0 opts out.
+CSP_STATUS="$(write_quest_header_snippets "$RELEASE_DIR" "$QUEST_SNIPPET_DIR")"
+log "quest security headers written (${QUEST_SNIPPET_DIR}): ${CSP_STATUS}"
+if [[ "$CSP_STATUS" == "csp-missing" ]]; then
+  warn "installed Quest release has no valid csp.nginx.conf -- Content-Security-Policy not sent"
+fi
+
 # --------------------------------------------------------------------------- #
 # 5. nginx fragment                                                           #
 # --------------------------------------------------------------------------- #
@@ -291,6 +304,7 @@ location /quest/ {
         alias ${APPS_ROOT}/quest/data/worlds/;
         try_files \$uri =404;
         add_header Cache-Control "no-store" always;
+        include ${QUEST_SNIPPET_DIR}/quest-security.inc;
     }
 
     location /quest/assets/ {
@@ -298,10 +312,15 @@ location /quest/ {
         try_files \$uri =404;
         expires 30d;
         add_header Cache-Control "public, max-age=2592000, immutable" always;
+        include ${QUEST_SNIPPET_DIR}/quest-security.inc;
     }
     location = /quest/index.html {
         alias ${APPS_ROOT}/quest/current/index.html;
         add_header Cache-Control "no-store" always;
+        # The game document only: dashboard.html and the napplets carry their own
+        # meta CSP (and the dashboard an inline script this policy would block).
+        include ${QUEST_SNIPPET_DIR}/quest-security.inc;
+        include ${QUEST_SNIPPET_DIR}/quest-csp.inc;
     }
 }
 NGINX

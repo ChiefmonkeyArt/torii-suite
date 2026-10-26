@@ -1,11 +1,16 @@
 # Torii Suite Progress
 
-## Release v0.9.24-alpha: FIPS integration
+## Release v0.9.25-alpha: Quest security policy on nginx (2026-10-26)
+
+The operator approved enabling Quest's Content-Security-Policy on chiefmonkey.art. Before this, the game page and world links sent only `Cache-Control`: Quest's nested nginx locations declared their own `add_header`, which drops torii-base's server-level security headers, and no CSP was sent at all. `install-quest.sh` now validates the build's `dist/csp.nginx.conf`, copies it to a stable snippet path on every deploy, and includes it on the game document only; the four security headers are restored on the index, assets and worlds locations. `torii reload` already runs `nginx -t` before reloading, so a bad config never replaces a good one. 49 checks pass, including a real nginx 1.28.3 (the VPS version) serving the generated fragment with the real Quest v0.2.935 build. `QUEST_CSP_ENFORCE=0` opts out.
+
+**Update-All checklist.** Code + tests [done] `lib/quest-headers.sh`, `installers/install-quest.sh`, `test/install-quest-csp.test.sh`; version [done] `VERSION` + README changelog; `.env.example` [done]; continuity [done] todo, progress, handoff; strategy [skipped] deployment strategy unchanged; ADR [n/a] the decision lives in Quest ADR-0149.
+
 
 The operator approved paired merge/tag/primary-VPS rollout on 24 September 2026. Seventeen local installer-contract checks and all existing Suite scripts pass. The [Ubuntu install/rerun proof](https://github.com/ChiefmonkeyArt/torii-suite/actions/runs/36028624132) verifies stable identity, running services and valid firewall rules; Quest's real two-node proof also passes. Pair with Quest v0.2.889-alpha / ADR-0126 and verify main/tag/live equality. The Project deployment receipt records the actual live result; cross-operator enrollment and long-soak/player acceptance remain separate.
 
 **Repo:** https://github.com/ChiefmonkeyArt/torii-suite
-Current release: v0.9.24-alpha. Merge/tag status and live source commit must be checked against the deployment receipt rather than inferred from this version label.
+Current release: v0.9.25-alpha. Merge/tag status and live source commit must be checked against the deployment receipt rather than inferred from this version label.
 
 > **Note:** Many intermediate tags shipped between v0.6.1-alpha and v0.9.8-alpha (v0.7.x, v0.8.x, v0.9.0–0.9.7-alpha) without narrated entries in this file — sourced from git history if you need details. The next entry below is v0.9.11-alpha; historical v0.6.1-alpha entry follows.
 

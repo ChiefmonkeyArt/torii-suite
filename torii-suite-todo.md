@@ -1,5 +1,13 @@
 # Torii Suite - Master TODO
 
+## Quest security policy v0.9.25-alpha
+
+- [x] `lib/quest-headers.sh`: validate the Quest build's `csp.nginx.conf` and write `/opt/torii/nginx-snippets/quest-{security,csp}.inc` every deploy; `QUEST_CSP_ENFORCE=0` opts out.
+- [x] `install-quest.sh` fragment: CSP on the game document only; four security headers restored on index/assets/worlds (nested `add_header` had dropped them).
+- [x] `test/install-quest-csp.test.sh`: 49 checks incl. real `nginx -t` and served headers (fixture and real Quest v0.2.935 build).
+- [x] chiefmonkey.art enforced (operator-approved 2026-10-26), applied by the Quest deploy runner.
+- [ ] Other operators: picked up on their next approved Quest update; nothing to configure.
+
 ## FIPS release v0.9.24-alpha
 
 - [x] Pinned/checksummed minimal runtime, idempotent identity, isolated relay proxy and default-deny firewall.

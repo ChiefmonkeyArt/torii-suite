@@ -271,6 +271,26 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.25-alpha: Quest security policy on nginx
+
+`install-quest.sh` now sends Torii Quest's Content-Security-Policy (Quest ADR-0149)
+on the game page and restores torii-base's four security headers on Quest's nested
+locations, which had silently dropped them.
+
+- Each Quest build ships its policy as `dist/csp.nginx.conf`. Its script hash
+  changes every build, so the installer validates the file (one
+  `add_header Content-Security-Policy "…" always;` line, CSP-safe characters only)
+  and copies it to `/opt/torii/nginx-snippets/quest-csp.inc` on every deploy;
+  the existing `torii reload` (`nginx -t`, then reload) applies it. If `nginx -t`
+  fails, the previous configuration keeps serving.
+- The policy goes on the game document only (`/quest/`, `/quest/index.html` and
+  every `/quest/w/…` world link). `dashboard.html` and the napplets keep their own
+  meta policies.
+- An older Quest release without the file gets no policy (logged), never a broken
+  config. Opt out with `QUEST_CSP_ENFORCE=0` in `.env`.
+- Tests: `bash test/install-quest-csp.test.sh` (validator, snippet writer, wiring,
+  and a real `nginx -t` + served-header check when nginx is installed).
+
 ### New in v0.9.24-alpha: background FIPS transport
 
 Quest installations with a local home relay now provision pinned FIPS v0.5.1

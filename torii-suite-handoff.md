@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## Quest security policy: v0.9.25-alpha
+
+`install-quest.sh` sources `lib/quest-headers.sh` and, after the release symlink flip, writes `/opt/torii/nginx-snippets/quest-security.inc` (torii-base's four headers) and `quest-csp.inc` (the build's validated CSP line, or a comment when missing / `QUEST_CSP_ENFORCE=0`). The quest.conf fragment includes the CSP in `location = /quest/index.html` only, and the security headers in the index, assets and worlds locations. Never put the CSP on `location /quest/`: `dashboard.html` has an inline script and the napplets have their own meta policies. The script hash changes each Quest build; the closing `torii reload` applies it. Verify with `curl -sI https://<domain>/quest/ | grep -i content-security`. Test: `bash test/install-quest-csp.test.sh` (set `QUEST_DIST=<quest dist>` to use a real build). Working checkout this session: `~/workspace/torii-suite` (fresh clone; the older `torii-suite-repo` path is not present).
+
 ## FIPS release: v0.9.24-alpha
 
 Suite v0.9.24-alpha pairs with Quest v0.2.889-alpha; the operator approved merge/tag and primary-VPS rollout on 24 September 2026. The existing fixed updater runs the reviewed installer with operator authority; no widening of the restricted admin dispatcher is needed. `install-fips.sh` is called by the Suite Quest installer when the home relay exists; it manages only Torii-owned transport state and does not adopt an independent FIPS install.
