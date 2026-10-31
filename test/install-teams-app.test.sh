@@ -15,6 +15,8 @@ refuse(){ local d="$1"; shift; "$@" >/dev/null 2>&1 && bad "$d" || ok "$d"; }
 check "install-teams-app.sh parses" bash -n "$I"
 check "lib/teams-app.sh parses" bash -n "$L"
 has 'INSTALL_TEAMS_APP:-0' "$I" "Teams app is opt-in"
+grep -Eq '^TEAMS_APP_TAG="\$\{TEAMS_APP_TAG:-[0-9]+\.[0-9]+\.[0-9]+-torii\.[0-9]+\}"$' "$I" && ok "a release tag is pinned" || bad "a release tag is pinned"
+grep -Eq '^TEAMS_APP_SHA256="\$\{TEAMS_APP_SHA256:-[0-9a-f]{64}\}"$' "$I" && ok "its SHA-256 is pinned" || bad "its SHA-256 is pinned"
 has 'sha256sum --check --status' "$I" "artifact is checked against a pinned checksum"
 hasnt '.sha256"' "$I" "checksum is never taken from the release itself"
 has 'install the Teams services first' "$I" "fails closed without coord.pub"

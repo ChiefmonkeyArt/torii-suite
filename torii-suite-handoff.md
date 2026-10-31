@@ -2,7 +2,7 @@
 
 ## Torii Teams app: v0.9.27-alpha (+ v0.9.28-alpha)
 
-v0.9.28-alpha: with Continuum installed, the installer also sets `teams.app_url` in `agent/config.yaml` (see `teams_continuum_config`); Continuum shows "Open team chat" only when it is set.
+v0.9.29-alpha: pinned torii-teams `0.6.1-torii.1`. v0.9.28-alpha: with Continuum installed, the installer also sets `teams.app_url` in `agent/config.yaml` (see `teams_continuum_config`); Continuum shows "Open team chat" only when it is set.
 
 
 `installers/install-teams-app.sh` runs only with `INSTALL_TEAMS_APP=1` and `INSTALL_TEAMS=1`, after the Teams stage. It installs the torii-teams release named by `TEAMS_APP_TAG` after checking it against `TEAMS_APP_SHA256`; both defaults are empty until the first torii-teams tag, so it stops cleanly until then. To pin a release: take the `.sha256` from the torii-teams GitHub release, check it against the attestation (`gh attestation verify <tarball> -R ChiefmonkeyArt/torii-teams`), and set both defaults in the installer in a Suite PR. Node settings: `/etc/torii/teams/torii-node.json`, rewritten each run. Headers: `/opt/torii/nginx-snippets/teams-app-headers.inc`, rewritten each run with the build's CSP. Vhost: `/etc/nginx/sites-available/teams.<domain>.conf`. Uses `listen ... http2` like the relay vhost (nginx 1.24 compatible; 1.28 warns). Live test: `sudo bash test/teams-app-live.sh [tarball]` on a throwaway host only. Owned by the Torii Teams app session; the services above belong to the Continuum Teams session.

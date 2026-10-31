@@ -1,5 +1,11 @@
 # Torii Suite Progress
 
+## Release v0.9.29-alpha: first Torii Teams release pinned (2026-10-31)
+
+Owner approved the first torii-teams tag. `0.6.1-torii.1` (d2a2f22) built in `torii-release.yml`: tarball, `.sha256`, `MANIFEST.json`, build-provenance attestation. The download matched its checksum, carried no `.well-known`, `_headers`, `_redirects` or `torii-node.json`, and passed `test/teams-app-live.sh` 16/16. `install-teams-app.sh` now pins its tag and SHA-256 `8f7ae47641784511...`.
+
+**Update-All checklist.** Code + tests [done] installer pin, 2 new contract checks; version [done] `VERSION` + README; `.env.example` [done]; docs [done] `docs/TEAMS.md`; continuity [done] todo, progress, handoff; strategy [skipped] unchanged; ADR [skipped] no behaviour change.
+
 ## Release v0.9.28-alpha: Team view link setting (2026-10-31)
 
 Requested by the Continuum Teams session for the "TEAMS-2a Team view link". `install-teams-app.sh` now writes `teams.app_url: "https://teams.<domain>"` into the Continuum agent config in the same step as `cors_origins` (new `teams_continuum_config` in `lib/teams-app.sh`), and restarts the agent only when something changed. Tested on Continuum's real `config.example.yaml` and on existing `teams:` blocks; YAML stays valid and the edit is idempotent.

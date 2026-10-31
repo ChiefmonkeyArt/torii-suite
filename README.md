@@ -271,6 +271,11 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.29-alpha: first Torii Teams release pinned
+
+`install-teams-app.sh` now installs torii-teams `0.6.1-torii.1` by default
+(checksum pinned in the installer). Still opt-in: `INSTALL_TEAMS_APP=1`.
+
 ### New in v0.9.28-alpha: Team view link setting
 
 With Continuum installed, `install-teams-app.sh` also sets `teams.app_url` in

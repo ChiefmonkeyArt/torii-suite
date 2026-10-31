@@ -57,9 +57,9 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
-No release is pinned until the first torii-teams tag is approved. Until then the
-installer stops with "no Torii Teams release pinned yet"; an operator can pin one
-with both `TEAMS_APP_TAG` and `TEAMS_APP_SHA256`.
+Pinned release (v0.9.29-alpha): torii-teams `0.6.1-torii.1` (commit d2a2f22),
+SHA-256 `8f7ae476417845111703c96fe94412de595d5e6816d364bfd53a66a442d760ea`. An operator can pin another one with both `TEAMS_APP_TAG` and
+`TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
 `sudo bash test/teams-app-live.sh [artifact.tar.gz]` (throwaway host: real nginx,
