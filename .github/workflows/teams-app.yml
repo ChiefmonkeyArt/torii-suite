@@ -1,0 +1,27 @@
+name: Teams app install
+on:
+  pull_request:
+    paths: ['installers/install-teams-app.sh', 'lib/teams-app.sh', 'bootstrap.sh', '.env.example', 'test/install-teams-app.test.sh', 'test/teams-app-live.sh', '.github/workflows/teams-app.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Contract and helper tests
+        run: bash test/install-teams-app.test.sh
+      - name: Live install against nginx (fixture build, self-signed cert)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nginx
+          sudo systemctl start nginx
+          sudo bash test/teams-app-live.sh
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          sudo nginx -T 2>&1 | tail -80 || true
+          sudo tail -30 /var/log/nginx/error.log || true

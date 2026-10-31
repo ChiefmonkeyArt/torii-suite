@@ -1,5 +1,12 @@
 # Torii Suite - Master TODO
 
+## Torii Teams app v0.9.27-alpha (TEAMS-2c a)
+
+- [x] `installers/install-teams-app.sh` (opt-in, needs `INSTALL_TEAMS`): pinned-checksum release, `teams.<domain>` vhost, `/torii-node.json`, Continuum CORS, launcher tile.
+- [x] `lib/teams-app.sh` + `test/install-teams-app.test.sh`; `test/teams-app-live.sh` + `teams-app.yml` against real nginx.
+- [ ] Pin `TEAMS_APP_TAG`/`TEAMS_APP_SHA256` after the first torii-teams tag (`0.6.1-torii.1`, owner approval).
+- [ ] Deploy: DNS A record for `teams.<domain>`, then `INSTALL_TEAMS_APP=1` (after the Plebeian trial; owner approval; run from tags).
+
 ## Torii Teams services v0.9.26-alpha (TEAMS-2b)
 
 - [x] `installers/install-teams.sh` (opt-in): Cordn coordinator on the node relay, private ngit-grasp on the FIPS mesh only, daily backups, `torii-teams` CLI.

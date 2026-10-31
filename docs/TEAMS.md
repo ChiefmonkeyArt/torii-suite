@@ -2,7 +2,8 @@
 
 Status: v0.9.26-alpha, opt-in (`INSTALL_TEAMS=1`). Decision record: Continuum
 `docs/adr-team-collaboration.md`, addendum "TEAMS-2b packaging". The Torii Teams
-app itself lives in `ChiefmonkeyArt/torii-teams`.
+app itself lives in `ChiefmonkeyArt/torii-teams`; v0.9.27-alpha adds its
+opt-in installer (see "The app" below).
 
 ## What it installs
 
@@ -19,6 +20,48 @@ Binaries are pinned by SHA-256. ngit-grasp has no upstream binary release, so
 `.github/workflows/teams-deps.yml` builds it at commit `9493a5a` on Ubuntu 22.04
 runners and publishes the `deps-ngit-grasp-v3.0.10` prerelease with build
 provenance. No compiler runs on the VPS.
+
+## The app (v0.9.27-alpha, `INSTALL_TEAMS_APP=1`)
+
+`installers/install-teams-app.sh` serves the Torii Teams web app at
+`https://teams.<domain>/` (`TORII_TEAMS_HOST`). Design: torii-teams
+`docs/torii/adr-0001-node-mount.md`. It needs the services above
+(`INSTALL_TEAMS=1`) and one more DNS A record, for `teams.<domain>`.
+
+- Own origin, not `/teams/`: the app assumes it owns `/`, and a separate origin
+  keeps chat keys in the browser apart from Quest and Continuum. The launcher
+  tile `/teams/` redirects there.
+- Prebuilt release from torii-teams (`<upstream>-torii.<n>` tags), checked
+  against a SHA-256 pinned in the installer (never one fetched from the
+  release). No build on the box. Releases in `/apps/teams-app/releases`, last 3
+  kept, `current` flipped atomically. Upstream Cordn identity files
+  (`.well-known/`) are dropped.
+- `/etc/torii/teams/torii-node.json` (0644 root, outside the release tree) is
+  served at `/torii-node.json`, no-store: version 1, the coordinator from
+  `coord.pub` (the install fails closed if it is missing), `wss://relay.<domain>`,
+  the mesh git URL when FIPS is up, and `continuum: https://<domain>` when
+  Continuum is installed. On first open the app adds that coordinator as the
+  preselected one; a member's own choice is never changed.
+- On https the app uses only the `wss://` relay. The `.fips` git URL is for
+  native clients and the CLI on the mesh (browsers block mixed content).
+- Continuum member sign-in is cross-origin, so the installer adds
+  `https://teams.<domain>` to the Continuum agent's `cors_origins`.
+- Headers on every location: a per-build Content-Security-Policy (hashes of the
+  inline start-up scripts; `connect-src 'self' https: wss:` because members
+  upload to Blossom servers and may add relays), HSTS, `nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, a Permissions-Policy
+  allowing only the microphone (voice notes) and COOP. Only GET and HEAD.
+- With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
+  plain text; the app is never served over HTTP. Rerun once DNS points here.
+
+No release is pinned until the first torii-teams tag is approved. Until then the
+installer stops with "no Torii Teams release pinned yet"; an operator can pin one
+with both `TEAMS_APP_TAG` and `TEAMS_APP_SHA256`.
+
+Tests: `bash test/install-teams-app.test.sh` (any user) and
+`sudo bash test/teams-app-live.sh [artifact.tar.gz]` (throwaway host: real nginx,
+self-signed cert, served headers, wrong checksum, missing `coord.pub`). CI:
+`teams-app.yml`.
 
 ## Files
 

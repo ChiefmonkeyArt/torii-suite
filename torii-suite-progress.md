@@ -1,5 +1,11 @@
 # Torii Suite Progress
 
+## Release v0.9.27-alpha: Torii Teams app installer (2026-10-31)
+
+TEAMS-2c part (a), agreed with the Continuum Teams session. `installers/install-teams-app.sh` (opt-in, needs the Teams services) installs the torii-teams web build on its own origin, `teams.<domain>`, and writes `/torii-node.json` with the node's coordinator and relay so the app needs no setup. The release checksum is pinned in the installer, not read from the release. The Content-Security-Policy is derived from each build's inline scripts; a real Cordn build ran under it in headless Chromium with no violations and picked up the node coordinator. Upstream Cordn's `.well-known` files are dropped so a node never claims Cordn's NIP-05 names. No release is pinned yet: the first torii-teams tag needs owner approval.
+
+**Update-All checklist.** Code + tests [done] `installers/install-teams-app.sh`, `lib/teams-app.sh`, `bootstrap.sh`, `test/install-teams-app.test.sh`, `test/teams-app-live.sh`, `.github/workflows/teams-app.yml`; version [done] `VERSION` + README; `.env.example` [done]; docs [done] `docs/TEAMS.md`; continuity [done] todo, progress, handoff; strategy [skipped] unchanged; ADR [done] torii-teams `docs/torii/adr-0001-node-mount.md`.
+
 ## Release v0.9.26-alpha: Torii Teams services (2026-10-31)
 
 TEAMS-2b packaging. The owner chose public chat and mesh-only git. Cordn's coordinator reuses the node's strfry (members connect at `wss://relay.<domain>`), with its key generated on the node and handed over as a systemd credential. ngit-grasp runs in private mode on the FIPS address only, behind a per-device allow list in a new `members` firewall chain. ngit-grasp has no binary release, so a Suite workflow builds it at the pinned commit and publishes checksummed, attested assets; the VPS never compiles. FIPS moves to v0.5.3 (the trial's version); the rendered config was checked against the 0.5.3 daemon. Daily backups stop both services briefly for a consistent snapshot.
