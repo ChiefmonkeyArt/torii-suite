@@ -25,7 +25,7 @@ has 'artifact contains symlinks' "$I" "refuses symlinks in the artifact"
 has 'rm -rf -- "$TMP/x/.well-known"' "$I" "drops upstream Cordn identity files"
 has 'location /.well-known/ { return 404; }' "$I" "no .well-known on the app host"
 has 'never served over plain HTTP' "$I" "no app over plain HTTP"
-has 'cors_origins' "$I" "allows the app origin for Continuum sign-in"
+has 'teams_continuum_config' "$I" "sets Continuum cors_origins and teams.app_url"
 has 'torii register teams' "$I" "registers a launcher tile"
 has 'INSTALL_TEAMS_APP="${INSTALL_TEAMS_APP:-0}"' "$ROOT/bootstrap.sh" "bootstrap defaults the app off"
 has '_stage_teams_app' "$ROOT/bootstrap.sh" "bootstrap has a Teams app stage"
@@ -65,6 +65,32 @@ want2="'sha256-$(printf '\nb()\n' | openssl dgst -sha256 -binary | base64)'"
 check "headers snippet accepts the CSP" teams_security_headers "$CSP"
 refuse "headers snippet refuses an injected CSP" teams_security_headers "default-src 'self'\"; return 200"
 printf '<html></html>' > "$T/empty.html"; refuse "CSP needs the start-up script" teams_csp "$T/empty.html"
+
+# Continuum config edit: cors_origins + teams.app_url, idempotent.
+cat > "$T/c.yaml" <<'Y'
+server:
+  host: "127.0.0.1"
+  cors_origins:
+    # comment
+    - "http://localhost:5180"
+
+cashu:
+  enabled: false
+Y
+[[ "$(teams_continuum_config "$T/c.yaml" https://teams.example.com)" == changed ]] && ok "Continuum config is edited" || bad "Continuum config is edited"
+[[ "$(teams_continuum_config "$T/c.yaml" https://teams.example.com)" == unchanged ]] && ok "Continuum config edit is idempotent" || bad "Continuum config edit is idempotent"
+printf 'server:\n  port: 8787\nteams:\n  app_url: "https://old.example.com"\n  other: 1\nlogging:\n  level: info\n' > "$T/d.yaml"
+teams_continuum_config "$T/d.yaml" https://teams.example.com >/dev/null
+python3 - "$T/c.yaml" "$T/d.yaml" <<'PY' && ok "Continuum YAML stays valid, app_url added or replaced" || bad "Continuum YAML stays valid, app_url added or replaced"
+import sys, yaml
+c = yaml.safe_load(open(sys.argv[1]))
+assert "https://teams.example.com" in c["server"]["cors_origins"], c
+assert c["teams"] == {"app_url": "https://teams.example.com"} and c["cashu"] == {"enabled": False}, c
+d = yaml.safe_load(open(sys.argv[2]))
+assert d["teams"] == {"app_url": "https://teams.example.com", "other": 1} and d["logging"]["level"] == "info", d
+assert open(sys.argv[2]).read().count("app_url") == 1
+PY
+refuse "Continuum edit refuses a non-https origin" teams_continuum_config "$T/c.yaml" 'http://x"'
 
 echo "install-teams-app.test.sh: $pass passed, $fail failed"
 (( fail == 0 ))

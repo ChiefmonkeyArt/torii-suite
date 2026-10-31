@@ -72,3 +72,33 @@ add_header Permissions-Policy "geolocation=(), microphone=(self), camera=(), pay
 add_header Cross-Origin-Opener-Policy "same-origin" always;
 NGINX
 }
+
+# teams_continuum_config <config.yaml> <app origin> — idempotent edit of the
+# Continuum agent config: the app origin in server.cors_origins (member sign-in
+# is cross-origin) and teams.app_url (Continuum's Team view shows
+# "Open team chat" only when it is set). Prints "changed" or "unchanged".
+teams_continuum_config() {
+  python3 - "$1" "$2" <<'PY'
+import pathlib, re, sys
+path, origin = pathlib.Path(sys.argv[1]), sys.argv[2]
+assert re.fullmatch(r"https://[a-z0-9.-]+", origin), origin
+text = before = path.read_text()
+if "cors_origins:" in text and f'"{origin}"' not in text:
+    text = re.sub(r"(cors_origins:\s*\n(?:\s*-\s+.*\n)*)",
+                  lambda m: f'{m.group(1)}    - "{origin}"\n', text, count=1)
+line = f'  app_url: "{origin}"'
+block = re.search(r"(?m)^teams:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n|[ \t]*\n)*)", text)
+if block is None:
+    text = text.rstrip("\n") + f"\n\n# Torii Teams app (written by torii-suite install-teams-app.sh)\nteams:\n{line}\n"
+elif re.search(r"(?m)^[ \t]+app_url:.*$", block.group(1)):
+    body = re.sub(r"(?m)^[ \t]+app_url:.*$", line, block.group(1), count=1)
+    text = text[:block.start(1)] + body + text[block.end(1):]
+else:
+    text = text[:block.start(1)] + line + "\n" + text[block.start(1):]
+if text != before:
+    path.write_text(text)
+    print("changed")
+else:
+    print("unchanged")
+PY
+}

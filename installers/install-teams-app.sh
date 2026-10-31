@@ -102,19 +102,17 @@ teams_node_json "$PK" "$TORII_DOMAIN" "$RELAY_HOST" "$GIT_URL" "$CONTINUUM" > "$
   || die "could not write node settings"
 install -m 0644 -o root -g root "$TMP/node.json" "$NODE_JSON"
 
-# 5. Continuum member sign-in is cross-origin: allow the app's origin.
-if (( CONTINUUM == 1 )) && grep -q "cors_origins:" "$CONTINUUM_CONFIG" \
-  && ! grep -qF "https://${APP_HOST}" "$CONTINUUM_CONFIG"; then
-  log "adding https://${APP_HOST} to Continuum cors_origins"
-  sudo -u continuum -H python3 - "$CONTINUUM_CONFIG" "https://${APP_HOST}" <<'PY'
-import pathlib, re, sys
-path, origin = pathlib.Path(sys.argv[1]), sys.argv[2]
-text = path.read_text()
-text = re.sub(r"(cors_origins:\s*\n(?:\s*-\s+.*\n)*)",
-              lambda m: f'{m.group(1)}    - "{origin}"\n', text, count=1)
-path.write_text(text)
-PY
-  systemctl restart continuum-agent.service
+# 5. Continuum: allow the app origin for member sign-in (cross-origin) and set
+#    teams.app_url so the Team view shows "Open team chat".
+if (( CONTINUUM == 1 )); then
+  [[ ! -L "$CONTINUUM_CONFIG" ]] || die "refusing symlinked $CONTINUUM_CONFIG"
+  # Rewritten in place, so owner (continuum) and mode (0600) are kept.
+  CHANGED="$(teams_continuum_config "$CONTINUUM_CONFIG" "https://${APP_HOST}")" \
+    || die "could not update the Continuum config"
+  if [[ "$CHANGED" == changed ]]; then
+    log "Continuum config: cors_origins + teams.app_url = https://${APP_HOST}"
+    systemctl restart continuum-agent.service
+  fi
 fi
 
 # 6. Headers snippet (stable path) + vhost on its own certificate.

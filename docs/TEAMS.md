@@ -45,7 +45,10 @@ provenance. No compiler runs on the VPS.
 - On https the app uses only the `wss://` relay. The `.fips` git URL is for
   native clients and the CLI on the mesh (browsers block mixed content).
 - Continuum member sign-in is cross-origin, so the installer adds
-  `https://teams.<domain>` to the Continuum agent's `cors_origins`.
+  `https://teams.<domain>` to the Continuum agent's `server.cors_origins`, and
+  (v0.9.28-alpha) sets `teams.app_url` to it. Continuum's Team view shows "Open
+  team chat" (`<app_url>/chat`) only when that is set. The agent restarts only
+  when the config changed.
 - Headers on every location: a per-build Content-Security-Policy (hashes of the
   inline start-up scripts; `connect-src 'self' https: wss:` because members
   upload to Blossom servers and may add relays), HSTS, `nosniff`,
