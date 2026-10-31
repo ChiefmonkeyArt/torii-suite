@@ -271,6 +271,18 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.27-alpha: Torii Teams app (opt-in)
+
+`INSTALL_TEAMS_APP=1` (with `INSTALL_TEAMS=1`) serves the Torii Teams chat app
+at `https://teams.<domain>/`, preset with this node's coordinator and relay.
+Add a DNS A record for `teams.<domain>` first. See `docs/TEAMS.md`, "The app".
+
+- Own origin (keys stay apart from Quest and Continuum); launcher tile `/teams/`.
+- Prebuilt torii-teams release with a pinned SHA-256; no build on the box. No
+  release is pinned until the first torii-teams tag is approved.
+- Per-build CSP and security headers; never served over plain HTTP.
+- Tests: `bash test/install-teams-app.test.sh`; CI installs against real nginx.
+
 ### New in v0.9.26-alpha: Torii Teams services (opt-in)
 
 `INSTALL_TEAMS=1` installs the server side of Torii Teams (TEAMS-2b): a Cordn
