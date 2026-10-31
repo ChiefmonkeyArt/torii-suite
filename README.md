@@ -271,6 +271,11 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.28-alpha: Team view link setting
+
+With Continuum installed, `install-teams-app.sh` also sets `teams.app_url` in
+the Continuum agent config, so the Team view can show "Open team chat".
+
 ### New in v0.9.27-alpha: Torii Teams app (opt-in)
 
 `INSTALL_TEAMS_APP=1` (with `INSTALL_TEAMS=1`) serves the Torii Teams chat app

@@ -1,5 +1,11 @@
 # Torii Suite Progress
 
+## Release v0.9.28-alpha: Team view link setting (2026-10-31)
+
+Requested by the Continuum Teams session for the "TEAMS-2a Team view link". `install-teams-app.sh` now writes `teams.app_url: "https://teams.<domain>"` into the Continuum agent config in the same step as `cors_origins` (new `teams_continuum_config` in `lib/teams-app.sh`), and restarts the agent only when something changed. Tested on Continuum's real `config.example.yaml` and on existing `teams:` blocks; YAML stays valid and the edit is idempotent.
+
+**Update-All checklist.** Code + tests [done] `lib/teams-app.sh`, `installers/install-teams-app.sh`, `test/install-teams-app.test.sh` (36); version [done] `VERSION` + README; docs [done] `docs/TEAMS.md`; continuity [done] todo, progress, handoff; `.env.example` [skipped] no new setting; strategy [skipped] unchanged; ADR [skipped] covered by torii-teams ADR 0001 and Continuum's own PR.
+
 ## Release v0.9.27-alpha: Torii Teams app installer (2026-10-31)
 
 TEAMS-2c part (a), agreed with the Continuum Teams session. `installers/install-teams-app.sh` (opt-in, needs the Teams services) installs the torii-teams web build on its own origin, `teams.<domain>`, and writes `/torii-node.json` with the node's coordinator and relay so the app needs no setup. The release checksum is pinned in the installer, not read from the release. The Content-Security-Policy is derived from each build's inline scripts; a real Cordn build ran under it in headless Chromium with no violations and picked up the node coordinator. Upstream Cordn's `.well-known` files are dropped so a node never claims Cordn's NIP-05 names. No release is pinned yet: the first torii-teams tag needs owner approval.
