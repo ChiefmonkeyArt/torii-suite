@@ -273,6 +273,13 @@ INSTALL_OLLAMA="${INSTALL_OLLAMA:-1}"
 INSTALL_PLEBEIAN="${INSTALL_PLEBEIAN:-1}"
 INSTALL_ONBOARDING_BRIDGES="${INSTALL_ONBOARDING_BRIDGES:-0}"
 INSTALL_NOSTR_GIT="${INSTALL_NOSTR_GIT:-1}"
+# TEAMS-2b: opt-in team chat coordinator + private mesh git (docs/TEAMS.md).
+INSTALL_TEAMS="${INSTALL_TEAMS:-0}"
+
+if [[ "$INSTALL_TEAMS" == "1" && "$INSTALL_NOSTR_GIT" != "1" ]]; then
+  ui_warn "INSTALL_TEAMS=1 needs the node relay (INSTALL_NOSTR_GIT=1), disabling Teams"
+  INSTALL_TEAMS=0
+fi
 
 if [[ "$INSTALL_OLLAMA" == "1" && "$INSTALL_CONTINUUM" != "1" ]]; then
   ui_warn "INSTALL_OLLAMA=1 but INSTALL_CONTINUUM=0 — Ollama has no consumer, disabling"
@@ -410,6 +417,7 @@ export INSTALL_OLLAMA OLLAMA_MODE OLLAMA_BIND OLLAMA_MODELS OLLAMA_URL OLLAMA_AU
 export SUITE_WORK_DIR APPS_ROOT
 export CORS_PROXY_ORIGIN_ALLOW CORS_PROXY_UPSTREAM_ALLOW CORS_PROXY_PORT
 export WEBSSH_ORIGIN_ALLOW WEBSSH_PORT WEBSSH_MAX_PER_IP WEBSSH_MAX_SESSION_MS
+export INSTALL_TEAMS TEAMS_OWNER_NPUB TEAMS_GIT_HOST TEAMS_BACKUP_KEEP TORII_DOMAIN
 export INSTALL_NOSTR_GIT NOSTR_RELAY_PORT NOSTR_RELAY_DB GIT_HOST_ROOT NOSTR_PUBLIC_RELAYS STRFRY_REF TORII_RELAY_HOST
 
 # --------------------------------------------------------------------------- #
@@ -508,6 +516,7 @@ _STAGES_TOTAL=1  # base
 [[ "$INSTALL_PLEBEIAN"           == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_NOSTR_GIT"        == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_TEAMS"            == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))  # doctor
 
 # Build plan rows via string concatenation — avoids putting user-supplied
@@ -535,6 +544,7 @@ ui_box_line "Quest       $(_plan_row "$INSTALL_QUEST" "install")"
 ui_box_line "Plebeian    $(_plan_row "$INSTALL_PLEBEIAN" "tile")"
 ui_box_line "Bridges     $(_plan_row "$INSTALL_ONBOARDING_BRIDGES" "install")"
 ui_box_line "Nostr git   $(_plan_row "$INSTALL_NOSTR_GIT" "install ${UI_DIM}(relay +git host)${UI_RESET}")"
+ui_box_line "Teams       $(_plan_row "$INSTALL_TEAMS" "install ${UI_DIM}(chat coordinator + mesh git)${UI_RESET}")"
 if [[ "$SKIP_CERTBOT" == "1" ]]; then
   ui_box_line "HTTPS       ${UI_YELLOW}skip${UI_RESET}"
 else
@@ -592,6 +602,7 @@ _stage_quest()          { "${SCRIPT_DIR}/installers/install-quest.sh"; }
 _stage_plebeian()       { "${SCRIPT_DIR}/installers/register-plebeian.sh"; }
 _stage_bridges()        { "${SCRIPT_DIR}/installers/install-bridges.sh"; }
 _stage_nostr_git()      { "${SCRIPT_DIR}/installers/install-nostr-git.sh"; }
+_stage_teams()          { "${SCRIPT_DIR}/installers/install-teams.sh"; }
 
 # Doctor is a status readout — never fatal.
 _stage_doctor() {
@@ -779,6 +790,12 @@ fi
 if [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]; then
   stage_header "Onboarding bridges"
   run_stage "install bridges (cors-proxy + webssh)" _stage_bridges
+fi
+
+# After Quest: Quest provisions FIPS, which Teams git binds to.
+if [[ "$INSTALL_TEAMS" == "1" ]]; then
+  stage_header "Torii Teams (chat coordinator + private mesh git)"
+  run_stage "install Teams" _stage_teams
 fi
 
 stage_header "Doctor"

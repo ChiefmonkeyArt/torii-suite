@@ -1,0 +1,43 @@
+[Unit]
+Description=Torii Teams chat coordinator (Cordn)
+After=network-online.target torii-relay.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=torii-teams-coord
+Group=torii-teams-coord
+EnvironmentFile=/etc/torii/teams/teams.env
+LoadCredential=coord.key:/etc/torii/teams/coord.key
+StateDirectory=torii-teams/coord
+StateDirectoryMode=0700
+WorkingDirectory=/var/lib/torii-teams/coord
+ExecStart=/opt/torii/teams/bin/run-coord.sh
+Restart=on-failure
+RestartSec=5
+# Loopback relay only; nothing else in or out.
+IPAddressAllow=localhost
+IPAddressDeny=any
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

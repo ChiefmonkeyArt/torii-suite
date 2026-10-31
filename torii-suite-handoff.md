@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## Torii Teams services: v0.9.26-alpha
+
+`installers/install-teams.sh` runs only with `INSTALL_TEAMS=1`, after the Quest stage (Quest provisions FIPS). Services: `torii-teams-coord` (loopback relay only), `torii-teams-git` (mesh `[fd..]:7334`, skipped until FIPS + a member exist), `torii-teams-backup.timer`. Config in `/etc/torii/teams`; never overwrite `coord.key`. `torii-teams apply` regenerates `/etc/torii/fips/fips.d/teams.nft`, checks with `nft -c`, reloads the FIPS firewall and restarts git. The ngit-grasp binary comes from the `deps-ngit-grasp-v3.0.10` prerelease; to bump it, change the commit in `teams-deps.yml`, dispatch with `publish=true` from main, then pin the new SHA-256s. Do not install on chiefmonkey.art until the Continuum FIPS trial is torn down: it binds 7334 too, and the installer refuses. See `docs/TEAMS.md`.
+
 ## Quest security policy: v0.9.25-alpha
 
 `install-quest.sh` sources `lib/quest-headers.sh` and, after the release symlink flip, writes `/opt/torii/nginx-snippets/quest-security.inc` (torii-base's four headers) and `quest-csp.inc` (the build's validated CSP line, or a comment when missing / `QUEST_CSP_ENFORCE=0`). The quest.conf fragment includes the CSP in `location = /quest/index.html` only, and the security headers in the index, assets and worlds locations. Never put the CSP on `location /quest/`: `dashboard.html` has an inline script and the napplets have their own meta policies. The script hash changes each Quest build; the closing `torii reload` applies it. Verify with `curl -sI https://<domain>/quest/ | grep -i content-security`. Test: `bash test/install-quest-csp.test.sh` (set `QUEST_DIST=<quest dist>` to use a real build). Working checkout this session: `~/workspace/torii-suite` (fresh clone; the older `torii-suite-repo` path is not present).

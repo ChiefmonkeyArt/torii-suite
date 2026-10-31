@@ -1,5 +1,11 @@
 # Torii Suite Progress
 
+## Release v0.9.26-alpha: Torii Teams services (2026-10-31)
+
+TEAMS-2b packaging. The owner chose public chat and mesh-only git. Cordn's coordinator reuses the node's strfry (members connect at `wss://relay.<domain>`), with its key generated on the node and handed over as a systemd credential. ngit-grasp runs in private mode on the FIPS address only, behind a per-device allow list in a new `members` firewall chain. ngit-grasp has no binary release, so a Suite workflow builds it at the pinned commit and publishes checksummed, attested assets; the VPS never compiles. FIPS moves to v0.5.3 (the trial's version); the rendered config was checked against the 0.5.3 daemon. Daily backups stop both services briefly for a consistent snapshot.
+
+**Update-All checklist.** Code + tests [done] `installers/install-teams.sh`, `teams/*`, `fips/mesh.nft`, `installers/install-fips.sh`, `bootstrap.sh`, `test/install-teams.test.sh`, `.github/workflows/teams-{deps,build}.yml`; version [done] `VERSION` + README changelog; `.env.example` [done]; docs [done] `docs/TEAMS.md`, `docs/FIPS.md`; continuity [done] todo, progress, handoff; strategy [skipped] unchanged; ADR [done] Continuum `adr-team-collaboration.md` addendum.
+
 ## Release v0.9.25-alpha: Quest security policy on nginx (2026-10-26)
 
 The operator approved enabling Quest's Content-Security-Policy on chiefmonkey.art. Before this, the game page and world links sent only `Cache-Control`: Quest's nested nginx locations declared their own `add_header`, which drops torii-base's server-level security headers, and no CSP was sent at all. `install-quest.sh` now validates the build's `dist/csp.nginx.conf`, copies it to a stable snippet path on every deploy, and includes it on the game document only; the four security headers are restored on the index, assets and worlds locations. `torii reload` already runs `nginx -t` before reloading, so a bad config never replaces a good one. 49 checks pass, including a real nginx 1.28.3 (the VPS version) serving the generated fragment with the real Quest v0.2.935 build. `QUEST_CSP_ENFORCE=0` opts out.

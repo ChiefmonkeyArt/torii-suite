@@ -1,0 +1,65 @@
+name: Teams install
+on:
+  pull_request:
+    paths: ['teams/**', 'installers/install-teams.sh', 'installers/install-fips.sh', 'fips/**', 'test/install-teams.test.sh', '.github/workflows/teams-build.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  NAK_URL: https://github.com/fiatjaf/nak/releases/download/v0.22.0/nak-v0.22.0-linux-amd64
+  NAK_SHA: f4cb05c42e2cab2d85f436c42aece1f6e10499e1166b6e0ad1fd3e3973b70712
+  OWNER: npub1dl3hkz3zwwmkzxj30eh5a8k7lyml6n8axa2g9jcqm7usk0j5vfks599qa4
+jobs:
+  install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test-only node relay + FIPS
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nginx nftables
+          curl -fsSL -o /tmp/nak "$NAK_URL"
+          echo "$NAK_SHA  /tmp/nak" | sha256sum -c --status && chmod +x /tmp/nak
+          (/tmp/nak serve --hostname 127.0.0.1 --port 7777 >/tmp/relay.log 2>&1 &)
+          sudo mkdir -p /opt/torii/relay && sudo touch /opt/torii/relay/strfry.conf
+          sudo modprobe tun
+          sudo env PATH="$PATH" bash installers/install-fips.sh
+          sudo nft -c -f /opt/torii/fips/mesh.nft
+      - name: First install and idempotent rerun
+        run: |
+          set -euo pipefail
+          run() { sudo env PATH="$PATH" INSTALL_TEAMS=1 TEAMS_OWNER_NPUB="$OWNER" bash installers/install-teams.sh; }
+          run
+          sudo sha256sum /etc/torii/teams/coord.key > /tmp/k1
+          echo "$OWNER" | sudo tee -a /etc/torii/teams/member-nodes >/dev/null
+          run
+          sudo sha256sum /etc/torii/teams/coord.key > /tmp/k2
+          diff /tmp/k1 /tmp/k2
+          grep -qx "$OWNER" <(sudo cat /etc/torii/teams/git-members)
+      - name: Services, mesh-only bind, firewall and backup
+        run: |
+          set -euo pipefail
+          sudo systemctl is-active torii-teams-coord torii-teams-git torii-teams-backup.timer
+          mesh="$(sudo /opt/torii/fips/bin/fipsctl address --key /etc/torii/fips/fips.key)"
+          for i in $(seq 20); do sudo ss -Hltn "sport = :7334" | grep -q . && break; sleep 1; done
+          sudo ss -Hltn "sport = :7334" | awk '{print $4}' | tee /tmp/bind
+          [ "$(cat /tmp/bind)" = "[$mesh]:7334" ]
+          sudo nft list chain inet torii_fips members | grep -q 'tcp dport 7334 accept'
+          curl -sS -m 5 -o /dev/null -w "grasp http %{http_code}\n" "http://[$mesh]:7334/" || true
+          sudo torii-teams backup
+          sudo sh -c 'tar -tzf /var/backups/torii-teams/torii-teams-*.tar.gz' | grep -q 'etc/torii/teams/coord.key'
+          sudo systemctl is-active torii-teams-coord torii-teams-git
+          sudo torii-teams status
+          sudo env PATH="$PATH" bash test/install-teams.test.sh
+          bash test/install-fips.test.sh
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          sudo systemctl status torii-teams-coord torii-teams-git torii-fips --no-pager || true
+          sudo journalctl -u torii-teams-coord -u torii-teams-git -n 80 --no-pager || true
+          tail -20 /tmp/relay.log || true

@@ -271,6 +271,24 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.26-alpha: Torii Teams services (opt-in)
+
+`INSTALL_TEAMS=1` installs the server side of Torii Teams (TEAMS-2b): a Cordn
+chat coordinator on the node relay and a private ngit-grasp reachable over the
+FIPS mesh only. See `docs/TEAMS.md`.
+
+- Chat: members use the existing `wss://relay.<domain>`; the coordinator talks
+  only to the loopback relay (`IPAddressDeny=any`).
+- Git: private mode, bound to the node's mesh address on port 7334, open only to
+  devices in `/etc/torii/teams/member-nodes`; members in `git-members`.
+- Pinned binaries (cordn-server v0.5.1-next.3; ngit-grasp v3.0.10 built by
+  `teams-deps.yml`); no compiler on the VPS. Keys and member lists survive reruns.
+- Daily root-only backups with retention; `torii-teams status|apply|backup`.
+- FIPS moves to v0.5.3, and its firewall gains a `members` chain filled from
+  `/etc/torii/fips/fips.d/*.nft` drop-ins.
+- Tests: `bash test/install-teams.test.sh`; CI installs, reruns and checks the
+  mesh-only bind, firewall rule and backup.
+
 ### New in v0.9.25-alpha: Quest security policy on nginx
 
 `install-quest.sh` now sends Torii Quest's Content-Security-Policy (Quest ADR-0149)
