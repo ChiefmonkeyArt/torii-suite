@@ -52,7 +52,9 @@ jobs:
           sudo nft list chain inet torii_fips members | grep -q 'tcp dport 7334 accept'
           curl -sS -m 5 -o /dev/null -w "grasp http %{http_code}\n" "http://[$mesh]:7334/" || true
           sudo torii-teams backup
-          sudo sh -c 'tar -tzf /var/backups/torii-teams/torii-teams-*.tar.gz' | grep -q 'etc/torii/teams/coord.key'
+          sudo sh -c 'tar -tzf /var/backups/torii-teams/torii-teams-*.tar.gz' > /tmp/backup.list
+          grep -qx 'etc/torii/teams/coord.key' /tmp/backup.list
+          grep -q '^var/lib/torii-teams/git/' /tmp/backup.list
           sudo systemctl is-active torii-teams-coord torii-teams-git
           sudo torii-teams status
           sudo env PATH="$PATH" bash test/install-teams.test.sh
