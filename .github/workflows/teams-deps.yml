@@ -1,0 +1,77 @@
+name: Teams dependency build
+# Builds ngit-grasp (no upstream binary release) at a pinned commit so that
+# installers/install-teams.sh can pin a SHA-256 instead of compiling Rust on
+# every operator VPS. Publishing needs a manual dispatch from main.
+on:
+  pull_request:
+    paths: ['.github/workflows/teams-deps.yml']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the release assets (main only)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+env:
+  NGIT_GRASP_REPO: https://ngit.dev/ngit-grasp.git
+  NGIT_GRASP_COMMIT: 9493a5a40fb59be4ba04750875b36ab815f456f7   # tag v3.0.10
+  NGIT_GRASP_VERSION: v3.0.10
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - { runner: ubuntu-22.04, arch: x86_64 }      # glibc 2.35 floor
+          - { runner: ubuntu-22.04-arm, arch: aarch64 }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Build at the pinned commit
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y -q libssl-dev pkg-config >/dev/null
+          git init -q src && cd src
+          git fetch -q --depth 1 "$NGIT_GRASP_REPO" "$NGIT_GRASP_COMMIT"
+          git checkout -q FETCH_HEAD
+          [ "$(git rev-parse HEAD)" = "$NGIT_GRASP_COMMIT" ]
+          rustup toolchain install stable --profile minimal >/dev/null
+          cargo +stable build --release --locked -p ngit-grasp
+          name="ngit-grasp-${NGIT_GRASP_VERSION}-${{ matrix.arch }}-linux-gnu"
+          mkdir -p ../out
+          strip -o "../out/$name" target/release/ngit-grasp
+          cp LICENSE ../out/LICENSE-ngit-grasp
+          "../out/$name" --help >/dev/null
+          cd ../out && sha256sum "$name" | tee "$name.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ngit-grasp-${{ matrix.arch }}
+          path: out/
+          retention-days: 7
+  publish:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: out/ngit-grasp-*-linux-gnu
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd out && cat ./*.sha256 > SHA256SUMS && cat SHA256SUMS
+          tag="deps-ngit-grasp-${NGIT_GRASP_VERSION}"
+          gh release create "$tag" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "ngit-grasp ${NGIT_GRASP_VERSION} (Teams dependency)" \
+            --notes "Built by teams-deps.yml from ${NGIT_GRASP_REPO} at ${NGIT_GRASP_COMMIT}. MIT licence (LICENSE-ngit-grasp). Not a Torii Suite release." \
+            ngit-grasp-*-linux-gnu SHA256SUMS LICENSE-ngit-grasp
