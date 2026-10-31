@@ -8,7 +8,7 @@ Nothing to install, approve or configure as a player. Existing controls, world d
 
 ## Operator provisioning
 
-The Suite Quest installer calls `installers/install-fips.sh` before changing the active application when a local strfry config is present. It extracts only the two required binaries from the [pinned upstream v0.5.1 package](https://github.com/jmcorgan/fips/releases/tag/v0.5.1), verifies an embedded SHA-256 and does not execute upstream package scripts or alter global DNS.
+The Suite Quest installer calls `installers/install-fips.sh` before changing the active application when a local strfry config is present. It extracts only the two required binaries from the [pinned upstream v0.5.3 package](https://github.com/jmcorgan/fips/releases/tag/v0.5.3), verifies an embedded SHA-256 and does not execute upstream package scripts or alter global DNS.
 
 The installer requires root, TUN, a local relay, nginx, Node and 256 MiB free disk headroom. It refuses an independently managed `/etc/fips/fips.yaml` or active `fips.service`. Generated configuration lives under `/etc/torii/fips`; the node's private key stays root-only and is preserved across reruns. No personal nsec is accepted.
 
@@ -39,9 +39,11 @@ Both VPS/provider firewalls must permit UDP 2121 between the two public hosts. T
 
 Only the npub-derived mesh IPv6 on port 7778 proxies to the existing loopback strfry port. The main nginx process and admin services are not exposed through the mesh. The strfry service remains a public relay with its existing policy; this proxy is not a new private-access grant or a new relay write policy.
 
+Other mesh ports stay dropped unless a service adds an allow list. Since v0.9.26-alpha the firewall has a `members` chain, consulted before the final drop, filled from `/etc/torii/fips/fips.d/*.nft` drop-ins. Only Torii Teams uses it today (git on 7334 for listed member devices; see `docs/TEAMS.md`). An empty directory adds nothing.
+
 ## Resource and storage budget
 
-- **Binary footprint:** install only `fips` and `fipsctl`, approximately 20.7 MB in the verified amd64 package before filesystem overhead. Download/extraction temporary files are removed on exit; platform dependencies can add more.
+- **Binary footprint:** install only `fips` and `fipsctl`, approximately 21.4 MB in the verified v0.5.3 amd64 package before filesystem overhead. Download/extraction temporary files are removed on exit; platform dependencies can add more.
 - **Identity/configuration:** small persistent root-owned files; no browser or owner secret copied to the node.
 - **Heartbeats:** Quest holds one latest peer event in RAM, at most 8 KiB, with original expiry. It does not persist the remote event or replicate relay history.
 - **Logs:** an 8 MiB volatile journal namespace shared by FIPS and its mesh proxy. Access logs are disabled; no writable profiler directory is granted.

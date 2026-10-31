@@ -1,5 +1,15 @@
 # Torii Suite - Master TODO
 
+## Torii Teams services v0.9.26-alpha (TEAMS-2b)
+
+- [x] `installers/install-teams.sh` (opt-in): Cordn coordinator on the node relay, private ngit-grasp on the FIPS mesh only, daily backups, `torii-teams` CLI.
+- [x] `teams-deps.yml`: pinned ngit-grasp build + `deps-ngit-grasp-v3.0.10` prerelease with provenance.
+- [x] FIPS 0.5.1 -> 0.5.3; `members` chain + `fips.d` drop-in include (TEAMS-2d step 3).
+- [x] `test/install-teams.test.sh` + `teams-build.yml` install/rerun/bind/firewall/backup proof.
+- [ ] Deploy to chiefmonkey.art after the FIPS trial teardown (port 7334 collision; owner approval).
+- [ ] Narrow git egress to loopback + mesh after a push/fetch proof.
+- [ ] TEAMS-2a-4 writes `git-members` / `member-nodes` from the signed roster.
+
 ## Quest security policy v0.9.25-alpha
 
 - [x] `lib/quest-headers.sh`: validate the Quest build's `csp.nginx.conf` and write `/opt/torii/nginx-snippets/quest-{security,csp}.inc` every deploy; `QUEST_CSP_ENFORCE=0` opts out.

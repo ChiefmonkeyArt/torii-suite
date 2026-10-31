@@ -1,0 +1,41 @@
+[Unit]
+Description=Torii Teams private git (ngit-grasp, FIPS mesh only)
+After=network-online.target torii-relay.service torii-fips.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=torii-teams-git
+Group=torii-teams-git
+EnvironmentFile=/etc/torii/teams/teams.env
+StateDirectory=torii-teams/git
+StateDirectoryMode=0700
+WorkingDirectory=/var/lib/torii-teams/git
+ExecCondition=/opt/torii/teams/bin/run-git.sh --check
+ExecStart=/opt/torii/teams/bin/run-git.sh
+# fips0 may come up after boot; retry the mesh bind.
+Restart=on-failure
+RestartSec=5
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

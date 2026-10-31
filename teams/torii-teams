@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# torii-teams: operator commands for the Teams services (root only).
+#   status   services, coordinator pubkey, member counts
+#   apply    re-read member files: mesh firewall allow list + git restart
+#   backup   consistent tarball of keys, members and data (daily timer)
+set -euo pipefail
+CONFIG=/etc/torii/teams
+STATE=/var/lib/torii-teams
+BACKUPS=/var/backups/torii-teams
+FIPS_CTL=/opt/torii/fips/bin/fipsctl
+NFT_DROPIN=/etc/torii/fips/fips.d/teams.nft
+NPUB_RE='^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$'
+die() { echo "torii-teams: $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die "run as root"
+# shellcheck disable=SC1091
+[[ -r "$CONFIG/teams.env" ]] && . "$CONFIG/teams.env"
+npubs() { grep -E "$NPUB_RE" "$1" 2>/dev/null | sort -u || true; }
+
+cmd_apply() {
+  local -a fds=(); local n fd
+  if [[ -x "$FIPS_CTL" && -d /etc/torii/fips ]]; then
+    while read -r n; do
+      [[ -n "$n" ]] || continue
+      fd="$("$FIPS_CTL" address "$n")"
+      [[ "$fd" =~ ^fd[0-9a-f:]+$ ]] || die "no mesh address for $n"
+      fds+=("$fd")
+    done < <(npubs "$CONFIG/member-nodes")
+    install -d -m 0755 /etc/torii/fips/fips.d
+    local tmp; tmp="$(mktemp)"
+    {
+      echo "# Written by torii-teams apply from $CONFIG/member-nodes. Do not edit."
+      if ((${#fds[@]})); then
+        local IFS=,
+        echo "add rule inet torii_fips members ip6 saddr { ${fds[*]} } tcp dport ${GIT_PORT:-7334} accept comment \"torii-teams\""
+      fi
+    } >"$tmp"
+    install -m 0644 "$tmp" "$NFT_DROPIN"; rm -f -- "$tmp"
+    # Validate the whole ruleset first; a bad file never replaces good rules.
+    nft -c -f /opt/torii/fips/mesh.nft || die "firewall check failed; rules unchanged"
+    systemctl restart torii-fips-firewall.service
+    echo "mesh git admitted for ${#fds[@]} member device(s)"
+  else
+    echo "FIPS not installed: git stays off, chat unaffected"
+  fi
+  systemctl restart torii-teams-git.service
+  if systemctl is-active -q torii-teams-git.service; then echo "git: active (${GIT_HOST:-torii-teams}.fips:${GIT_PORT:-7334})"
+  else echo "git: not running (needs FIPS and at least one npub in $CONFIG/git-members)"; fi
+}
+
+cmd_status() {
+  local u
+  for u in torii-teams-coord torii-teams-git torii-teams-backup.timer; do
+    printf '%-26s %s\n' "$u" "$(systemctl is-active "$u" 2>/dev/null || true)"
+  done
+  [[ -s "$CONFIG/coord.pub" ]] && echo "coordinator pubkey: $(cat "$CONFIG/coord.pub")"
+  echo "git members: $(npubs "$CONFIG/git-members" | wc -l)  member devices: $(npubs "$CONFIG/member-nodes" | wc -l)"
+  echo "last backup: $(ls -1t "$BACKUPS"/torii-teams-*.tar.gz 2>/dev/null | head -1 || true)"
+}
+
+cmd_backup() {
+  local keep="${TEAMS_BACKUP_KEEP:-7}" ts out u
+  [[ "$keep" =~ ^[0-9]+$ ]] && ((keep >= 1)) || die "TEAMS_BACKUP_KEEP must be >= 1"
+  install -d -m 0700 -o root -g root "$BACKUPS"
+  ts="$(date -u +%Y%m%dT%H%M%SZ)"; out="$BACKUPS/torii-teams-$ts.tar.gz"
+  # Brief stop for a consistent sqlite/git snapshot; restart whatever ran.
+  local -a was=()
+  for u in torii-teams-git torii-teams-coord; do
+    systemctl is-active -q "$u" && was+=("$u")
+  done
+  ((${#was[@]})) && systemctl stop "${was[@]}"
+  trap '((${#was[@]})) && systemctl start "${was[@]}"' EXIT
+  ( umask 077; tar -C / -czf "$out.part" etc/torii/teams "${STATE#/}" )
+  mv -- "$out.part" "$out"
+  ((${#was[@]})) && systemctl start "${was[@]}"
+  trap - EXIT
+  ls -1t "$BACKUPS"/torii-teams-*.tar.gz | tail -n +"$((keep + 1))" | xargs -r rm -f --
+  echo "backup: $out"
+}
+
+case "${1:-status}" in
+  status) cmd_status ;;
+  apply) cmd_apply ;;
+  backup) cmd_backup ;;
+  *) die "usage: torii-teams status|apply|backup" ;;
+esac

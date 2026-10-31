@@ -18,11 +18,11 @@ command -v nginx >/dev/null
 FREE_KB="$(df -Pk /opt | awk 'END { print $4 }')"
 (( FREE_KB >= 262144 )) || { echo "FIPS provisioning needs 256 MiB free headroom" >&2; exit 1; }
 
-VERSION=0.5.1
+VERSION=0.5.3
 ARCH="$(dpkg --print-architecture)"
 case "$ARCH" in
-  amd64) SHA=5ac8a8d1defadd460b013fcec6b0393a08579b797b42aa76646dc6935815becb ;;
-  arm64) SHA=9df90c906e06175d708155ababa607f62146b31eeb87c51bc47251370976dc7a ;;
+  amd64) SHA=6edd18e67c4f4c47d9d8c7366aacc6505d11df79c1c4b1b1d63246fa66e3e8a3 ;;
+  arm64) SHA=8b1dc54163cd99f92f13845296f6511f5683e9d5635da51400b27f0dd5f07b48 ;;
   *) echo "Unsupported FIPS architecture: $ARCH" >&2; exit 1 ;;
 esac
 PREFIX=/opt/torii/fips
@@ -44,7 +44,7 @@ if [[ ! -x "$PREFIX/bin/fips" ]] || [[ "$("$PREFIX/bin/fips" -V)" != "fips $VERS
   install -m 0755 "$TMP/package/usr/bin/fips" "$TMP/package/usr/bin/fipsctl" "$PREFIX/bin/"
   install -m 0644 "$TMP/package/usr/share/doc/fips/copyright" "$PREFIX/COPYRIGHT"
 fi
-install -d -m 0755 "$CONFIG"
+install -d -m 0755 "$CONFIG" "$CONFIG/fips.d"
 if [[ ! -e "$CONFIG/peers.json" ]]; then
   printf '{"version":1,"peers":[]}\n' > "$CONFIG/peers.json"
 fi
@@ -111,7 +111,7 @@ systemctl restart torii-fips.service
 # Upstream can remain active in DEGRADED state without TUN. Require the actual
 # interface before starting the proxy; never confuse "process alive" with ready.
 READY=0
-for attempt in {1..30}; do
+for _ in {1..30}; do
   if ip -6 addr show dev fips0 2>/dev/null | grep -q 'inet6 fd'; then READY=1; break; fi
   sleep 1
 done

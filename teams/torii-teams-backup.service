@@ -1,0 +1,6 @@
+[Unit]
+Description=Torii Teams backup (coordinator key, members, chat + git data)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/torii-teams backup

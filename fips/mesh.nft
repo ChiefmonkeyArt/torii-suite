@@ -8,7 +8,11 @@ table inet torii_fips {
     ct state established,related accept
     meta nfproto ipv6 icmpv6 type echo-request limit rate 5/second accept
     tcp dport 7778 accept
+    jump members
     counter drop
+  }
+  # Per-service allow lists (for example Teams git) from fips.d drop-ins.
+  chain members {
   }
   chain forward {
     type filter hook forward priority -10; policy accept;
@@ -16,3 +20,4 @@ table inet torii_fips {
     oifname "fips0" drop
   }
 }
+include "/etc/torii/fips/fips.d/*.nft"
