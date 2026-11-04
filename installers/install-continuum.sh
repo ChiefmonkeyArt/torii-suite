@@ -636,6 +636,7 @@ FRAGMENT_CONTENT="$(cat <<NGINX
 # Fix: use prefix 'location /continuum/assets/' (nginx handles prefix + alias
 # correctly), cache the whole /assets/ tree since Vite hashes every file in
 # it, and return 404 on miss instead of falling through to the SPA shell.
+# (v0.9.31: no 'expires' - it sent a second Cache-Control next to add_header.)
 #
 # This heredoc is deliberately UNQUOTED (so ${APPS_ROOT} and the port expand),
 # which means bare backticks are executed as shell. Keep code snippets in
@@ -643,16 +644,20 @@ FRAGMENT_CONTENT="$(cat <<NGINX
 location /continuum/ {
     alias ${APPS_ROOT}/continuum/current/;
     try_files \$uri \$uri/ /continuum/index.html;
+    # Suite v0.9.31: security headers when Continuum has its own host
+    # (install-continuum-host.sh); the glob matches nothing otherwise.
+    include /opt/torii/nginx-snippets/continuum-headers*.inc;
 
     location /continuum/assets/ {
         alias ${APPS_ROOT}/continuum/current/assets/;
         try_files \$uri =404;
-        expires 30d;
         add_header Cache-Control "public, max-age=2592000, immutable" always;
+        include /opt/torii/nginx-snippets/continuum-headers*.inc;
     }
     location = /continuum/index.html {
         alias ${APPS_ROOT}/continuum/current/index.html;
         add_header Cache-Control "no-store" always;
+        include /opt/torii/nginx-snippets/continuum-headers*.inc;
     }
 }
 
@@ -672,6 +677,7 @@ location /agent/ {
     proxy_read_timeout 120s;
     proxy_send_timeout 120s;
     client_max_body_size 1m;
+    include /opt/torii/nginx-snippets/continuum-headers*.inc;
 }
 NGINX
 )"

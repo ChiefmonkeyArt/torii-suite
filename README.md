@@ -271,6 +271,12 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.31-alpha: Continuum on its own host
+
+`INSTALL_CONTINUUM_HOST=1` serves Continuum on `https://continuum.<domain>/continuum/`
+and redirects the main-domain `/continuum/` there, so its sign-in is no longer
+shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
+
 ### New in v0.9.30-alpha: Teams inside Continuum
 
 `install-teams-app.sh` installs torii-teams `0.6.1-torii.2`: with Continuum

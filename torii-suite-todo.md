@@ -1,5 +1,12 @@
 # Torii Suite - Master TODO
 
+## Continuum on its own host v0.9.31-alpha
+
+- [x] `installers/install-continuum-host.sh` + `lib/continuum-host.sh`: `continuum.<domain>` vhost (same fragment + `/api/`), main-domain `/continuum/` 301 after the certificate, headers in every Continuum location, rollback `CONTINUUM_HOST_REMOVE=1`.
+- [x] `bootstrap.sh` stage + `CONTINUUM_HOST` export for the Teams app; `.env.example`; `docs/CONTINUUM-HOST.md`.
+- [x] Tests: `test/install-continuum-host.test.sh` 27/27, `test/continuum-host-live.sh` 26/26 (real nginx); CI `continuum-host.yml`.
+- [ ] Deploy on chiefmonkey.art with the Teams MVP (owner-approved 2026-11-04).
+
 ## Torii Teams app v0.9.27-alpha (TEAMS-2c a)
 
 - [x] `installers/install-teams-app.sh` (opt-in, needs `INSTALL_TEAMS`): pinned-checksum release, `teams.<domain>` vhost, `/torii-node.json`, Continuum CORS, launcher tile.

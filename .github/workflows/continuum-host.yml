@@ -1,0 +1,22 @@
+name: Continuum host
+on:
+  pull_request:
+    paths: ['installers/install-continuum-host.sh', 'installers/install-continuum.sh', 'lib/continuum-host.sh', 'bootstrap.sh', '.env.example', 'test/install-continuum-host.test.sh', 'test/continuum-host-live.sh', '.github/workflows/continuum-host.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Contract and helper tests
+        run: bash test/install-continuum-host.test.sh
+      - name: Live nginx run (real fragment, self-signed cert, no root)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nginx
+          sudo systemctl stop nginx || true
+          bash test/continuum-host-live.sh
