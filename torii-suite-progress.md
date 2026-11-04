@@ -5,6 +5,7 @@
 Owner request "do all the things" (Teams MVP inside continuum.<domain>). torii-teams PR #7 (411c435) gave the per-project sidebar and Continuum member sign-in (ADR 0002), released as `0.6.1-torii.2`: SHA-256 `951a9379b2a2a73300bf4b95dcff11e33468a3c3ee7879851f3af86f695fdb90`, MANIFEST commit 411c435, attestation present. The Suite now pins it. `teams_csp` takes frame hosts, so Continuum's Team view iframe is allowed only from `https://$CONTINUUM_HOST` (when set) and `https://<domain>`, and only when Continuum is installed; otherwise it is `'none'`. `X-Frame-Options` was removed because frame-ancestors governs. `teams_node_json` takes the Continuum host. Tests: `install-teams-app.test.sh` 44/44, and `teams-app-live.sh` 16/16 with both the fake build and the real 0.6.1-torii.2 tarball (one first run failed on the headers check and passed on every rerun; nginx state from an earlier run is the likely cause). Not deployed.
 
 **Update-All checklist.** Code + tests [done] lib, installer, 6 new checks, live test; version [done] `VERSION` + README; `.env.example` [done]; docs [done] `docs/TEAMS.md`; continuity [done] todo, progress, handoff; ADR [done] in torii-teams (ADR 0002); deploy [skipped] awaits owner approval and the FIPS-trial teardown answer.
+
 ## Roadmap: FIPS on by default (2026-11-04, docs only)
 
 High-priority item added after the Teams MVP: FIPS on by default across Plebeian, Quest, Continuum and the marketplace. Each app gets an ADR first; the market needs owner approval.
