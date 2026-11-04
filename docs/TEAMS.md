@@ -55,7 +55,7 @@ provenance. No compiler runs on the VPS.
   inline start-up scripts; `connect-src 'self' https: wss:` because members
   upload to Blossom servers and may add relays), HSTS, `nosniff`,
   `frame-ancestors` limited to the Continuum hosts (`https://$CONTINUUM_HOST`
-  when set, and `https://<domain>`) so Continuum's Team view can embed the app
+  when set, see docs/CONTINUUM-HOST.md, and `https://<domain>`) so Continuum's Team view can embed the app
   (torii-teams ADR 0002), or `'none'` without Continuum; no `X-Frame-Options`
   (v0.9.30-alpha). Also `Referrer-Policy: no-referrer`, a Permissions-Policy
   allowing only the microphone (voice notes) and COOP. Only GET and HEAD.

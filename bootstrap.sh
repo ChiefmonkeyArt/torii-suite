@@ -268,6 +268,8 @@ fi
 
 # --- opt-in flags ---
 INSTALL_CONTINUUM="${INSTALL_CONTINUUM:-1}"
+# v0.9.31: opt-in Continuum on its own origin, continuum.<domain> (docs/CONTINUUM-HOST.md).
+INSTALL_CONTINUUM_HOST="${INSTALL_CONTINUUM_HOST:-0}"
 INSTALL_QUEST="${INSTALL_QUEST:-1}"
 INSTALL_OLLAMA="${INSTALL_OLLAMA:-1}"
 INSTALL_PLEBEIAN="${INSTALL_PLEBEIAN:-1}"
@@ -285,6 +287,11 @@ fi
 if [[ "$INSTALL_TEAMS_APP" == "1" && "$INSTALL_TEAMS" != "1" ]]; then
   ui_warn "INSTALL_TEAMS_APP=1 needs the Teams services (INSTALL_TEAMS=1), disabling the Teams app"
   INSTALL_TEAMS_APP=0
+fi
+
+if [[ "$INSTALL_CONTINUUM_HOST" == "1" && "$INSTALL_CONTINUUM" != "1" ]]; then
+  ui_warn "INSTALL_CONTINUUM_HOST=1 needs Continuum (INSTALL_CONTINUUM=1), disabling the Continuum host"
+  INSTALL_CONTINUUM_HOST=0
 fi
 
 if [[ "$INSTALL_OLLAMA" == "1" && "$INSTALL_CONTINUUM" != "1" ]]; then
@@ -424,7 +431,14 @@ export SUITE_WORK_DIR APPS_ROOT
 export CORS_PROXY_ORIGIN_ALLOW CORS_PROXY_UPSTREAM_ALLOW CORS_PROXY_PORT
 export WEBSSH_ORIGIN_ALLOW WEBSSH_PORT WEBSSH_MAX_PER_IP WEBSSH_MAX_SESSION_MS
 export INSTALL_TEAMS TEAMS_OWNER_NPUB TEAMS_GIT_HOST TEAMS_BACKUP_KEEP TORII_DOMAIN
+# The Teams app frame-allows and links Continuum on this host (CONTINUUM_HOST).
+if [[ "$INSTALL_CONTINUUM_HOST" == "1" ]]; then
+  CONTINUUM_HOST="${CONTINUUM_HOST:-continuum.${TORII_DOMAIN}}"
+else
+  CONTINUUM_HOST=""
+fi
 export INSTALL_TEAMS_APP TORII_TEAMS_HOST TEAMS_APP_TAG TEAMS_APP_SHA256
+export INSTALL_CONTINUUM_HOST CONTINUUM_HOST
 export INSTALL_NOSTR_GIT NOSTR_RELAY_PORT NOSTR_RELAY_DB GIT_HOST_ROOT NOSTR_PUBLIC_RELAYS STRFRY_REF TORII_RELAY_HOST
 
 # --------------------------------------------------------------------------- #
@@ -525,6 +539,7 @@ _STAGES_TOTAL=1  # base
 [[ "$INSTALL_NOSTR_GIT"        == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_TEAMS"            == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_TEAMS_APP"        == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_CONTINUUM_HOST"   == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))  # doctor
 
 # Build plan rows via string concatenation — avoids putting user-supplied
@@ -543,6 +558,7 @@ ui_box_line "${UI_BOLD}Install plan${UI_RESET}  ${UI_DIM}v${SUITE_VERSION}${UI_R
 ui_box_rule
 ui_box_line "Domain      ${UI_CYAN}${TORII_DOMAIN}${UI_RESET}"
 ui_box_line "Continuum   $(_plan_row "$INSTALL_CONTINUUM" "install ${UI_DIM}(agent :${CONTINUUM_AGENT_PORT})${UI_RESET}")"
+ui_box_line "  own host  $(_plan_row "$INSTALL_CONTINUUM_HOST" "${CONTINUUM_HOST}")"
 if [[ "$INSTALL_OLLAMA" == "1" && "$OLLAMA_MODE" == "remote" ]]; then
   ui_box_line "Ollama      ${UI_GREEN}remote${UI_RESET} ${UI_DIM}(${OLLAMA_URL})${UI_RESET}"
 else
@@ -606,6 +622,7 @@ _stage_base() {
   )
 }
 _stage_continuum()      { "${SCRIPT_DIR}/installers/install-continuum.sh"; }
+_stage_continuum_host() { "${SCRIPT_DIR}/installers/install-continuum-host.sh"; }
 _stage_ollama()         { "${SCRIPT_DIR}/installers/install-ollama.sh"; }
 _stage_quest()          { "${SCRIPT_DIR}/installers/install-quest.sh"; }
 _stage_plebeian()       { "${SCRIPT_DIR}/installers/register-plebeian.sh"; }
@@ -733,6 +750,10 @@ if [[ "$INSTALL_CONTINUUM" == "1" ]]; then
   stage_header "Continuum (frontend + agent)"
   ui_stage_banner continuum
   run_stage "install Continuum" _stage_continuum
+fi
+if [[ "$INSTALL_CONTINUUM_HOST" == "1" ]]; then
+  stage_header "Continuum on its own host (${CONTINUUM_HOST})"
+  run_stage "install Continuum host" _stage_continuum_host
 fi
 
 # v0.9.7-alpha (BEKKA-READY-5): benchmark moved out of the Continuum block
@@ -1019,7 +1040,8 @@ ui_box_top
 ui_box_line "${UI_BOLD}${UI_GREEN}${UI_CHECK} Torii Suite is live${UI_RESET}  ${UI_DIM}v${SUITE_VERSION}${UI_RESET}"
 ui_box_rule
 ui_box_line "Launcher     ${UI_CYAN}https://${TORII_DOMAIN}/${UI_RESET}"
-[[ "$INSTALL_CONTINUUM" == "1" ]] && ui_box_line "Continuum    ${UI_CYAN}https://${TORII_DOMAIN}/continuum/${UI_RESET}"
+_CONTINUUM_URL="https://${CONTINUUM_HOST:-$TORII_DOMAIN}/continuum/"
+[[ "$INSTALL_CONTINUUM" == "1" ]] && ui_box_line "Continuum    ${UI_CYAN}${_CONTINUUM_URL}${UI_RESET}"
 [[ "$INSTALL_QUEST" == "1" ]]     && ui_box_line "Quest        ${UI_CYAN}https://${TORII_DOMAIN}/quest/${UI_RESET}"
 [[ "$INSTALL_PLEBEIAN" == "1" ]]  && ui_box_line "Plebeian     ${UI_DIM}${PLEBEIAN_EXTERNAL_URL}${UI_RESET}"
 if [[ "$INSTALL_OLLAMA" == "1" ]]; then
@@ -1081,7 +1103,7 @@ if [[ "$INSTALL_NOSTR_GIT" == "1" ]]; then
 fi
 ui_box_rule
 ui_box_line "${UI_BOLD}Next steps${UI_RESET}"
-ui_box_line "1. Open ${UI_CYAN}https://${TORII_DOMAIN}/continuum/${UI_RESET}"
+ui_box_line "1. Open ${UI_CYAN}${_CONTINUUM_URL}${UI_RESET}"
 ui_box_line "   sign in with your NIP-07 signer"
 ui_box_line "2. Top up your Cashu wallet from the signer"
 ui_box_line "   so Continuum can pay Routstr per request"

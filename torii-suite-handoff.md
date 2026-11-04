@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## Continuum on its own host: v0.9.31-alpha
+
+`installers/install-continuum-host.sh` runs only with `INSTALL_CONTINUUM_HOST=1`, right after the Continuum stage. Files: vhost `/etc/nginx/sites-available/<CONTINUUM_HOST>.conf`, main-domain redirect `/opt/torii/nginx-fragments/continuum-host.conf`, headers `/opt/torii/nginx-snippets/continuum-headers.inc`. It refuses a `continuum.conf` fragment older than v0.9.31 (re-run `install-continuum.sh` first). Rollback: `CONTINUUM_HOST_REMOVE=1`. Live test: `bash test/continuum-host-live.sh` (no root, high ports). See `docs/CONTINUUM-HOST.md`. Owned by the Continuum Teams session.
+
 ## Torii Teams app: v0.9.27-alpha (+ v0.9.28-alpha)
 
 v0.9.30-alpha: pinned `0.6.1-torii.2`; CSP `frame-ancestors` = Continuum hosts (`CONTINUUM_HOST` + `<domain>`) only when Continuum is installed, else `'none'`; node `continuum` = `https://${CONTINUUM_HOST:-<domain>}`. v0.9.29-alpha: pinned torii-teams `0.6.1-torii.1`. v0.9.28-alpha: with Continuum installed, the installer also sets `teams.app_url` in `agent/config.yaml` (see `teams_continuum_config`); Continuum shows "Open team chat" only when it is set.
