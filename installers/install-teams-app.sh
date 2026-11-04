@@ -24,10 +24,10 @@ die() { printf '\033[31mxx  install-teams-app: %s\033[0m\n' "$*" >&2; exit 1; }
 
 # Pinned release. Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-# 0.6.1-torii.1 = torii-teams d2a2f22; SHA-256 checked against the GitHub release
+# 0.6.1-torii.2 = torii-teams 411c435; SHA-256 checked against the GitHub release
 # and its build-provenance attestation.
-TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.1}"
-TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-8f7ae476417845111703c96fe94412de595d5e6816d364bfd53a66a442d760ea}"
+TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.2}"
+TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-951a9379b2a2a73300bf4b95dcff11e33468a3c3ee7879851f3af86f695fdb90}"
 [[ -n "$TEAMS_APP_TAG" && -n "$TEAMS_APP_SHA256" ]] \
   || die "no Torii Teams release pinned yet (set TEAMS_APP_TAG and TEAMS_APP_SHA256)"
 [[ "$TEAMS_APP_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-torii\.[0-9]+$ ]] || die "bad TEAMS_APP_TAG"
@@ -80,7 +80,14 @@ tar -xzf "$TARBALL" -C "$TMP/x" --no-same-owner --no-same-permissions
 rm -rf -- "$TMP/x/.well-known" "$TMP/x/_headers" "$TMP/x/_redirects"
 MANIFEST_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tag"])' "$TMP/x/MANIFEST.json")"
 [[ "$MANIFEST_TAG" == "$TEAMS_APP_TAG" ]] || die "artifact is ${MANIFEST_TAG}, expected ${TEAMS_APP_TAG}"
-CSP="$(teams_csp "$TMP/x/index.html")" || die "could not derive the Content-Security-Policy"
+# Continuum frames the app in its Team view (ADR 0002): allow only its hosts.
+CONTINUUM=0
+CONTINUUM_CONFIG="${SUITE_WORK_DIR:-/opt/torii-suite/work}/torii-continuum/agent/config.yaml"
+[[ -f "$CONTINUUM_CONFIG" && -f /etc/systemd/system/continuum-agent.service ]] && CONTINUUM=1
+CONTINUUM_HOST="${CONTINUUM_HOST:-}"
+FRAME_HOSTS=()
+[[ "$CONTINUUM" == 1 ]] && FRAME_HOSTS=(${CONTINUUM_HOST:+"$CONTINUUM_HOST"} "$TORII_DOMAIN")
+CSP="$(teams_csp "$TMP/x/index.html" "${FRAME_HOSTS[@]}")" || die "could not derive the Content-Security-Policy"
 
 # 3. Release snapshot + atomic flip, keep the last 3.
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)-${TEAMS_APP_TAG}"
@@ -95,12 +102,9 @@ mv -Tf "${APP_DIR}/current.new" "${APP_DIR}/current"
 find "${APP_DIR}/releases" -mindepth 1 -maxdepth 1 -type d | sort | head -n -3 | xargs -r rm -rf
 
 # 4. Node settings, outside the release tree, 0644 root.
-CONTINUUM=0
-CONTINUUM_CONFIG="${SUITE_WORK_DIR:-/opt/torii-suite/work}/torii-continuum/agent/config.yaml"
-[[ -f "$CONTINUUM_CONFIG" && -f /etc/systemd/system/continuum-agent.service ]] && CONTINUUM=1
 NODE_JSON="$CONFIG/torii-node.json"
 [[ ! -L "$NODE_JSON" ]] || die "refusing symlinked $NODE_JSON"
-teams_node_json "$PK" "$TORII_DOMAIN" "$RELAY_HOST" "$GIT_URL" "$CONTINUUM" > "$TMP/node.json" \
+teams_node_json "$PK" "$TORII_DOMAIN" "$RELAY_HOST" "$GIT_URL" "$CONTINUUM" "${CONTINUUM_HOST:-$TORII_DOMAIN}" > "$TMP/node.json" \
   || die "could not write node settings"
 install -m 0644 -o root -g root "$TMP/node.json" "$NODE_JSON"
 

@@ -21,29 +21,38 @@ teams_coord_pub() {
   printf '%s\n' "$pk"
 }
 
-# teams_node_json <pubkey> <domain> <relay host> <git url|""> <continuum 0|1>
+# teams_node_json <pubkey> <domain> <relay host> <git url|""> <continuum 0|1> [continuum host]
 # Inputs are validated here, so plain printf cannot produce broken JSON.
+# The Continuum origin is https://<continuum host> (CONTINUUM_HOST, Suite
+# v0.9.31) when given, else https://<domain>; /api/ is served on both.
 teams_node_json() {
-  local pk="$1" domain="$2" relay="$3" git="${4:-}" continuum="${5:-0}" extra=""
+  local pk="$1" domain="$2" relay="$3" git="${4:-}" continuum="${5:-0}" chost="${6:-$2}" extra=""
   [[ "$pk" =~ ^[0-9a-f]{64}$ ]] || return 1
-  teams_valid_host "$domain" && teams_valid_host "$relay" || return 1
+  teams_valid_host "$domain" && teams_valid_host "$relay" && teams_valid_host "$chost" || return 1
   if [[ -n "$git" ]]; then
     [[ "$git" =~ ^http://[a-z][a-z0-9-]{0,30}[a-z0-9]\.fips:[0-9]{1,5}$ ]] || return 1
     extra+=",\"git\":\"${git}\""
   fi
-  [[ "$continuum" == 1 ]] && extra+=",\"continuum\":\"https://${domain}\""
+  [[ "$continuum" == 1 ]] && extra+=",\"continuum\":\"https://${chost}\""
   printf '{"version":1,"name":"%s team","coordinator":"%s","relays":["wss://%s"]%s}\n' \
     "$domain" "$pk" "$relay" "$extra"
 }
 
-# teams_csp <index.html> → the Content-Security-Policy value for this build.
+# teams_csp <index.html> [frame host...] → the Content-Security-Policy value
+# for this build. Only the listed hosts (Continuum's, ADR 0002) may frame the
+# app; with none, nobody may.
 # SvelteKit's start-up code is inline, so each inline <script> gets a sha256
 # hash; the policy changes every build and is rewritten on each install.
 #   connect-src https: — members upload images to Blossom servers and may
 #   reach Continuum sign-in; wss: — members may add relays and coordinators.
 teams_csp() {
-  local index="$1" hashes
+  local index="$1" hashes ancestors="" h
+  shift
   [[ -f "$index" ]] || return 1
+  for h in "$@"; do
+    teams_valid_host "$h" || return 1
+    [[ " $ancestors " == *" https://$h "* ]] || ancestors+="${ancestors:+ }https://$h"
+  done
   hashes="$(python3 - "$index" <<'PY'
 import base64, hashlib, re, sys
 html = open(sys.argv[1], encoding="utf-8").read()
@@ -52,8 +61,8 @@ for body in re.findall(r"<script>(.*?)</script>", html, re.S):
 PY
 )" || return 1
   [[ -n "$hashes" ]] || return 1
-  printf "default-src 'self'; script-src 'self' %s; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'\n" \
-    "$(printf '%s\n' "$hashes" | tr '\n' ' ' | sed 's/ $//')"
+  printf "default-src 'self'; script-src 'self' %s; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors %s\n" \
+    "$(printf '%s\n' "$hashes" | tr '\n' ' ' | sed 's/ $//')" "${ancestors:-'none'}"
 }
 
 # teams_security_headers <csp> → nginx add_header block, re-declared in every
@@ -62,11 +71,11 @@ teams_security_headers() {
   local csp="$1"
   [[ "$csp" =~ ^[A-Za-z0-9\ \;:/\'+=._*-]+$ ]] || return 1
   cat <<NGINX
-# written by torii-suite (lib/teams-app.sh); microphone=(self) for voice notes
+# written by torii-suite (lib/teams-app.sh); microphone=(self) for voice notes.
+# No X-Frame-Options: CSP frame-ancestors names the Continuum hosts (ADR 0002).
 add_header Content-Security-Policy "${csp}" always;
 add_header Strict-Transport-Security "max-age=31536000" always;
 add_header X-Content-Type-Options "nosniff" always;
-add_header X-Frame-Options "DENY" always;
 add_header Referrer-Policy "no-referrer" always;
 add_header Permissions-Policy "geolocation=(), microphone=(self), camera=(), payment=()" always;
 add_header Cross-Origin-Opener-Policy "same-origin" always;

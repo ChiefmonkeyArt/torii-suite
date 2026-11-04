@@ -271,6 +271,14 @@ values:
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
 
+### New in v0.9.30-alpha: Teams inside Continuum
+
+`install-teams-app.sh` installs torii-teams `0.6.1-torii.2`: with Continuum
+installed, its sidebar is one channel per Continuum project, and only the
+Continuum hosts (`CONTINUUM_HOST` when set, and `<domain>`) may embed it
+(CSP `frame-ancestors`; `X-Frame-Options` dropped). Still opt-in:
+`INSTALL_TEAMS_APP=1`.
+
 ### New in v0.9.29-alpha: first Torii Teams release pinned
 
 `install-teams-app.sh` now installs torii-teams `0.6.1-torii.1` by default

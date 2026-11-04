@@ -56,6 +56,9 @@ J="$(teams_node_json "$PK" example.com relay.example.com "" 0)"
 refuse "a quote in the domain is refused" teams_node_json "$PK" 'exa"mple.com' relay.example.com "" 0
 refuse "a non-mesh git URL is refused" teams_node_json "$PK" example.com relay.example.com http://evil.com:7334 0
 refuse "a short pubkey is refused" teams_node_json abc example.com relay.example.com "" 0
+J="$(teams_node_json "$PK" example.com relay.example.com "" 1 continuum.example.com)"
+[[ "$J" == *'"continuum":"https://continuum.example.com"'* ]] && ok "CONTINUUM_HOST becomes the Continuum origin" || bad "CONTINUUM_HOST becomes the Continuum origin ($J)"
+refuse "a bad Continuum host is refused" teams_node_json "$PK" example.com relay.example.com "" 1 'evil.com/x'
 
 printf '<html><script>a()</script><body><script>\nb()\n</script></body></html>' > "$T/index.html"
 CSP="$(teams_csp "$T/index.html")"
@@ -65,6 +68,12 @@ want2="'sha256-$(printf '\nb()\n' | openssl dgst -sha256 -binary | base64)'"
 [[ "$CSP" == *"object-src 'none'"* && "$CSP" == *"frame-ancestors 'none'"* && "$CSP" != *unsafe-eval* ]] \
   && ok "CSP locks down objects, framing and eval" || bad "CSP locks down objects, framing and eval"
 check "headers snippet accepts the CSP" teams_security_headers "$CSP"
+FCSP="$(teams_csp "$T/index.html" continuum.example.com example.com example.com)"
+[[ "$FCSP" == *"frame-ancestors https://continuum.example.com https://example.com" ]] \
+  && ok "CSP lets only the Continuum hosts frame the app" || bad "CSP frame hosts ($FCSP)"
+refuse "a bad frame host is refused" teams_csp "$T/index.html" "evil.com; script-src *"
+check "headers snippet accepts the framed CSP" teams_security_headers "$FCSP"
+[[ "$(teams_security_headers "$FCSP")" != *"add_header X-Frame-Options"* ]] && ok "no X-Frame-Options (frame-ancestors rules)" || bad "X-Frame-Options still set"
 refuse "headers snippet refuses an injected CSP" teams_security_headers "default-src 'self'\"; return 200"
 printf '<html></html>' > "$T/empty.html"; refuse "CSP needs the start-up script" teams_csp "$T/empty.html"
 

@@ -53,7 +53,7 @@ get(){ curl -sk --resolve "$H:443:127.0.0.1" -D "$W/h" -o "$W/b" -w '%{http_code
 
 [[ "$(get "https://$H/chat")" == 200 ]] && grep -q '<html' "$W/b" && ok "SPA route serves index.html" || fail "SPA route"
 grep -qi "^content-security-policy: default-src 'self'; script-src 'self' 'sha256-" "$W/h" && ok "CSP with script hash" || fail "CSP"
-grep -qi '^strict-transport-security:' "$W/h" && grep -qi '^x-frame-options: DENY' "$W/h" && ok "HSTS and framing headers" || fail "headers"
+grep -qi '^strict-transport-security:' "$W/h" && ! grep -qi '^x-frame-options:' "$W/h" && grep -qi "frame-ancestors 'none'" "$W/h" && ok "HSTS; framing only via frame-ancestors (none without Continuum)" || fail "headers"
 [[ "$(get "https://$H/torii-node.json")" == 200 ]] || fail "node file status"
 grep -qi '^content-type: application/json' "$W/h" && grep -qi '^cache-control: no-store' "$W/h" && ok "node file is JSON, no-store" || fail "node file headers"
 python3 - "$W/b" "$PK" <<'PY' && ok "node file carries the coordinator and wss relay" || fail "node file body"
