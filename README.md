@@ -283,6 +283,15 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.34-alpha: Teams' own simple chat
+
+`install-teams-app.sh` installs torii-teams `0.6.1-torii.4`: Torii's own
+white-labelled Teams screens (sign in, project list, one chat per project with
+images, files, reactions and replies). The project roster is the membership:
+the owner starts each project chat once and people are added or removed as the
+roster changes (torii-teams ADR 0005). The Teams headers no longer allow the
+microphone.
+
 ### New in v0.9.33-alpha: Teams keeps to your node
 
 `install-teams-app.sh` installs torii-teams `0.6.1-torii.3`. The Torii build

@@ -1,5 +1,26 @@
 # Torii Suite Progress
 
+## Release v0.9.34-alpha: pin torii-teams 0.6.1-torii.4 (2026-11-04)
+
+The owner asked for a simpler, white-labelled Teams instead of Cordn's full UI.
+torii-teams PR #10 (7382de5, ADR 0005) adds Torii's own screens: sign in,
+project list, one chat per project with text, images, files, reactions and
+replies. The project roster is the membership: the owner starts each chat once,
+and their client adds or removes people as the roster changes. The release also
+fixes the service worker, which never installed in torii.1-3. Release verified:
+SHA-256 `9c251d3c9954ce629f63c690e96352e72ae629dc724f825fc5f4368e3bcdabd2`
+matches, MANIFEST commit 7382de5, attestation verified. With voice notes gone,
+the Teams Permissions-Policy is now `microphone=()`.
+
+Tests: `install-teams-app.test.sh` 47/47, `teams-app-live.sh` 16/16 on the
+real tarball.
+
+**Update-All checklist.** Code + tests [done] pin, headers, new header check;
+version [done] `VERSION` + README; `.env.example` [done]; docs [done]
+`docs/TEAMS.md`; continuity [done] todo, progress, handoff; ADR [done]
+torii-teams ADR 0005; deploy: `suite-stages-vps.yml` stages=teams_app (owner
+approved "Deploy torii.4 when it's tagged").
+
 ## Release v0.9.33-alpha: pin torii-teams 0.6.1-torii.3 (2026-11-04)
 
 A live browser check of teams.chiefmonkey.art (0.6.1-torii.2) found that the

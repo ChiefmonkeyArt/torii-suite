@@ -58,12 +58,13 @@ provenance. No compiler runs on the VPS.
   when set, see docs/CONTINUUM-HOST.md, and `https://<domain>`) so Continuum's Team view can embed the app
   (torii-teams ADR 0002), or `'none'` without Continuum; no `X-Frame-Options`
   (v0.9.30-alpha). Also `Referrer-Policy: no-referrer`, a Permissions-Policy
-  allowing only the microphone (voice notes) and COOP. Only GET and HEAD.
+  denying geolocation, microphone, camera and payment (v0.9.34-alpha; before
+  that it allowed the microphone for voice notes), and COOP. Only GET and HEAD.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
-Pinned release (v0.9.33-alpha): torii-teams `0.6.1-torii.3` (commit ec2bc86),
-SHA-256 `3d74c2ccc0960be022fa0b80a9e2ee33a24ecd8bd1c1a56aca147e1787a2a14d`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.34-alpha): torii-teams `0.6.1-torii.4` (commit 7382de5),
+SHA-256 `9c251d3c9954ce629f63c690e96352e72ae629dc724f825fc5f4368e3bcdabd2`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
