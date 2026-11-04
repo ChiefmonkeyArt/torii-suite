@@ -6,6 +6,7 @@
 - [x] `bootstrap.sh` stage + `CONTINUUM_HOST` export for the Teams app; `.env.example`; `docs/CONTINUUM-HOST.md`.
 - [x] Tests: `test/install-continuum-host.test.sh` 27/27, `test/continuum-host-live.sh` 26/26 (real nginx); CI `continuum-host.yml`.
 - [ ] Deploy on chiefmonkey.art with the Teams MVP (owner-approved 2026-11-04).
+- [x] v0.9.32-alpha: Teams app detects Continuum at its real config path.
 
 ## Torii Teams app v0.9.27-alpha (TEAMS-2c a)
 
