@@ -42,6 +42,8 @@
 
 ### Active tasks
 
+- [ ] **HIGH PRIORITY — FIPS-DEFAULT-1: FIPS on by default across all apps** (owner, 2026-11-04; schedule after the Teams MVP). Scope: Plebeian (market), Torii Quest, Torii Continuum and the marketplace. Rules: (1) each app gets an ADR before its behaviour changes; (2) any edit to PlebeianApp/market needs the owner's explicit approval, and analysis there stays read-only; (3) the FIPS trial teardown (removing fips-trial relay/coord/grasp, which hold :7334) does not remove or pause FIPS. It only frees the port for the real Teams FIPS install.
+
 - **SUITE-ENV-SELFSOURCE-1 - install-continuum.sh self-sources the suite .env with auto-export. DONE v0.9.11-alpha.** Direct installer runs (without bootstrap.sh's exported env) now resolve TORII_DOMAIN/CONTINUUM_ADMIN_NPUB/OLLAMA_* from the suite `.env` via a `set -a`-wrapped source, and `SUITE_WORK_DIR` defaults to `/opt/torii-suite/work`. See `torii-suite-progress.md`.
 
 - **SUITE-ADMIN-NPUB-1 - thread CONTINUUM_ADMIN_NPUB into torii-base as TORII_ADMIN_NPUB. DONE v0.9.10-alpha.** torii-base v0.1.9 swapped the install token for NIP-07 npub sign-in and now requires `TORII_ADMIN_NPUB` at bootstrap; `bootstrap.sh` passes the operator's `CONTINUUM_ADMIN_NPUB` through so the base layer records the same admin identity as install. See progress.
