@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.33-alpha: Teams keeps to your node
+
+`install-teams-app.sh` installs torii-teams `0.6.1-torii.3`. The Torii build
+no longer adds Cordn's public coordinator or publishes members' key packages
+there (torii-teams ADR 0003). In project mode, the main pane shows only
+project channels.
+
 ### New in v0.9.30-alpha: Teams inside Continuum
 
 `install-teams-app.sh` installs torii-teams `0.6.1-torii.2`: with Continuum

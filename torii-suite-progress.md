@@ -1,5 +1,31 @@
 # Torii Suite Progress
 
+## Release v0.9.33-alpha: pin torii-teams 0.6.1-torii.3 (2026-11-04)
+
+A live browser check of teams.chiefmonkey.art (0.6.1-torii.2) found that the
+upstream first-run seed had added Cordn's public coordinator (contextvm and
+primal relays), so auto-publish would send members' key packages to a third
+party. torii-teams PR #8 (ec2bc86) adds `VITE_TORII_NODE_BUILD=1`: no seed, no
+migration probe and no fallback publish to Cordn (ADR 0003). The main pane is
+project-only, and the project list loads once per account. Release verified:
+SHA-256 `3d74c2ccc0960be022fa0b80a9e2ee33a24ecd8bd1c1a56aca147e1787a2a14d`
+matches, MANIFEST commit ec2bc86, attestation present. The released bytes,
+served locally, seed only the node coordinator. Also checked live on
+v0.9.32:
+- Teams frames inside a continuum.chiefmonkey.art page, and other origins are
+  blocked by frame-ancestors.
+- Cross-origin sign-in reaches /api/team/auth/verify (a throwaway key gets
+  not_member).
+
+Tests: `install-teams-app.test.sh` 46/46, `teams-app-live.sh` 16/16 on the
+real tarball. Not yet redeployed.
+
+**Update-All checklist.** Code + tests [done] pin; version [done] `VERSION` +
+README; `.env.example` [done]; docs [done] `docs/TEAMS.md`; continuity [done]
+todo, progress, handoff; ADR [done] torii-teams ADR 0003; deploy [pending]
+the other session runs `suite-stages-vps.yml` (owner approved "do all the
+things").
+
 ## Release v0.9.32-alpha: Teams app finds Continuum (2026-11-04)
 
 Found in the live Teams MVP deploy on chiefmonkey.art: `install-teams-app.sh` (v0.9.28+) looked for the Continuum config under `$SUITE_WORK_DIR/torii-continuum/agent/config.yaml`, but `install-continuum.sh` writes `$APPS_ROOT/continuum/agent/repo/agent/config.yaml`. Continuum was never detected, so the node file had no `continuum`, the Teams CSP said `frame-ancestors 'none'`, and Continuum's `cors_origins`/`teams.app_url` were not set. Fixed the path; the contract test now checks that both installers agree (46/46).
