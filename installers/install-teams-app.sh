@@ -24,10 +24,10 @@ die() { printf '\033[31mxx  install-teams-app: %s\033[0m\n' "$*" >&2; exit 1; }
 
 # Pinned release. Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-# 0.6.1-torii.3 = torii-teams ec2bc86; SHA-256 checked against the GitHub release
+# 0.6.1-torii.4 = torii-teams 7382de5; SHA-256 checked against the GitHub release
 # and its build-provenance attestation.
-TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.3}"
-TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-3d74c2ccc0960be022fa0b80a9e2ee33a24ecd8bd1c1a56aca147e1787a2a14d}"
+TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.4}"
+TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-9c251d3c9954ce629f63c690e96352e72ae629dc724f825fc5f4368e3bcdabd2}"
 [[ -n "$TEAMS_APP_TAG" && -n "$TEAMS_APP_SHA256" ]] \
   || die "no Torii Teams release pinned yet (set TEAMS_APP_TAG and TEAMS_APP_SHA256)"
 [[ "$TEAMS_APP_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-torii\.[0-9]+$ ]] || die "bad TEAMS_APP_TAG"
