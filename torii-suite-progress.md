@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Roadmap: FIPS on by default (2026-11-04, docs only)
+
+High-priority item added after the Teams MVP: FIPS on by default across Plebeian, Quest, Continuum and the marketplace. Each app gets an ADR first; the market needs owner approval.
+
 ## Release v0.9.29-alpha: first Torii Teams release pinned (2026-10-31)
 
 Owner approved the first torii-teams tag. `0.6.1-torii.1` (d2a2f22) built in `torii-release.yml`: tarball, `.sha256`, `MANIFEST.json`, build-provenance attestation. The download matched its checksum, carried no `.well-known`, `_headers`, `_redirects` or `torii-node.json`, and passed `test/teams-app-live.sh` 16/16. `install-teams-app.sh` now pins its tag and SHA-256 `8f7ae47641784511...`.
