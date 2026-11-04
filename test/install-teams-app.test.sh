@@ -29,6 +29,12 @@ has 'location /.well-known/ { return 404; }' "$I" "no .well-known on the app hos
 has 'never served over plain HTTP' "$I" "no app over plain HTTP"
 has 'teams_continuum_config' "$I" "sets Continuum cors_origins and teams.app_url"
 has 'torii register teams' "$I" "registers a launcher tile"
+grep -qF 'AGENT_HOME="${APPS_ROOT}/continuum/agent"' "$ROOT/installers/install-continuum.sh" \
+  && grep -qF 'CONFIG_FILE="${AGENT_REPO}/agent/config.yaml"' "$ROOT/installers/install-continuum.sh" \
+  && grep -qF 'CONTINUUM_CONFIG="${APPS_ROOT}/continuum/agent/repo/agent/config.yaml"' "$I" \
+  && ok "Continuum config path matches install-continuum.sh" || bad "Continuum config path matches install-continuum.sh"
+n="$(grep -n '^APPS_ROOT=' "$I" | head -1 | cut -d: -f1)"; m="$(grep -n '^CONTINUUM_CONFIG=' "$I" | cut -d: -f1)"
+[[ -n "$n" && -n "$m" && "$n" -lt "$m" ]] && ok "APPS_ROOT is set before the Continuum path" || bad "APPS_ROOT is set before the Continuum path"
 has 'INSTALL_TEAMS_APP="${INSTALL_TEAMS_APP:-0}"' "$ROOT/bootstrap.sh" "bootstrap defaults the app off"
 has '_stage_teams_app' "$ROOT/bootstrap.sh" "bootstrap has a Teams app stage"
 has 'INSTALL_TEAMS_APP=0' "$ROOT/.env.example" ".env.example documents INSTALL_TEAMS_APP"

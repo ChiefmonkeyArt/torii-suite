@@ -1,5 +1,11 @@
 # Torii Suite Progress
 
+## Release v0.9.32-alpha: Teams app finds Continuum (2026-11-04)
+
+Found in the live Teams MVP deploy on chiefmonkey.art: `install-teams-app.sh` (v0.9.28+) looked for the Continuum config under `$SUITE_WORK_DIR/torii-continuum/agent/config.yaml`, but `install-continuum.sh` writes `$APPS_ROOT/continuum/agent/repo/agent/config.yaml`. Continuum was never detected, so the node file had no `continuum`, the Teams CSP said `frame-ancestors 'none'`, and Continuum's `cors_origins`/`teams.app_url` were not set. Fixed the path; the contract test now checks that both installers agree (46/46).
+
+**Update-All checklist.** Code + tests [done]; version [done] `VERSION` + README; docs [done] handoff; continuity [done] todo, progress; ADR [skipped] bug fix, no decision change; deploy [done after merge] owner-approved Teams MVP.
+
 ## Release v0.9.31-alpha: Continuum on its own host (2026-11-04)
 
 Teams MVP step 2 (owner: Teams inside `continuum.chiefmonkey.art`). New opt-in `install-continuum-host.sh` serves Continuum on `continuum.<domain>`: the vhost includes the fragment `install-continuum.sh` already writes plus the torii-base `/api/` snippet, `/` goes to `/continuum/` and other paths are 404. The main-domain `/continuum/*` gets a 301 (path and query kept), written only once the host has a certificate. A rejected `nginx -t` rolls back. `install-continuum.sh` now includes `/opt/torii/nginx-snippets/continuum-headers*.inc` in its four locations (the glob matches nothing without the host) and drops a redundant `expires 30d` that sent a second Cache-Control. Headers: HSTS, nosniff, `frame-ancestors 'none'` + `X-Frame-Options: DENY`, and microphone only for the Teams origin. `bootstrap.sh` exports `CONTINUUM_HOST`, which the v0.9.30 Teams installer reads. Continuum needs no change (sign-in does not bind to the origin). Tests: contract 27/27, live nginx 26/26.

@@ -82,7 +82,9 @@ MANIFEST_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[
 [[ "$MANIFEST_TAG" == "$TEAMS_APP_TAG" ]] || die "artifact is ${MANIFEST_TAG}, expected ${TEAMS_APP_TAG}"
 # Continuum frames the app in its Team view (ADR 0002): allow only its hosts.
 CONTINUUM=0
-CONTINUUM_CONFIG="${SUITE_WORK_DIR:-/opt/torii-suite/work}/torii-continuum/agent/config.yaml"
+# Same path as install-continuum.sh (AGENT_REPO/agent/config.yaml). v0.9.32: the
+# old work-dir path never matched, so Continuum was never detected.
+CONTINUUM_CONFIG="${APPS_ROOT}/continuum/agent/repo/agent/config.yaml"
 [[ -f "$CONTINUUM_CONFIG" && -f /etc/systemd/system/continuum-agent.service ]] && CONTINUUM=1
 CONTINUUM_HOST="${CONTINUUM_HOST:-}"
 FRAME_HOSTS=()
