@@ -15,6 +15,7 @@
 - [x] v0.9.28-alpha: write `teams.app_url` into the Continuum agent config (TEAMS-2a Team view link; Continuum adds the link).
 - [x] v0.9.29-alpha: pinned torii-teams `0.6.1-torii.1` (tag + SHA-256).
 - [x] v0.9.30-alpha: pin `0.6.1-torii.2` (per-project sidebar, torii-teams ADR 0002); `frame-ancestors` = Continuum hosts, no `X-Frame-Options`; node file `continuum` honours `CONTINUUM_HOST` (vhost lands in v0.9.31, other session).
+- [x] v0.9.33-alpha: pin `0.6.1-torii.3` (ec2bc86; node builds never contact Cordn's coordinator, ADR 0003; project-only main pane). Redeploy: `suite-stages-vps.yml` suite_tag=v0.9.33-alpha stages=teams_app (other session).
 - [ ] Deploy: DNS A record for `teams.<domain>`, then `INSTALL_TEAMS_APP=1` (after the Plebeian trial; owner approval; run from tags).
 
 ## Torii Teams services v0.9.26-alpha (TEAMS-2b)
