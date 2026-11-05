@@ -23,7 +23,8 @@ Torii Teams app lets frame it (`frame-ancestors`, docs/TEAMS.md).
 - Headers (`/opt/torii/nginx-snippets/continuum-headers.inc`, included in every
   Continuum location): HSTS, `nosniff`, `frame-ancestors 'none'` plus
   `X-Frame-Options: DENY` (nothing frames Continuum), and a Permissions-Policy
-  that passes the microphone only to the Teams origin (the Team view iframe).
+  that gives the microphone to no origin (v0.9.36-alpha; the Team view iframe
+  allows only `clipboard-write` since Continuum v0.2.195-alpha).
 - `bootstrap.sh` exports `CONTINUUM_HOST`, so `install-teams-app.sh` writes it
   into `/torii-node.json` (`"continuum"`) and the Teams CSP.
 

@@ -283,6 +283,14 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.36-alpha: team chats without reloads
+
+Pins torii-teams `0.6.1-torii.6`, for Continuum v0.2.195-alpha. A teammate who
+opens Teams is added to the project chat within about a minute and their chat
+opens by itself; nobody reloads. Names and pictures come from your own
+Continuum, not public profile services. The Continuum host no longer passes the
+microphone to any origin.
+
 ### New in v0.9.35-alpha: no more signer popup storms
 
 Pins torii-teams `0.6.1-torii.5`. In 0.6.1-torii.4, Teams checked the roster
