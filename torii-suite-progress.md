@@ -1,5 +1,17 @@
 # Torii Suite Progress
 
+## Release v0.9.37-alpha: pin torii-teams 0.6.1-torii.7 (2026-11-05)
+
+The owner asked for images and files to move to the node's own Blossom server.
+New `lib/teams-files.mjs` (`torii-teams-files`, Node built-ins only) runs on
+127.0.0.1:8805 behind `https://<teams host>/files/`. Uploads use the member's
+Continuum session, checked with Continuum v0.2.196-alpha's
+`GET /api/team/files-ok`; reads are ciphertext served as attachments in a
+sandbox. With it on (default with Continuum) the Teams CSP allows only this
+node's hosts. A browser test found the old CSP blocked the app reading picked
+files through `blob:` URLs, so `connect-src` now includes `blob:` in both
+modes. Tests: install-teams-app 68/68, teams-files 4/4, teams-app-live 27/27.
+
 ## Release v0.9.36-alpha: pin torii-teams 0.6.1-torii.6 (2026-11-05)
 
 The owner wanted chats to start and fill without reloading the page. torii-teams

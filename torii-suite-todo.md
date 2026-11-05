@@ -16,6 +16,7 @@
 - [x] v0.9.29-alpha: pinned torii-teams `0.6.1-torii.1` (tag + SHA-256).
 - [x] v0.9.30-alpha: pin `0.6.1-torii.2` (per-project sidebar, torii-teams ADR 0002); `frame-ancestors` = Continuum hosts, no `X-Frame-Options`; node file `continuum` honours `CONTINUUM_HOST` (vhost lands in v0.9.31, other session).
 - [x] v0.9.33-alpha: pin `0.6.1-torii.3` (ec2bc86; node builds never contact Cordn's coordinator, ADR 0003; project-only main pane). Redeploy: `suite-stages-vps.yml` suite_tag=v0.9.33-alpha stages=teams_app (other session).
+- [x] v0.9.37-alpha: pin `0.6.1-torii.7` (ADR 0007): node file server `torii-teams-files` at `/files/` (Continuum-session uploads via `/api/team/files-ok`, 100 MiB/file, 10 GiB quota), node file `files`, node-only CSP; CSP `connect-src` gains `blob:` (local file reads). Redeploy continuum + teams_app.
 - [x] v0.9.36-alpha: pin `0.6.1-torii.6` (590d204; ADR 0006 membership signals, no reloads; profiles via Continuum); Continuum host `microphone=()`. Redeploy continuum (v0.2.195-alpha, suite_tag=v0.9.36-alpha) + teams_app.
 - [x] v0.9.35-alpha: pin `0.6.1-torii.5` (05a6c37; fixes endless signer popups from torii.4). Redeploy teams_app.
 - [x] v0.9.34-alpha: pin `0.6.1-torii.4` (7382de5; own white-labelled Teams UI, roster = membership, ADR 0005); Teams headers `microphone=()`. Redeploy: `suite-stages-vps.yml` suite_tag=v0.9.34-alpha stages=teams_app.

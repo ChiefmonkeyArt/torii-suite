@@ -84,6 +84,38 @@ check "headers snippet accepts the framed CSP" teams_security_headers "$FCSP"
 refuse "headers snippet refuses an injected CSP" teams_security_headers "default-src 'self'\"; return 200"
 printf '<html></html>' > "$T/empty.html"; refuse "CSP needs the start-up script" teams_csp "$T/empty.html"
 
+# ── Node file server (torii-teams ADR 0007) ──
+J="$(teams_node_json "$PK" example.com relay.example.com "" 1 continuum.example.com teams.example.com)"
+[[ "$J" == *'"files":"https://teams.example.com/files"'* ]] && ok "node file names the node file server" || bad "node file files ($J)"
+python3 -c 'import json,sys; json.loads(sys.argv[1])' "$J" && ok "node file with files is valid JSON" || bad "node file JSON"
+refuse "file server needs Continuum" teams_node_json "$PK" example.com relay.example.com "" 0 example.com teams.example.com
+refuse "a bad files host is refused" teams_node_json "$PK" example.com relay.example.com "" 1 example.com 'evil.com/x'
+[[ "$(teams_node_json "$PK" example.com relay.example.com "" 1)" != *'"files"'* ]] && ok "no files entry unless asked" || bad "files entry by default"
+NCSP="$(teams_csp "$T/index.html" --node continuum.example.com relay.example.com continuum.example.com)"
+[[ "$NCSP" == *"connect-src 'self' blob: https://continuum.example.com wss://relay.example.com;"* ]] && ok "node CSP: connect only to self, Continuum and the relay" || bad "node CSP connect ($NCSP)"
+[[ "$NCSP" == *"img-src 'self' data: blob:;"* && "$NCSP" == *"media-src 'self' blob:;"* && "$NCSP" != *"https:;"* ]] && ok "node CSP: no remote images or media" || bad "node CSP images ($NCSP)"
+[[ "$NCSP" == *"frame-ancestors https://continuum.example.com" ]] && ok "node CSP keeps the frame hosts" || bad "node CSP frames ($NCSP)"
+check "headers snippet accepts the node CSP" teams_security_headers "$NCSP"
+[[ "$CSP" == *"connect-src 'self' blob: https: wss:;"* ]] && ok "default CSP: local blob: reads, any https/wss host" || bad "default CSP ($CSP)"
+refuse "node CSP refuses a bad relay host" teams_csp "$T/index.html" --node continuum.example.com 'x; script-src *'
+printf 'server:\n  host: 127.0.0.1\n  port: 9911 # agent\nteams:\n  port: 1\n' > "$T/p.yaml"
+[[ "$(teams_continuum_port "$T/p.yaml")" == 9911 ]] && ok "reads the Continuum server.port" || bad "Continuum port"
+printf 'teams:\n  port: 1\n' > "$T/p2.yaml"
+[[ "$(teams_continuum_port "$T/p2.yaml")" == 8787 ]] && ok "Continuum port defaults to 8787" || bad "Continuum port default"
+U="$(teams_files_unit /usr/bin/node)"
+for w in 'DynamicUser=yes' 'StateDirectory=torii-teams-files' 'ProtectSystem=strict' 'IPAddressAllow=localhost' 'NoNewPrivileges=yes' 'ExecStart=/usr/bin/node /opt/torii/teams-files/server.mjs'; do
+  [[ "$U" == *"$w"* ]] || bad "unit has $w"
+done && ok "file server unit is sandboxed and loopback-only"
+refuse "unit refuses a strange node path" teams_files_unit '/usr/bin/node; rm -rf /'
+has 'TEAMS_FILES="${TEAMS_FILES:-1}"' "$I" "file server on by default with Continuum"
+has '(( CONTINUUM == 1 )) || TEAMS_FILES=0' "$I" "file server only with Continuum"
+has 'PUT/files/upload|DELETE/files/[0-9a-f]{64}' "$I" "only uploads and deletes may PUT/DELETE"
+has 'proxy_pass http://127.0.0.1:${TEAMS_FILES_PORT};' "$I" "file server is reached over loopback"
+has 'TEAMS_FILES=1' "$ROOT/.env.example" ".env.example documents TEAMS_FILES"
+if command -v node >/dev/null; then
+  node --test "$ROOT/test/teams-files.test.mjs" >/dev/null 2>&1 && ok "file server unit tests (node --test)" || bad "file server unit tests"
+fi
+
 # Continuum config edit: cors_origins + teams.app_url, idempotent.
 cat > "$T/c.yaml" <<'Y'
 server:

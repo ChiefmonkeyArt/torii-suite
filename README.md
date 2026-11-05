@@ -283,6 +283,14 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.37-alpha: team files stay on your server
+
+Pins torii-teams `0.6.1-torii.7`, for Continuum v0.2.196-alpha. Images and
+files sent in Teams are stored on your own server (`https://<teams host>/files/`)
+instead of public file hosts, and the Teams page can now only talk to your own
+servers. Only signed-in team members can upload. `TEAMS_FILES=0` keeps the old
+public hosts. See docs/TEAMS.md.
+
 ### New in v0.9.36-alpha: team chats without reloads
 
 Pins torii-teams `0.6.1-torii.6`, for Continuum v0.2.195-alpha. A teammate who

@@ -52,8 +52,13 @@ provenance. No compiler runs on the VPS.
   `https://<domain>`; with it, the app's sidebar is one channel per project. The agent restarts only
   when the config changed.
 - Headers on every location: a per-build Content-Security-Policy (hashes of the
-  inline start-up scripts; `connect-src 'self' https: wss:` because members
-  upload to Blossom servers and may add relays), HSTS, `nosniff`,
+  inline start-up scripts). With the node file server (default with Continuum,
+  v0.9.37-alpha) the app may connect only to itself, Continuum and the node
+  relay (`connect-src 'self' blob: https://<continuum host> wss://<relay host>`)
+  and show images and media only from itself (`img-src 'self' data: blob:`).
+  Without it, `connect-src 'self' blob: https: wss:` because members upload to
+  public Blossom servers. `blob:` lets the app read files a member picks;
+  it is not a network source. Also HSTS, `nosniff`,
   `frame-ancestors` limited to the Continuum hosts (`https://$CONTINUUM_HOST`
   when set, see docs/CONTINUUM-HOST.md, and `https://<domain>`) so Continuum's Team view can embed the app
   (torii-teams ADR 0002), or `'none'` without Continuum; no `X-Frame-Options`
@@ -63,8 +68,34 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
-Pinned release (v0.9.36-alpha): torii-teams `0.6.1-torii.6` (commit 590d204),
-SHA-256 `8a045309271d60f29113512d68605fd160f563a49b1b98f3d63bf9095616d74a`. An operator can pin another one with both `TEAMS_APP_TAG` and
+### Node file server (v0.9.37-alpha, torii-teams ADR 0007)
+
+With Continuum, images and files sent in Teams are stored on this server, not
+on public Blossom hosts. `torii-teams-files` (`/opt/torii/teams-files/server.mjs`,
+Node built-ins only) listens on `127.0.0.1:${TEAMS_FILES_PORT:-8805}` and nginx
+serves it at `https://<teams host>/files/`. It runs as a systemd `DynamicUser`
+with its data in `/var/lib/torii-teams-files` and settings in
+`/etc/torii/teams/files.env`.
+
+- Uploads (`PUT /files/upload`) and deletes need the member's Continuum Teams
+  session (`Authorization: Bearer`). The server asks Continuum
+  `GET /api/team/files-ok` over loopback and caches the answer for 60 s. Only
+  the owner or someone on a project roster may store files; only the uploader
+  or the owner may delete one.
+- Reads are open: every blob is end-to-end encrypted. They are sent as
+  `application/octet-stream`, `attachment`, `nosniff` and
+  `Content-Security-Policy: default-src 'none'; sandbox`.
+- Limits: `TEAMS_FILES_MAX_MB` per file (default 100) and `TEAMS_FILES_QUOTA_GB`
+  in total (default 10).
+- The node file gains `"files": "https://<teams host>/files"`. Teams then uses
+  only the node: no public upload fallback, and media stored elsewhere shows
+  "Stored outside this node". Images sent before this release that are on
+  public Blossom no longer show.
+- `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
+  Continuum it is always off.
+
+Pinned release (v0.9.37-alpha): torii-teams `0.6.1-torii.7` (commit 1dd4ce4),
+SHA-256 `96c4ebb5d523385f132bbcd6d0e149df584eab8e01b8d4d0c5c5d2f87f19d1ab`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
