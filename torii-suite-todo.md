@@ -16,6 +16,7 @@
 - [x] v0.9.29-alpha: pinned torii-teams `0.6.1-torii.1` (tag + SHA-256).
 - [x] v0.9.30-alpha: pin `0.6.1-torii.2` (per-project sidebar, torii-teams ADR 0002); `frame-ancestors` = Continuum hosts, no `X-Frame-Options`; node file `continuum` honours `CONTINUUM_HOST` (vhost lands in v0.9.31, other session).
 - [x] v0.9.33-alpha: pin `0.6.1-torii.3` (ec2bc86; node builds never contact Cordn's coordinator, ADR 0003; project-only main pane). Redeploy: `suite-stages-vps.yml` suite_tag=v0.9.33-alpha stages=teams_app (other session).
+- [x] v0.9.35-alpha: pin `0.6.1-torii.5` (05a6c37; fixes endless signer popups from torii.4). Redeploy teams_app.
 - [x] v0.9.34-alpha: pin `0.6.1-torii.4` (7382de5; own white-labelled Teams UI, roster = membership, ADR 0005); Teams headers `microphone=()`. Redeploy: `suite-stages-vps.yml` suite_tag=v0.9.34-alpha stages=teams_app.
 - [ ] Deploy: DNS A record for `teams.<domain>`, then `INSTALL_TEAMS_APP=1` (after the Plebeian trial; owner approval; run from tags).
 

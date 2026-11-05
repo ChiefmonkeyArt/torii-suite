@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.35-alpha: no more signer popup storms
+
+Pins torii-teams `0.6.1-torii.5`. In 0.6.1-torii.4, Teams checked the roster
+every time its page got focus. Closing a signer-extension popup gave focus back
+to the page, so each popup opened the next. Teams now checks only when
+something is pending, at most every 5 to 30 minutes.
+
 ### New in v0.9.34-alpha: Teams' own simple chat
 
 `install-teams-app.sh` installs torii-teams `0.6.1-torii.4`: Torii's own

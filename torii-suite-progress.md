@@ -1,5 +1,19 @@
 # Torii Suite Progress
 
+## Release v0.9.35-alpha: pin torii-teams 0.6.1-torii.5 (2026-11-05)
+
+Owner report: Continuum's Team page opened endless signer-extension popups.
+The cause was torii.4 running a roster check on window focus. Each check signs
+a coordinator request and decrypts the reply, and closing a popup refocuses the
+page. torii-teams PR #11 (05a6c37) drops the focus trigger. The coordinator is
+now asked only when something is pending, at most every 5 to 30 minutes.
+Release SHA-256 `5a43ea27...f7f5` matches and its attestation is verified.
+
+**Update-All checklist.** Code + tests [done] pin; version [done] `VERSION` +
+README; `.env.example` [done]; docs [done] `docs/TEAMS.md`; continuity [done];
+ADR [done] torii-teams ADR 0005 "Signer prompts"; deploy: teams_app stage (bug
+fix for the owner's own box; the owner reported it and asked for the fix).
+
 ## Release v0.9.34-alpha: pin torii-teams 0.6.1-torii.4 (2026-11-04)
 
 The owner asked for a simpler, white-labelled Teams instead of Cordn's full UI.
