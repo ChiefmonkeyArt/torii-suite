@@ -63,8 +63,8 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
-Pinned release (v0.9.34-alpha): torii-teams `0.6.1-torii.4` (commit 7382de5),
-SHA-256 `9c251d3c9954ce629f63c690e96352e72ae629dc724f825fc5f4368e3bcdabd2`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.35-alpha): torii-teams `0.6.1-torii.5` (commit 05a6c37),
+SHA-256 `5a43ea273b158f7cd5f648b39dcc8a50b128c65821dc34ee0ac0f1d65becf7f5`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
