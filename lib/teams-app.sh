@@ -4,7 +4,8 @@
 #
 # Contract (torii-teams docs/torii/adr-0001-node-mount.md):
 #   /torii-node.json = {"version":1,"name":..,"coordinator":<hex64>,
-#                       "relays":["wss://<relay host>"],"git":..,"continuum":..}
+#                       "relays":["wss://<relay host>"],"git":..,"continuum":..,
+#                       "files":"https://<teams host>/files"}   (ADR 0007)
 #   The app on https uses only wss:// relays; .fips endpoints are for native
 #   clients and the CLI on the mesh.
 
@@ -21,12 +22,12 @@ teams_coord_pub() {
   printf '%s\n' "$pk"
 }
 
-# teams_node_json <pubkey> <domain> <relay host> <git url|""> <continuum 0|1> [continuum host]
+# teams_node_json <pubkey> <domain> <relay host> <git url|""> <continuum 0|1> [continuum host] [files host]
 # Inputs are validated here, so plain printf cannot produce broken JSON.
 # The Continuum origin is https://<continuum host> (CONTINUUM_HOST, Suite
 # v0.9.31) when given, else https://<domain>; /api/ is served on both.
 teams_node_json() {
-  local pk="$1" domain="$2" relay="$3" git="${4:-}" continuum="${5:-0}" chost="${6:-$2}" extra=""
+  local pk="$1" domain="$2" relay="$3" git="${4:-}" continuum="${5:-0}" chost="${6:-$2}" fhost="${7:-}" extra=""
   [[ "$pk" =~ ^[0-9a-f]{64}$ ]] || return 1
   teams_valid_host "$domain" && teams_valid_host "$relay" && teams_valid_host "$chost" || return 1
   if [[ -n "$git" ]]; then
@@ -34,21 +35,33 @@ teams_node_json() {
     extra+=",\"git\":\"${git}\""
   fi
   [[ "$continuum" == 1 ]] && extra+=",\"continuum\":\"https://${chost}\""
+  # The node file server (ADR 0007) needs Continuum for its upload gate.
+  if [[ -n "$fhost" ]]; then
+    [[ "$continuum" == 1 ]] && teams_valid_host "$fhost" || return 1
+    extra+=",\"files\":\"https://${fhost}/files\""
+  fi
   printf '{"version":1,"name":"%s team","coordinator":"%s","relays":["wss://%s"]%s}\n' \
     "$domain" "$pk" "$relay" "$extra"
 }
 
-# teams_csp <index.html> [frame host...] → the Content-Security-Policy value
-# for this build. Only the listed hosts (Continuum's, ADR 0002) may frame the
-# app; with none, nobody may.
+# teams_csp <index.html> [--node <continuum host> <relay host>] [frame host...]
+# → the Content-Security-Policy value for this build. Only the listed hosts
+# (Continuum's, ADR 0002) may frame the app; with none, nobody may.
 # SvelteKit's start-up code is inline, so each inline <script> gets a sha256
 # hash; the policy changes every build and is rewritten on each install.
-#   connect-src https: — members upload images to Blossom servers and may
-#   reach Continuum sign-in; wss: — members may add relays and coordinators.
+#   Default: connect-src https: wss: and https: images, because members upload
+#   to public Blossom servers and may add relays.
+#   --node (files on the node, ADR 0007): the browser may reach only this
+#   origin, Continuum and the node relay; images and media only from here.
 teams_csp() {
-  local index="$1" hashes ancestors="" h
+  local index="$1" hashes ancestors="" h connect="'self' blob: https: wss:" img="'self' data: blob: https:" media="'self' blob: https:"
   shift
   [[ -f "$index" ]] || return 1
+  if [[ "${1:-}" == --node ]]; then
+    teams_valid_host "${2:-}" && teams_valid_host "${3:-}" || return 1
+    connect="'self' blob: https://$2 wss://$3" img="'self' data: blob:" media="'self' blob:"
+    shift 3
+  fi
   for h in "$@"; do
     teams_valid_host "$h" || return 1
     [[ " $ancestors " == *" https://$h "* ]] || ancestors+="${ancestors:+ }https://$h"
@@ -61,8 +74,8 @@ for body in re.findall(r"<script>(.*?)</script>", html, re.S):
 PY
 )" || return 1
   [[ -n "$hashes" ]] || return 1
-  printf "default-src 'self'; script-src 'self' %s; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; connect-src 'self' https: wss:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors %s\n" \
-    "$(printf '%s\n' "$hashes" | tr '\n' ' ' | sed 's/ $//')" "${ancestors:-'none'}"
+  printf "default-src 'self'; script-src 'self' %s; style-src 'self' 'unsafe-inline'; img-src %s; media-src %s; font-src 'self' data:; connect-src %s; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors %s\n" \
+    "$(printf '%s\n' "$hashes" | tr '\n' ' ' | sed 's/ $//')" "$img" "$media" "$connect" "${ancestors:-'none'}"
 }
 
 # teams_security_headers <csp> → nginx add_header block, re-declared in every
@@ -110,4 +123,58 @@ if text != before:
 else:
     print("unchanged")
 PY
+}
+
+# teams_continuum_port <config.yaml> → the Continuum agent's loopback port
+# (server.port, default 8787), for the file server's upload gate.
+teams_continuum_port() {
+  python3 - "$1" <<'PY'
+import re, sys
+text = open(sys.argv[1]).read()
+m = re.search(r"(?m)^server:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n|[ \t]*\n)*)", text)
+port = re.search(r"(?m)^[ \t]+port:[ \t]*([0-9]{1,5})[ \t]*(?:#.*)?$", m.group(1)) if m else None
+print(port.group(1) if port and 0 < int(port.group(1)) < 65536 else 8787)
+PY
+}
+
+# teams_files_unit <node binary> → systemd unit for the node file server
+# (ADR 0007): loopback only, DynamicUser, state in /var/lib/torii-teams-files.
+teams_files_unit() {
+  local node="$1"
+  [[ "$node" =~ ^/[A-Za-z0-9/._-]+$ ]] || return 1
+  cat <<UNIT
+# written by torii-suite (lib/teams-app.sh); torii-teams ADR 0007
+[Unit]
+Description=Torii Teams file server (encrypted team media)
+After=network.target continuum-agent.service
+
+[Service]
+ExecStart=${node} /opt/torii/teams-files/server.mjs
+EnvironmentFile=/etc/torii/teams/files.env
+DynamicUser=yes
+StateDirectory=torii-teams-files
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target
+UNIT
 }

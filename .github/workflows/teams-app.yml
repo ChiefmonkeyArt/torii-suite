@@ -1,7 +1,7 @@
 name: Teams app install
 on:
   pull_request:
-    paths: ['installers/install-teams-app.sh', 'lib/teams-app.sh', 'bootstrap.sh', '.env.example', 'test/install-teams-app.test.sh', 'test/teams-app-live.sh', '.github/workflows/teams-app.yml']
+    paths: ['installers/install-teams-app.sh', 'lib/teams-app.sh', 'bootstrap.sh', '.env.example', 'test/install-teams-app.test.sh', 'test/teams-app-live.sh', 'lib/teams-files.mjs', 'test/teams-files.test.mjs', '.github/workflows/teams-app.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -13,6 +13,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Contract and helper tests
         run: bash test/install-teams-app.test.sh
+      - name: File server tests (ADR 0007)
+        run: node --test test/teams-files.test.mjs
       - name: Live install against nginx (fixture build, self-signed cert)
         run: |
           set -euo pipefail

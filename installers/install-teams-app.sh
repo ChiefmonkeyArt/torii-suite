@@ -7,6 +7,8 @@
 #   https://teams.<domain>/torii-node.json
 #                                  node settings: coordinator from coord.pub,
 #                                  wss://relay.<domain>, optional Continuum
+#   https://teams.<domain>/files/  the node file server for encrypted team
+#                                  media (with Continuum; ADR 0007)
 #   /teams/ on the main host       launcher tile, redirects to the app
 #
 # Prebuilt, checksum-pinned release from ChiefmonkeyArt/torii-teams; no build on
@@ -24,10 +26,10 @@ die() { printf '\033[31mxx  install-teams-app: %s\033[0m\n' "$*" >&2; exit 1; }
 
 # Pinned release. Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-# 0.6.1-torii.6 = torii-teams 590d204; SHA-256 checked against the GitHub release
+# 0.6.1-torii.7 = torii-teams 1dd4ce4; SHA-256 checked against the GitHub release
 # and its build-provenance attestation.
-TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.6}"
-TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-8a045309271d60f29113512d68605fd160f563a49b1b98f3d63bf9095616d74a}"
+TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.7}"
+TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-96c4ebb5d523385f132bbcd6d0e149df584eab8e01b8d4d0c5c5d2f87f19d1ab}"
 [[ -n "$TEAMS_APP_TAG" && -n "$TEAMS_APP_SHA256" ]] \
   || die "no Torii Teams release pinned yet (set TEAMS_APP_TAG and TEAMS_APP_SHA256)"
 [[ "$TEAMS_APP_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-torii\.[0-9]+$ ]] || die "bad TEAMS_APP_TAG"
@@ -89,7 +91,25 @@ CONTINUUM_CONFIG="${APPS_ROOT}/continuum/agent/repo/agent/config.yaml"
 CONTINUUM_HOST="${CONTINUUM_HOST:-}"
 FRAME_HOSTS=()
 [[ "$CONTINUUM" == 1 ]] && FRAME_HOSTS=(${CONTINUUM_HOST:+"$CONTINUUM_HOST"} "$TORII_DOMAIN")
-CSP="$(teams_csp "$TMP/x/index.html" "${FRAME_HOSTS[@]}")" || die "could not derive the Content-Security-Policy"
+# Team media on the node's own file server (torii-teams ADR 0007). Needs
+# Continuum (its upload gate); TEAMS_FILES=0 keeps public Blossom servers.
+TEAMS_FILES="${TEAMS_FILES:-1}"
+[[ "$TEAMS_FILES" == 0 || "$TEAMS_FILES" == 1 ]] || die "TEAMS_FILES must be 0 or 1"
+(( CONTINUUM == 1 )) || TEAMS_FILES=0
+FILES_HOST="" CSP_NODE=()
+if (( TEAMS_FILES == 1 )); then
+  FILES_HOST="$APP_HOST"
+  CSP_NODE=(--node "${CONTINUUM_HOST:-$TORII_DOMAIN}" "$RELAY_HOST")
+  NODE_BIN="$(command -v node || true)"
+  [[ -n "$NODE_BIN" ]] || die "node not found (Continuum installs it); or set TEAMS_FILES=0"
+  TEAMS_FILES_MAX_MB="${TEAMS_FILES_MAX_MB:-100}"
+  TEAMS_FILES_QUOTA_GB="${TEAMS_FILES_QUOTA_GB:-10}"
+  [[ "$TEAMS_FILES_MAX_MB" =~ ^[0-9]{1,4}$ && "$TEAMS_FILES_QUOTA_GB" =~ ^[0-9]{1,6}$ ]] \
+    && (( TEAMS_FILES_MAX_MB > 0 && TEAMS_FILES_QUOTA_GB > 0 )) || die "bad TEAMS_FILES_MAX_MB / TEAMS_FILES_QUOTA_GB"
+  TEAMS_FILES_PORT="${TEAMS_FILES_PORT:-8805}"
+  [[ "$TEAMS_FILES_PORT" =~ ^[0-9]{2,5}$ ]] || die "bad TEAMS_FILES_PORT"
+fi
+CSP="$(teams_csp "$TMP/x/index.html" "${CSP_NODE[@]}" "${FRAME_HOSTS[@]}")" || die "could not derive the Content-Security-Policy"
 
 # 3. Release snapshot + atomic flip, keep the last 3.
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)-${TEAMS_APP_TAG}"
@@ -106,7 +126,7 @@ find "${APP_DIR}/releases" -mindepth 1 -maxdepth 1 -type d | sort | head -n -3 |
 # 4. Node settings, outside the release tree, 0644 root.
 NODE_JSON="$CONFIG/torii-node.json"
 [[ ! -L "$NODE_JSON" ]] || die "refusing symlinked $NODE_JSON"
-teams_node_json "$PK" "$TORII_DOMAIN" "$RELAY_HOST" "$GIT_URL" "$CONTINUUM" "${CONTINUUM_HOST:-$TORII_DOMAIN}" > "$TMP/node.json" \
+teams_node_json "$PK" "$TORII_DOMAIN" "$RELAY_HOST" "$GIT_URL" "$CONTINUUM" "${CONTINUUM_HOST:-$TORII_DOMAIN}" "$FILES_HOST" > "$TMP/node.json" \
   || die "could not write node settings"
 install -m 0644 -o root -g root "$TMP/node.json" "$NODE_JSON"
 
@@ -119,8 +139,51 @@ if (( CONTINUUM == 1 )); then
     || die "could not update the Continuum config"
   if [[ "$CHANGED" == changed ]]; then
     log "Continuum config: cors_origins + teams.app_url = https://${APP_HOST}"
-    systemctl restart continuum-agent.service
+    [[ "${SKIP_SYSTEMD:-0}" == 1 ]] || systemctl restart continuum-agent.service
   fi
+fi
+
+# 5b. Node file server (ADR 0007): loopback only, sandboxed, state in
+#     /var/lib/torii-teams-files. Blobs are client-side encrypted.
+FILES_UNIT=/etc/systemd/system/torii-teams-files.service
+if (( TEAMS_FILES == 1 )); then
+  CPORT="$(teams_continuum_port "$CONTINUUM_CONFIG")" || die "could not read the Continuum port"
+  install -d -m 0755 /opt/torii/teams-files
+  install -m 0644 -o root -g root "$ROOT/lib/teams-files.mjs" /opt/torii/teams-files/server.mjs
+  printf 'TEAMS_FILES_PORT=%s\nTEAMS_FILES_PUBLIC_URL=https://%s/files\nTEAMS_FILES_CONTINUUM=http://127.0.0.1:%s\nTEAMS_FILES_MAX_MB=%s\nTEAMS_FILES_QUOTA_GB=%s\n' \
+    "$TEAMS_FILES_PORT" "$APP_HOST" "$CPORT" "$TEAMS_FILES_MAX_MB" "$TEAMS_FILES_QUOTA_GB" > "$TMP/files.env"
+  install -m 0644 -o root -g root "$TMP/files.env" "$CONFIG/files.env"
+  teams_files_unit "$NODE_BIN" > "$TMP/files.unit" || die "could not write the file server unit"
+  install -m 0644 "$TMP/files.unit" "$FILES_UNIT"
+  if [[ "${SKIP_SYSTEMD:-0}" != 1 ]]; then
+    systemctl daemon-reload
+    systemctl enable torii-teams-files.service >/dev/null 2>&1
+    systemctl restart torii-teams-files.service
+  fi
+  log "file server: https://${APP_HOST}/files/ (${TEAMS_FILES_MAX_MB} MB per file, ${TEAMS_FILES_QUOTA_GB} GB total)"
+elif [[ -f "$FILES_UNIT" ]]; then
+  # Turned off: stop serving; stored files stay in /var/lib/torii-teams-files.
+  systemctl disable --now torii-teams-files.service >/dev/null 2>&1 || true
+  rm -f "$FILES_UNIT"
+  systemctl daemon-reload || true
+fi
+FILES_LOCATION="" FILES_METHODS=""
+if (( TEAMS_FILES == 1 )); then
+  FILES_METHODS="
+    set \$torii_method_uri \"\${request_method}\${uri}\";
+    if (\$torii_method_uri ~ \"^(PUT/files/upload|DELETE/files/[0-9a-f]{64})\$\") { set \$torii_method_ok 1; }"
+  MAXB=$(( TEAMS_FILES_MAX_MB + 1 ))
+  FILES_LOCATION="
+    # Node file server (ADR 0007): encrypted blobs, uploads gated by Continuum.
+    location /files/ {
+        client_max_body_size ${MAXB}m;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_read_timeout 900s;
+        proxy_send_timeout 900s;
+        proxy_set_header Host \$host;
+        proxy_pass http://127.0.0.1:${TEAMS_FILES_PORT};
+    }"
 fi
 
 # 6. Headers snippet (stable path) + vhost on its own certificate.
@@ -178,7 +241,11 @@ server {
     index index.html;
     server_tokens off;
     client_max_body_size 1k;
-    if (\$request_method !~ ^(GET|HEAD)\$) { return 405; }
+    # Only GET/HEAD, except uploads and deletes on the file server.
+    set \$torii_method_ok 0;
+    if (\$request_method ~ ^(GET|HEAD)\$) { set \$torii_method_ok 1; }${FILES_METHODS}
+    if (\$torii_method_ok = 0) { return 405; }
+${FILES_LOCATION}
 
     location /.well-known/ { return 404; }
     location = /torii-node.json {
