@@ -34,7 +34,7 @@ refuse "rejects a host with a space" continuum_valid_host 'a b.org'
 refuse "rejects an uppercase host" continuum_valid_host 'Continuum.example.org'
 
 h="$(continuum_host_headers teams.example.org)"
-[[ "$h" == *"microphone=(self \"https://teams.example.org\")"* ]] && ok "microphone delegated to the Teams origin only" || bad "microphone policy"
+[[ "$h" == *"microphone=()"* && "$h" != *"https://teams.example.org"* ]] && ok "microphone delegated to no origin, Teams included" || bad "microphone policy"
 [[ "$h" == *"frame-ancestors 'none'"* && "$h" == *'X-Frame-Options "DENY"'* ]] && ok "nothing may frame Continuum" || bad "frame policy"
 [[ "$h" == *"Strict-Transport-Security"* && "$h" == *"nosniff"* ]] && ok "HSTS + nosniff" || bad "HSTS/nosniff"
 [[ "$(continuum_host_headers '')" == *"microphone=()"* ]] && ok "no Teams app: no microphone" || bad "no-teams microphone"

@@ -1,5 +1,22 @@
 # Torii Suite Progress
 
+## Release v0.9.36-alpha: pin torii-teams 0.6.1-torii.6 (2026-11-05)
+
+The owner wanted chats to start and fill without reloading the page. torii-teams
+PR #12 (590d204, ADR 0006) adds membership signals with Continuum
+v0.2.195-alpha: Teams re-reads the roster every 60 s without the signer, a
+teammate's Teams reports "ready", and the owner's Teams adds them and reports
+"added". Profiles and avatars come from Continuum, not public relays. The
+Continuum Team view no longer passes the microphone to the Teams frame, so the
+Continuum host Permissions-Policy is now `microphone=()` for every origin.
+Release SHA-256 `8a045309...d74a` matches and its attestation is verified.
+
+**Update-All checklist.** Code + tests [done] pin, `lib/continuum-host.sh` +
+both host tests; version [done] `VERSION` + README; `.env.example` [done]; docs
+[done] `docs/TEAMS.md`, `docs/CONTINUUM-HOST.md`; continuity [done]; ADR [done]
+torii-teams ADR 0006 and Continuum `adr-teams-membership-signals.md`; deploy:
+continuum + teams_app stages (owner approval).
+
 ## Release v0.9.35-alpha: pin torii-teams 0.6.1-torii.5 (2026-11-05)
 
 Owner report: Continuum's Team page opened endless signer-extension popups.

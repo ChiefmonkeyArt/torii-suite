@@ -50,8 +50,8 @@ grep -qF 'continuum-headers*.inc' "$FRAGMENT" \
 [[ -f "$API_SNIPPET" ]] || die "no $API_SNIPPET (torii-base must run first)"
 command -v nginx >/dev/null || die "nginx not found"
 
-# 1. Headers for every Continuum location. The Team view passes the microphone
-#    to the Teams app, so name its origin when Teams is (being) installed.
+# 1. Headers for every Continuum location. The Teams host is validated when
+#    Teams is (being) installed; no origin gets the microphone (v0.9.36-alpha).
 TEAMS_HOST="${TORII_TEAMS_HOST-teams.${TORII_DOMAIN}}"
 [[ "${INSTALL_TEAMS_APP:-0}" == 1 || -e "/etc/nginx/sites-enabled/${TEAMS_HOST}.conf" ]] || TEAMS_HOST=""
 TMP="$(mktemp -d)"
