@@ -283,7 +283,15 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
-### New in v0.9.38-alpha: one sign-in for Teams
+### New in v0.9.39-alpha: invite links for Teams
+
+Pins torii-teams `0.6.1-torii.9`, for Continuum v0.2.198-alpha. The owner copies
+an invite link in Continuum's Team view and sends it any way they like. The
+person opening it signs in once and waits until the owner presses Let in; a link
+for someone already on the roster signs them straight in. Links expire and can
+be stopped. See docs/TEAMS.md.
+
+### v0.9.38-alpha: one sign-in for Teams
 
 Pins torii-teams `0.6.1-torii.8`, for Continuum v0.2.197-alpha. Teams asks the
 signer once and says so up front. The team session renews quietly for up to 7

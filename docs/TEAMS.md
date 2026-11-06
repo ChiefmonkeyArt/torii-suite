@@ -68,6 +68,19 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
+### Invite links (v0.9.39-alpha, torii-teams ADR 0009)
+
+The owner copies a link in Continuum's Team view:
+`https://<teams host>/chat/join/<id>#<secret>`. The secret is in the fragment,
+so it never reaches nginx logs or a `Referer`; Teams reads it at startup and
+clears the address bar. Continuum stores only a hash of it. An open link lets
+anyone holding it ask to join; the owner presses Let in (one roster signature)
+or Decline. A named link signs only the listed person in. The vhost's
+`try_files $uri /index.html` already serves `/chat/join/...`; no Suite config
+changes. Needs Continuum v0.2.198-alpha (older Continuum answers every link as
+"no longer works"; plain sign-in is unaffected). Deploy Continuum first, then
+`teams_app`.
+
 ### One sign-in (v0.9.38-alpha, torii-teams ADR 0008)
 
 Teams shows one consent card and asks the signer once (remote signers get every
@@ -105,8 +118,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.38-alpha): torii-teams `0.6.1-torii.8` (commit 05c9502),
-SHA-256 `f3900c7282224d37dc33ffb61fe9ec39b190403174b0bb9d6d1690e6b72475bc`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.39-alpha): torii-teams `0.6.1-torii.9` (commit e4084a8),
+SHA-256 `e9ca8e277a876b625709f54d362f12b2c29b7d2d2240ac0e2dbc7e3f22ecca20`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
