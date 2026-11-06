@@ -283,7 +283,15 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
-### New in v0.9.39-alpha: invite links for Teams
+### New in v0.9.40-alpha: joining Teams that works
+
+Pins torii-teams `0.6.1-torii.10`, for Continuum v0.2.199-alpha. A personal
+invite lets the person straight in with one click, with a small shisa welcome.
+A group link asks the owner first or, if the owner chooses, lets people straight
+in, and it works for as many people as the project has room for. People waiting
+show in Continuum's account menu. See docs/TEAMS.md.
+
+### v0.9.39-alpha: invite links for Teams
 
 Pins torii-teams `0.6.1-torii.9`, for Continuum v0.2.198-alpha. The owner copies
 an invite link in Continuum's Team view and sends it any way they like. The

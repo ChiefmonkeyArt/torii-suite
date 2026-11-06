@@ -68,6 +68,19 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
+### Joining that works (v0.9.40-alpha, torii-teams ADR 0010)
+
+A personal link (Continuum's Add person) lets the person straight in. A group
+link either asks the owner first (the default) or lets people straight in
+under one owner-signed grant (kind 27098) that sets its places and expiry.
+Group links default to the seats left on the project instead of one use.
+Continuum keeps one hidden Teams frame open after the owner signs in, so the
+owner's client adds people from any Continuum page. Embedded, Teams hides its
+own account footer. No Suite config changes: the existing `frame-src` and
+`frame-ancestors` already cover every Continuum page. Needs Continuum
+v0.2.199-alpha (an older Continuum keeps the torii.9 behaviour: group links ask
+first). Deploy Continuum first, then `teams_app`.
+
 ### Invite links (v0.9.39-alpha, torii-teams ADR 0009)
 
 The owner copies a link in Continuum's Team view:
@@ -118,8 +131,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.39-alpha): torii-teams `0.6.1-torii.9` (commit e4084a8),
-SHA-256 `e9ca8e277a876b625709f54d362f12b2c29b7d2d2240ac0e2dbc7e3f22ecca20`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.40-alpha): torii-teams `0.6.1-torii.10` (commit 73c4703),
+SHA-256 `82a354c377e582699512bb04d9d7a1fd63dde339090719a619d8ffd301e094df`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and

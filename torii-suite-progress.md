@@ -1,5 +1,14 @@
 # Torii Suite Progress
 
+## Release v0.9.40-alpha: pin torii-teams 0.6.1-torii.10 (2026-11-06)
+
+Joining that works (torii-teams ADR 0010): personal links straight in, group
+links ask first or straight in (owner-signed grant), places default to seats
+left, one Teams frame while Continuum is open, shisa welcome on the invite.
+Pin `0.6.1-torii.10` (73c4703), SHA-256
+`82a354c377e582699512bb04d9d7a1fd63dde339090719a619d8ffd301e094df`, attestation verified. Needs Continuum v0.2.199-alpha. No
+installer logic change.
+
 ## Release v0.9.39-alpha: pin torii-teams 0.6.1-torii.9 (2026-11-06)
 
 Invite links (torii-teams ADR 0009): the owner copies a link in Continuum's Team
