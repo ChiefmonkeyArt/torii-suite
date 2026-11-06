@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.38-alpha: one sign-in for Teams
+
+Pins torii-teams `0.6.1-torii.8`, for Continuum v0.2.197-alpha. Teams asks the
+signer once and says so up front. The team session renews quietly for up to 7
+days, so reloads and new tabs need no new signature, and the owner's chat
+inside Continuum's Team view needs no second sign-in. See docs/TEAMS.md.
+
 ### New in v0.9.37-alpha: team files stay on your server
 
 Pins torii-teams `0.6.1-torii.7`, for Continuum v0.2.196-alpha. Images and
