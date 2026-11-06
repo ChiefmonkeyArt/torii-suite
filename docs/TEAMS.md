@@ -68,6 +68,17 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
+### One sign-in (v0.9.38-alpha, torii-teams ADR 0008)
+
+Teams shows one consent card and asks the signer once (remote signers get every
+permission in the connect request). The Continuum team session is kept in the
+Teams origin's localStorage and renewed with `POST /api/team/auth/refresh` (no
+signer) until Continuum's `session_max_lifetime_sec` (7 days). Inside
+Continuum's Team view the owner's session is handed to the frame by
+`POST /api/team/auth/handoff`. No Suite config changes; CORS already allows the
+Teams origin. Needs Continuum v0.2.197-alpha; deploy Continuum first, then
+`teams_app`.
+
 ### Node file server (v0.9.37-alpha, torii-teams ADR 0007)
 
 With Continuum, images and files sent in Teams are stored on this server, not
@@ -94,8 +105,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.37-alpha): torii-teams `0.6.1-torii.7` (commit 1dd4ce4),
-SHA-256 `96c4ebb5d523385f132bbcd6d0e149df584eab8e01b8d4d0c5c5d2f87f19d1ab`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.38-alpha): torii-teams `0.6.1-torii.8` (commit 05c9502),
+SHA-256 `f3900c7282224d37dc33ffb61fe9ec39b190403174b0bb9d6d1690e6b72475bc`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and

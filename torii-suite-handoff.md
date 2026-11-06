@@ -4,6 +4,10 @@
 
 `installers/install-continuum-host.sh` runs only with `INSTALL_CONTINUUM_HOST=1`, right after the Continuum stage. Files: vhost `/etc/nginx/sites-available/<CONTINUUM_HOST>.conf`, main-domain redirect `/opt/torii/nginx-fragments/continuum-host.conf`, headers `/opt/torii/nginx-snippets/continuum-headers.inc`. It refuses a `continuum.conf` fragment older than v0.9.31 (re-run `install-continuum.sh` first). Rollback: `CONTINUUM_HOST_REMOVE=1`. Live test: `bash test/continuum-host-live.sh` (no root, high ports). See `docs/CONTINUUM-HOST.md`. Owned by the Continuum Teams session.
 
+## Teams one sign-in: v0.9.38-alpha
+
+Pin only: torii-teams `0.6.1-torii.8` (ADR 0008) in `installers/install-teams-app.sh`, `.env.example` and `docs/TEAMS.md`. Needs Continuum v0.2.197-alpha (`/api/team/auth/refresh`, `/api/team/auth/handoff`); torii.7 accepts only `m1` tokens, so deploy Continuum, then `teams_app`. The file server forwards any Bearer shape, so `m2` uploads work unchanged.
+
 ## Teams node file server: v0.9.37-alpha
 
 torii-teams ADR 0007. `installers/install-teams-app.sh` step 5b installs `lib/teams-files.mjs` as `/opt/torii/teams-files/server.mjs`, `/etc/torii/teams/files.env` and the `torii-teams-files` unit (`teams_files_unit`, DynamicUser, state `/var/lib/torii-teams-files`), proxied at `location /files/`. `TEAMS_FILES` defaults to 1 and is forced to 0 without Continuum; off disables the unit. The vhost gates methods with `$torii_method_ok`: only `PUT /files/upload` and `DELETE /files/<sha256>` besides GET/HEAD. Node file gains `files`; `teams_csp --node <continuum host> <relay host>` gives the tight CSP. `connect-src` includes `blob:` in both modes (picked-file reads). The file server reaches Continuum on its `server.port` (`teams_continuum_port`, default 8787). Tests: `test/teams-files.test.mjs`, the Continuum phase in `test/teams-app-live.sh` (fake Continuum on 18787). `test/continuum-host-live.sh` has 4 file-serving failures in the sandbox only; CI passes.

@@ -1,5 +1,13 @@
 # Torii Suite Progress
 
+## Release v0.9.38-alpha: pin torii-teams 0.6.1-torii.8 (2026-11-06)
+
+One sign-in (torii-teams ADR 0008): one consent card, NIP-46 permissions at
+connect, the team session in localStorage with quiet renewal, and the owner's
+session handed to the Team view frame. Pin `0.6.1-torii.8` (05c9502), SHA-256
+`f3900c7282224d37dc33ffb61fe9ec39b190403174b0bb9d6d1690e6b72475bc`, attestation verified. Needs Continuum v0.2.197-alpha. No
+installer logic change.
+
 ## Release v0.9.37-alpha: pin torii-teams 0.6.1-torii.7 (2026-11-05)
 
 The owner asked for images and files to move to the node's own Blossom server.
