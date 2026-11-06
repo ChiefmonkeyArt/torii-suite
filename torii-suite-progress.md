@@ -1,5 +1,13 @@
 # Torii Suite Progress
 
+## Release v0.9.39-alpha: pin torii-teams 0.6.1-torii.9 (2026-11-06)
+
+Invite links (torii-teams ADR 0009): the owner copies a link in Continuum's Team
+view; open links wait for the owner's Let in, named links sign the listed person
+straight in. Pin `0.6.1-torii.9` (e4084a8), SHA-256
+`e9ca8e277a876b625709f54d362f12b2c29b7d2d2240ac0e2dbc7e3f22ecca20`, attestation verified. Needs Continuum v0.2.198-alpha. No
+installer logic change.
+
 ## Release v0.9.38-alpha: pin torii-teams 0.6.1-torii.8 (2026-11-06)
 
 One sign-in (torii-teams ADR 0008): one consent card, NIP-46 permissions at
