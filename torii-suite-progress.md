@@ -1,5 +1,12 @@
 # Torii Suite Progress
 
+## Release v0.9.41-alpha: pin torii-teams 0.6.1-torii.11 (2026-11-07)
+
+One-tap thumbs up beside each message, press and hold for the emoji row
+(torii-teams ADR 0010 amendment). Pin `0.6.1-torii.11` (d4df0a0), SHA-256
+`1cb800b06288f5ee1e7b82dc7c28f62cb84f103215e9ab0cd8e108c6d02363d4`, attestation verified. Continuum unchanged (v0.2.199-alpha). No
+installer logic change.
+
 ## Release v0.9.40-alpha: pin torii-teams 0.6.1-torii.10 (2026-11-06)
 
 Joining that works (torii-teams ADR 0010): personal links straight in, group
