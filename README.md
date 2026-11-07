@@ -283,7 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
-### New in v0.9.40-alpha: joining Teams that works
+### New in v0.9.41-alpha: one-tap thumbs up in Teams
+
+Pins torii-teams `0.6.1-torii.11`. Each message from someone else shows a small
+thumbs up beside its time: tap it once to like, again to undo. Press and hold
+(or right-click) for the full emoji row. Same Continuum as before (v0.2.199-alpha).
+
+### v0.9.40-alpha: joining Teams that works
 
 Pins torii-teams `0.6.1-torii.10`, for Continuum v0.2.199-alpha. A personal
 invite lets the person straight in with one click, with a small shisa welcome.

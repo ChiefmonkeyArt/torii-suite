@@ -4,6 +4,10 @@
 
 `installers/install-continuum-host.sh` runs only with `INSTALL_CONTINUUM_HOST=1`, right after the Continuum stage. Files: vhost `/etc/nginx/sites-available/<CONTINUUM_HOST>.conf`, main-domain redirect `/opt/torii/nginx-fragments/continuum-host.conf`, headers `/opt/torii/nginx-snippets/continuum-headers.inc`. It refuses a `continuum.conf` fragment older than v0.9.31 (re-run `install-continuum.sh` first). Rollback: `CONTINUUM_HOST_REMOVE=1`. Live test: `bash test/continuum-host-live.sh` (no root, high ports). See `docs/CONTINUUM-HOST.md`. Owned by the Continuum Teams session.
 
+## Teams one-tap like: v0.9.41-alpha
+
+Pin only: torii-teams `0.6.1-torii.11` (one-tap thumbs up, ADR 0010 amendment) in `installers/install-teams-app.sh`, `.env.example` and `docs/TEAMS.md`. Continuum unchanged (v0.2.199-alpha); deploy `teams_app` only. CSP unchanged. No installer logic change.
+
 ## Teams joining: v0.9.40-alpha
 
 Pin only: torii-teams `0.6.1-torii.10` (ADR 0010) in `installers/install-teams-app.sh`, `.env.example` and `docs/TEAMS.md`. Needs Continuum v0.2.199-alpha (`straight_in` on peek, kind-27098 grants, `admitted` roster list, one Teams frame); deploy Continuum, then `teams_app`. CSP unchanged. No installer logic change.
