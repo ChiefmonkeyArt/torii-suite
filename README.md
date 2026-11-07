@@ -283,7 +283,15 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
-### New in v0.9.41-alpha: one-tap thumbs up in Teams
+### New in v0.9.42-alpha: join Teams while the owner is away
+
+Pins torii-teams `0.6.1-torii.12`, for Continuum v0.2.200-alpha (update
+Continuum first). People you let in can open the team chat and start talking
+whenever they like, even when nobody else is online; you see their messages
+next time you open it. Continuum keeps only a "join card" that can't read
+the chat.
+
+### v0.9.41-alpha: one-tap thumbs up in Teams
 
 Pins torii-teams `0.6.1-torii.11`. Each message from someone else shows a small
 thumbs up beside its time: tap it once to like, again to undo. Press and hold

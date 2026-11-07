@@ -1,5 +1,12 @@
 # Torii Suite Progress
 
+## Release v0.9.42-alpha: pin torii-teams 0.6.1-torii.12 (2026-11-07)
+
+Join the chat while the owner is away (torii-teams ADR 0011). Pin
+`0.6.1-torii.12` (eea9d92), SHA-256
+`6d4d533d7fb13e141130a2802550d66f894bea26aa32e302b17b859b4989696c`, attestation verified. Needs Continuum v0.2.200-alpha. No
+installer logic change.
+
 ## Release v0.9.41-alpha: pin torii-teams 0.6.1-torii.11 (2026-11-07)
 
 One-tap thumbs up beside each message, press and hold for the emoji row
