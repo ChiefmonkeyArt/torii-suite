@@ -1,5 +1,14 @@
 # Torii Suite Progress
 
+## Release v0.9.43-alpha: pin torii-teams 0.6.1-torii.13, gzip (2026-11-07)
+
+Remove while the owner is away and a lighter start-up (torii-teams ADR 0012).
+Pin `0.6.1-torii.13` (1064e44), SHA-256
+`2bda3799687a79e62ae6f398ae803d843de71e6613bc1d2f301834f73e8b429e`, attestation present (torii-release.yml at the tag). Needs Continuum
+v0.2.201-alpha. The live Teams host sent every file uncompressed; the
+installer now pre-compresses the release and the vhost serves it with
+`gzip_static`.
+
 ## Release v0.9.42-alpha: pin torii-teams 0.6.1-torii.12 (2026-11-07)
 
 Join the chat while the owner is away (torii-teams ADR 0011). Pin

@@ -283,7 +283,15 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
-### New in v0.9.42-alpha: join Teams while the owner is away
+### New in v0.9.43-alpha: Teams removes people while you're away, loads faster
+
+Pins torii-teams `0.6.1-torii.13`, for Continuum v0.2.201-alpha (update
+Continuum first). Taking someone off a project now closes the chat to them
+even while you're away, as long as a teammate has Teams open. Invite links
+come with a QR code. Teams is now sent compressed, so a first visit downloads
+about a third as much.
+
+### v0.9.42-alpha: join Teams while the owner is away
 
 Pins torii-teams `0.6.1-torii.12`, for Continuum v0.2.200-alpha (update
 Continuum first). People you let in can open the team chat and start talking

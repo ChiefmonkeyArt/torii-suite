@@ -29,6 +29,8 @@ has 'location /.well-known/ { return 404; }' "$I" "no .well-known on the app hos
 has 'never served over plain HTTP' "$I" "no app over plain HTTP"
 has 'teams_continuum_config' "$I" "sets Continuum cors_origins and teams.app_url"
 has 'torii register teams' "$I" "registers a launcher tile"
+has 'gzip_static on;' "$I" "serves pre-compressed assets"
+has "-exec gzip -9 -k -n -f {} +" "$I" "compresses the release once at install"
 grep -qF 'AGENT_HOME="${APPS_ROOT}/continuum/agent"' "$ROOT/installers/install-continuum.sh" \
   && grep -qF 'CONFIG_FILE="${AGENT_REPO}/agent/config.yaml"' "$ROOT/installers/install-continuum.sh" \
   && grep -qF 'CONTINUUM_CONFIG="${APPS_ROOT}/continuum/agent/repo/agent/config.yaml"' "$I" \
