@@ -68,6 +68,17 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
+### Join while the owner is away (v0.9.42-alpha, torii-teams ADR 0011)
+
+People let in join the chat themselves, with nobody else online. Members'
+Teams clients keep a GroupInfo "join card" on Continuum (no key; the node
+can't read the chat), and the newcomer's client joins from it with the
+owner-signed member list or grant as proof. Needs Continuum v0.2.200-alpha
+(`/api/projects/:slug/teams/groupinfo`); with an older Continuum the owner's
+client adds people as before. No Suite config changes: the app only talks to
+the Continuum host it already allows. Deploy Continuum first, then
+`teams_app`.
+
 ### Joining that works (v0.9.40-alpha, torii-teams ADR 0010)
 
 A personal link (Continuum's Add person) lets the person straight in. A group
@@ -131,8 +142,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.41-alpha): torii-teams `0.6.1-torii.11` (commit d4df0a0),
-SHA-256 `1cb800b06288f5ee1e7b82dc7c28f62cb84f103215e9ab0cd8e108c6d02363d4`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.42-alpha): torii-teams `0.6.1-torii.12` (commit eea9d92),
+SHA-256 `6d4d533d7fb13e141130a2802550d66f894bea26aa32e302b17b859b4989696c`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
