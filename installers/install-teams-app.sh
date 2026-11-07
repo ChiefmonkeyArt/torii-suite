@@ -26,10 +26,10 @@ die() { printf '\033[31mxx  install-teams-app: %s\033[0m\n' "$*" >&2; exit 1; }
 
 # Pinned release. Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-# 0.6.1-torii.12 = torii-teams eea9d92; SHA-256 checked against the GitHub release
+# 0.6.1-torii.13 = torii-teams 1064e44; SHA-256 checked against the GitHub release
 # and its build-provenance attestation.
-TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.12}"
-TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-6d4d533d7fb13e141130a2802550d66f894bea26aa32e302b17b859b4989696c}"
+TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.13}"
+TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-2bda3799687a79e62ae6f398ae803d843de71e6613bc1d2f301834f73e8b429e}"
 [[ -n "$TEAMS_APP_TAG" && -n "$TEAMS_APP_SHA256" ]] \
   || die "no Torii Teams release pinned yet (set TEAMS_APP_TAG and TEAMS_APP_SHA256)"
 [[ "$TEAMS_APP_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-torii\.[0-9]+$ ]] || die "bad TEAMS_APP_TAG"
@@ -116,6 +116,10 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)-${TEAMS_APP_TAG}"
 RELEASE="${APP_DIR}/releases/${STAMP}"
 mkdir -p "${APP_DIR}/releases"
 cp -a "$TMP/x/." "$RELEASE/"
+# Pre-compressed copies for gzip_static: about a third of the bytes on first load,
+# made once here instead of on every request. Static files only, no secrets in them.
+find "$RELEASE" -type f -size +1k \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' \
+  -o -name '*.json' -o -name '*.webmanifest' \) -exec gzip -9 -k -n -f {} +
 chown -R root:root "$RELEASE"
 find "$RELEASE" -type d -exec chmod 755 {} +
 find "$RELEASE" -type f -exec chmod 644 {} +
@@ -241,6 +245,9 @@ server {
     index index.html;
     server_tokens off;
     client_max_body_size 1k;
+    # Serve the .gz made at install; gzip_vary so caches keep both forms.
+    gzip_static on;
+    gzip_vary on;
     # Only GET/HEAD, except uploads and deletes on the file server.
     set \$torii_method_ok 0;
     if (\$request_method ~ ^(GET|HEAD)\$) { set \$torii_method_ok 1; }${FILES_METHODS}

@@ -17,7 +17,7 @@ if [[ -n "${1:-}" ]]; then
 else
   mkdir -p "$W/a/_app/immutable" "$W/a/.well-known"
   printf '<!doctype html><html><head><script>window.__boot=1</script></head><body>app</body></html>' > "$W/a/index.html"
-  echo 'console.log(1)' > "$W/a/_app/immutable/app.js"
+  { echo 'console.log(1)'; head -c 3000 /dev/zero | tr '\0' ';'; echo; } > "$W/a/_app/immutable/app.js"
   echo '{"names":{"cordn":"x"}}' > "$W/a/.well-known/nostr.json"
   printf '{"app":"torii-teams","tag":"%s","version":"0.6.1","commit":"0000000"}\n' "$TAG" > "$W/a/MANIFEST.json"
   tar -C "$W/a" -czf "$W/app.tgz" .
@@ -64,6 +64,10 @@ PY
 grep -qi '^content-security-policy:' "$W/h" && ok "headers kept in nested locations" || fail "node file lost headers"
 [[ "$(get "https://$H/.well-known/nostr.json")" == 404 ]] && ok "no upstream NIP-05 file" || fail ".well-known served"
 [[ "$(get -X POST "https://$H/chat")" == 405 ]] && ok "only GET and HEAD" || fail "POST allowed"
+[[ -n "$(find /apps/teams-app/current/_app -name '*.js.gz' -print -quit)" ]] && ok "release has .gz copies" || fail "no .gz copies"
+f="$(cd /apps/teams-app/current && find _app/immutable -name '*.js' -size +1k -print -quit)"
+[[ "$(get -H 'Accept-Encoding: gzip' "https://$H/$f")" == 200 ]] && grep -qi '^content-encoding: gzip' "$W/h" && grep -qi '^vary: accept-encoding' "$W/h" && grep -qi '^cache-control: public, max-age=31536000, immutable' "$W/h" && ok "assets go out gzipped, still immutable" || fail "gzip"
+[[ "$(get "https://$H/$f")" == 200 ]] && ! grep -qi '^content-encoding:' "$W/h" && ok "plain for clients without gzip" || fail "plain fallback"
 [[ "$(get "https://$H/_app/immutable/missing.js")" == 404 ]] && ok "missing assets are 404, not the shell" || fail "asset fallback"
 [[ "$(stat -c '%a %U' /etc/torii/teams/torii-node.json)" == "644 root" ]] && ok "node file 0644 root" || fail "node file mode"
 [[ ! -e /apps/teams-app/current/torii-node.json ]] && ok "node file is outside the release" || fail "node file in release"

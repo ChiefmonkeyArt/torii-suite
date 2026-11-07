@@ -68,6 +68,16 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
+### Remove while away, gzip (v0.9.43-alpha, torii-teams ADR 0012)
+
+Any member's Teams removes people the owner took off the project, even while
+the owner is away; it uses the signed member list Continuum already serves.
+Invite links get a QR code (Continuum v0.2.201-alpha). The installer now
+writes a `.gz` copy of each text file in the release (`gzip -9 -k -n`, files
+over 1 KB) and the vhost has `gzip_static on; gzip_vary on;`: about 1.8 MB to
+about 565 KB on a first visit, with no per-request work. Static files only, so
+no secrets go through compression. Deploy Continuum first, then `teams_app`.
+
 ### Join while the owner is away (v0.9.42-alpha, torii-teams ADR 0011)
 
 People let in join the chat themselves, with nobody else online. Members'
@@ -142,8 +152,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.42-alpha): torii-teams `0.6.1-torii.12` (commit eea9d92),
-SHA-256 `6d4d533d7fb13e141130a2802550d66f894bea26aa32e302b17b859b4989696c`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.43-alpha): torii-teams `0.6.1-torii.13` (commit 1064e44),
+SHA-256 `2bda3799687a79e62ae6f398ae803d843de71e6613bc1d2f301834f73e8b429e`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
