@@ -283,7 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
-### New in v0.9.43-alpha: Teams removes people while you're away, loads faster
+### New in v0.9.44-alpha: new shisa art in Teams
+
+Pins torii-teams `0.6.1-torii.14`. The welcome pictures in Teams are now one
+painted pair of shisa at a laptop, tinted to match your theme. No Continuum
+update needed.
+
+### v0.9.43-alpha: Teams removes people while you're away, loads faster
 
 Pins torii-teams `0.6.1-torii.13`, for Continuum v0.2.201-alpha (update
 Continuum first). Taking someone off a project now closes the chat to them

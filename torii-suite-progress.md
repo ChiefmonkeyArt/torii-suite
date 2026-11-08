@@ -1,5 +1,11 @@
 # Torii Suite Progress
 
+## Release v0.9.44-alpha: pin torii-teams 0.6.1-torii.14 (2026-11-08)
+
+One shisa look (torii-teams ADR 0013): painted pair at a laptop, washed in the
+theme colour. Pin `0.6.1-torii.14` (2e54606), SHA-256
+`ffe441417e09c4d0a2c090246f684071e4914dcdb893a7a35ed4422c991b8a4a`, attestation present (torii-release.yml at the tag). No Continuum change.
+
 ## Release v0.9.43-alpha: pin torii-teams 0.6.1-torii.13, gzip (2026-11-07)
 
 Remove while the owner is away and a lighter start-up (torii-teams ADR 0012).
