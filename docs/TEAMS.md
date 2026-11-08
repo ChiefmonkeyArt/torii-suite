@@ -68,6 +68,14 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
+### Shisa icons and logo (v0.9.45-alpha, torii-teams ADR 0014)
+
+The tab and home-screen icons are the two painted shisa heads (the release
+replaces the plain "T"), and the plain sign-in card shows the painted logo.
+The install icons ship in `pwa/` but the app no longer downloads them on a
+first visit; the browser fetches them when someone installs Teams. Pin only:
+no installer, CSP or Continuum change. Deploy `teams_app`.
+
 ### One shisa look (v0.9.44-alpha, torii-teams ADR 0013)
 
 The welcome art is one painted shisa pair at a laptop (44 KB, in the release),
@@ -158,8 +166,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.44-alpha): torii-teams `0.6.1-torii.14` (commit 2e54606),
-SHA-256 `ffe441417e09c4d0a2c090246f684071e4914dcdb893a7a35ed4422c991b8a4a`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.45-alpha): torii-teams `0.6.1-torii.15` (commit 80f9f99),
+SHA-256 `60007a179628c1a739ba51fc0fd2178bf3195c66befa186561b30e0095b33bfe`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
