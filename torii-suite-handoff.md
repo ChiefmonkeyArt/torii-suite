@@ -4,6 +4,10 @@
 
 `installers/install-continuum-host.sh` runs only with `INSTALL_CONTINUUM_HOST=1`, right after the Continuum stage. Files: vhost `/etc/nginx/sites-available/<CONTINUUM_HOST>.conf`, main-domain redirect `/opt/torii/nginx-fragments/continuum-host.conf`, headers `/opt/torii/nginx-snippets/continuum-headers.inc`. It refuses a `continuum.conf` fragment older than v0.9.31 (re-run `install-continuum.sh` first). Rollback: `CONTINUUM_HOST_REMOVE=1`. Live test: `bash test/continuum-host-live.sh` (no root, high ports). See `docs/CONTINUUM-HOST.md`. Owned by the Continuum Teams session.
 
+## Teams shisa art: v0.9.44-alpha
+
+Pin only: torii-teams `0.6.1-torii.14` (ADR 0013) in `installers/install-teams-app.sh`, `.env.example` and `docs/TEAMS.md`. No Continuum change, CSP unchanged, no installer logic change. Deploy `teams_app`.
+
 ## Teams remove while away, gzip: v0.9.43-alpha
 
 Pin torii-teams `0.6.1-torii.13` (ADR 0012) in `installers/install-teams-app.sh`, `.env.example` and `docs/TEAMS.md`. Needs Continuum v0.2.201-alpha (UI only; the member roster route already returns the signed event). Installer change: step 3 writes `.gz` copies (`find ... -size +1k ... -exec gzip -9 -k -n -f {} +`) before the chown, and the vhost has `gzip_static on; gzip_vary on;`. Tests: `install-teams-app.test.sh` (two static checks), `teams-app-live.sh` (release has `.gz`, gzip with `Vary` and immutable cache, plain without `Accept-Encoding`). Deploy Continuum, then `teams_app`.

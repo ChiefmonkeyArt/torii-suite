@@ -68,6 +68,12 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
+### One shisa look (v0.9.44-alpha, torii-teams ADR 0013)
+
+The welcome art is one painted shisa pair at a laptop (44 KB, in the release),
+washed in the theme colour on coloured themes. Pin only: no installer, CSP or
+Continuum change. Deploy `teams_app`.
+
 ### Remove while away, gzip (v0.9.43-alpha, torii-teams ADR 0012)
 
 Any member's Teams removes people the owner took off the project, even while
@@ -152,8 +158,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.43-alpha): torii-teams `0.6.1-torii.13` (commit 1064e44),
-SHA-256 `2bda3799687a79e62ae6f398ae803d843de71e6613bc1d2f301834f73e8b429e`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.44-alpha): torii-teams `0.6.1-torii.14` (commit 2e54606),
+SHA-256 `ffe441417e09c4d0a2c090246f684071e4914dcdb893a7a35ed4422c991b8a4a`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
