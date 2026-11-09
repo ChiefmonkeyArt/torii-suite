@@ -24,6 +24,7 @@ source "$ROOT/lib/auctions.sh"
 log() { printf '\033[36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m--  %s\033[0m\n' "$*" >&2; }
 die() { printf '\033[31mxx  install-auctions: %s\033[0m\n' "$*" >&2; exit 1; }
+info() { printf '  ..  install-auctions: %s\n' "$*"; }
 [[ "${INSTALL_AUCTIONS:-0}" == 1 || "${AUCTIONS_REMOVE:-0}" == 1 ]] \
   || { echo "Plebeian Auctions install skipped (INSTALL_AUCTIONS=0)"; exit 0; }
 [[ $EUID -eq 0 ]] || die "requires root"
@@ -58,8 +59,11 @@ AUCTIONS_TAG="${AUCTIONS_TAG:-v0.1.0}"
 AUCTIONS_SHA256="${AUCTIONS_SHA256:-76fbf0dfe7297a0928d99e8046caecc9436e1ff6bbd3e9daf226e52cfba397f0}"
 [[ "$AUCTIONS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "bad AUCTIONS_TAG"
 [[ "$AUCTIONS_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "bad AUCTIONS_SHA256"
-AUCTIONS_PORT="${AUCTIONS_PORT:-8795}"
-AUCTIONS_MINT_PORT="${AUCTIONS_MINT_PORT:-13338}"
+# Ports: an explicit setting wins; then what an earlier install chose
+# ($CONFIG/ports); then the default, or on a first install the next free port.
+port_given="${AUCTIONS_PORT:+1}" mint_given="${AUCTIONS_MINT_PORT:+1}"
+AUCTIONS_PORT="${AUCTIONS_PORT:-$(auctions_saved_port "$CONFIG/ports" AUCTIONS_PORT || echo 8795)}"
+AUCTIONS_MINT_PORT="${AUCTIONS_MINT_PORT:-$(auctions_saved_port "$CONFIG/ports" AUCTIONS_MINT_PORT || echo 13338)}"
 auctions_valid_port "$AUCTIONS_PORT" && auctions_valid_port "$AUCTIONS_MINT_PORT" \
   && [[ "$AUCTIONS_PORT" != "$AUCTIONS_MINT_PORT" ]] || die "bad AUCTIONS_PORT / AUCTIONS_MINT_PORT"
 [[ "$(uname -m)" == x86_64 ]] || die "the release is built for x86_64 only"
@@ -75,6 +79,14 @@ trap 'rm -rf -- "$TMP"' EXIT
 running=0
 [[ "$SKIP_SYSTEMD" != 1 ]] && systemctl is-active --quiet plebeian-auctions.service && running=1
 if (( running == 0 )); then
+  if [[ -z "$port_given" ]] && [[ -n "$(auctions_busy_ports "$AUCTIONS_PORT")" ]]; then
+    p="$(auctions_free_port "$AUCTIONS_PORT" "$AUCTIONS_MINT_PORT")" || die "no free gateway port near $AUCTIONS_PORT"
+    info "port $AUCTIONS_PORT is taken; the gateway uses $p"; AUCTIONS_PORT="$p"
+  fi
+  if [[ -z "$mint_given" ]] && [[ -n "$(auctions_busy_ports "$AUCTIONS_MINT_PORT")" ]]; then
+    p="$(auctions_free_port "$AUCTIONS_MINT_PORT" "$AUCTIONS_PORT")" || die "no free mint port near $AUCTIONS_MINT_PORT"
+    info "port $AUCTIONS_MINT_PORT is taken; the mint uses $p"; AUCTIONS_MINT_PORT="$p"
+  fi
   # shellcheck disable=SC2046
   busy="$(auctions_busy_ports "$AUCTIONS_PORT" "$AUCTIONS_MINT_PORT" $(auctions_validator_ports) | tr '\n' ' ')"
   [[ -z "${busy// }" ]] || die "ports already in use: ${busy}(set AUCTIONS_PORT / AUCTIONS_MINT_PORT, or free them)"
@@ -127,6 +139,9 @@ KEY=""
 { auctions_mint_env "$AUCTIONS_MINT_PORT" /var/lib/plebeian-auctions-mint || die "could not write the mint settings"
   printf 'MINT_PRIVATE_KEY=%s\n' "$KEY"; } > "$TMP/mint.env"
 install -m 0600 -o root -g root "$TMP/mint.env" "$CONFIG/mint.env"
+[[ ! -L "$CONFIG/ports" ]] || die "refusing symlinked $CONFIG/ports"
+printf 'AUCTIONS_PORT=%s\nAUCTIONS_MINT_PORT=%s\n' "$AUCTIONS_PORT" "$AUCTIONS_MINT_PORT" > "$TMP/ports"
+install -m 0600 -o root -g root "$TMP/ports" "$CONFIG/ports"
 
 # 6. Units, stop, flip, start. Keep the last 2 releases (each carries a Python).
 auctions_mint_unit "$APP_DIR" > "$TMP/mint.unit" || die "could not write the mint unit"

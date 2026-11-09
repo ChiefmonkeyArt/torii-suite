@@ -48,7 +48,13 @@ run(){ env INSTALL_AUCTIONS=1 TORII_DOMAIN=$D SKIP_CERTBOT=1 SKIP_SYSTEMD=$((1 -
   AUCTIONS_SHA256="$1" AUCTIONS_TARBALL="$TARBALL" "${@:2}" bash "$ROOT/installers/install-auctions.sh"; }
 
 run 0000000000000000000000000000000000000000000000000000000000000000 >/dev/null 2>&1 && fail "accepted a wrong checksum" || ok "refuses a wrong checksum"
+# Something else already holds the default gateway port (as on chiefmonkey.art).
+run "$SHA" AUCTIONS_REMOVE=1 >/dev/null 2>&1 || true   # start from a first install
+rm -f /etc/torii/auctions/ports
+python3 -c 'import socket,time; s=socket.socket(); s.bind(("127.0.0.1",8795)); s.listen(); time.sleep(3600)' & PIDS+=($!); sleep 0.5
 run "$SHA" >/dev/null && ok "installs"
+GW="$(sed -n 's/^AUCTIONS_PORT=//p' /etc/torii/auctions/ports)"
+[[ "$GW" == 8796 ]] && ok "default port taken: gateway moved to 8796 and remembered" || fail "gateway port $GW"
 start_services(){
   [[ "$SYSTEMD" == 1 ]] && return 0
   local u
@@ -64,7 +70,7 @@ start_services(){
   start="$(sed -n 's/^ExecStart=//p' /etc/systemd/system/plebeian-auctions.service)"
   (cd /var/lib/plebeian-auctions && exec $start) > "$W/gw.log" 2>&1 &
   PIDS+=($!)
-  for _ in $(seq 1 40); do curl -fsS -o /dev/null http://127.0.0.1:8795/api/network && return 0; sleep 1; done
+  for _ in $(seq 1 40); do curl -fsS -o /dev/null http://127.0.0.1:${GW}/api/network && return 0; sleep 1; done
   fail "gateway did not come up"
 }
 start_services
@@ -86,7 +92,7 @@ js="$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' "$ROOT/../plebeian-arena-auction
   && ok "four validators answer through nginx" || fail "api"
 [[ "$(get "https://$H/mint/v1/info")" == 200 ]] && grep -q 'Nutshell' "$W/b" && ok "fake-sats mint answers through nginx" || fail "mint"
 [[ "$(get -X PUT "https://$H/api/network")" == 405 ]] && [[ "$(get -X POST "https://$H/")" == 405 ]] && ok "only GET/HEAD, and POST to the API" || fail "methods"
-for p in 8795 13338 26656 26657 7101; do
+for p in "$GW" 13338 26656 26657 7101; do
   ss -Htln | awk '{print $4}' | grep -qE "^(127\.0\.0\.1|\[::1\]):$p$" || fail "port $p not loopback-only"
 done; ok "gateway, mint and validators bind loopback only"
 K1="$(sed -n 's/^MINT_PRIVATE_KEY=//p' /etc/torii/auctions/mint.env)"
