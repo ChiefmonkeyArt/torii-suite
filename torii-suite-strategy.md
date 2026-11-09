@@ -93,6 +93,7 @@ Secondary backlog: `torii-update` roll-forward command, backup/restore snapshot,
 
 ## Decision log
 
+- **v0.9.48-alpha: Plebeian Auctions is team-only (Suite ADR 0002).** Opt-in installer, own origin `auctions.<domain>`, no launcher card (never `torii register`, no main-domain fragment), noindex everywhere, loopback-only sandboxed units, fake sats only. Owner, 2026-11-09: "not for public just for the team".
 - **v0.9.31-alpha: Continuum moves to its own origin (`continuum.<domain>`), opt-in.** Continuum shared the main origin with Quest and the other apps, so any of their scripts could read its owner token from localStorage. The vhost reuses the existing Continuum fragment and `/api/` snippet (one copy of each location), the main-domain `/continuum/` 301s there only once a certificate exists, and `/api/` stays on both hosts. Nothing frames Continuum; the microphone passes only to the Teams origin. Owner-approved as part of the Teams MVP, 2026-11-04. See `docs/CONTINUUM-HOST.md`.
 - **v0.4.0-alpha: one `OLLAMA_MODE` var with two values, not three.** `disabled` is already covered by the existing `INSTALL_OLLAMA=0`. Fewer axes of configuration = fewer bug surfaces.
 - **v0.4.0-alpha: preflight probes `/api/tags` BEFORE any stages run.** 5s to fail is cheap; failing after installing torii-base + Continuum is not.

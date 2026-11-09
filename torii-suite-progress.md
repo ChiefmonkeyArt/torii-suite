@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.48-alpha: Plebeian Auctions, team-only (2026-11-09)
+
+Suite ADR 0002. New opt-in `installers/install-auctions.sh` (`INSTALL_AUCTIONS=1`) installs plebeian-arena-auctions `v0.1.0` (282ac2c), SHA-256 `76fbf0dfe7297a0928d99e8046caecc9436e1ff6bbd3e9daf226e52cfba397f0`, CI-built by the arena's `release.yml`. It runs at `auctions.<domain>` on its own certificate, with no `torii register` and no main-domain fragment, so there is no launcher card. Two sandboxed DynamicUser units, loopback only. Tests: `test/install-auctions.test.sh` 37/37; `test/auctions-live.sh` 18/18 against real nginx and systemd, including the arena's 30/30 acceptance suite over HTTPS. The release repo is private, so the VPS needs `AUCTIONS_TARBALL` or a public repo.
+
 ## Release v0.9.47-alpha: the FIPS node on every install (2026-11-09)
 
 Suite ADR 0001. Every default install now sets up the FIPS node in its own step after the node relay, whether or not Quest is chosen, with no peers and the same limits. Without the relay or a TUN device it says so and skips; `INSTALL_FIPS=0` still opts out. The doctor step shows "FIPS: running, N peers". First of the FIPS-default ADRs; Continuum and Quest next, Plebeian later.
