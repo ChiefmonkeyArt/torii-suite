@@ -42,6 +42,13 @@ check "valid host" auctions_valid_host auctions.example.com
 refuse "rejects a bad host" auctions_valid_host 'bad host;'
 check "valid port" auctions_valid_port 8795
 refuse "rejects a privileged port" auctions_valid_port 80
+f="$(mktemp)"; printf 'AUCTIONS_PORT=9123\nAUCTIONS_MINT_PORT=x\n' > "$f"
+[[ "$(auctions_saved_port "$f" AUCTIONS_PORT)" == 9123 ]] && ok "reads a saved port" || bad "reads a saved port"
+refuse "ignores a bad saved port" auctions_saved_port "$f" AUCTIONS_MINT_PORT
+refuse "no saved file, no port" auctions_saved_port /nonexistent AUCTIONS_PORT; rm -f "$f"
+[[ "$(auctions_free_port 40100 40100 40101)" == 40102 ]] && ok "free port skips taken ones" || bad "free port skips taken ones"
+has 'is taken; the gateway uses' "$I" "picks a free gateway port on a clash"
+has '$CONFIG/ports' "$I" "remembers the chosen ports"
 [[ "$(auctions_validator_ports | wc -l)" == 12 ]] && ok "twelve validator ports" || bad "twelve validator ports"
 W="$(mktemp -d)"; trap 'rm -rf -- "$W"' EXIT
 mkdir -p "$W/t/bin" && touch "$W/t/bin/python3.12" && ln -s python3.12 "$W/t/bin/python3"

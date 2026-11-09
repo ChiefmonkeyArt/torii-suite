@@ -28,7 +28,9 @@ While the release repo is private, download the tarball first and add
 | Units | `plebeian-auctions-mint`, `plebeian-auctions` |
 
 Loopback ports: gateway 8795 (`AUCTIONS_PORT`), mint 13338
-(`AUCTIONS_MINT_PORT`), validators 26656-26687 and 7101-7104.
+(`AUCTIONS_MINT_PORT`), validators 26656-26687 and 7101-7104. If the gateway or mint default is busy
+on a first install, the next free port is used and saved in
+`/etc/torii/auctions/ports`; validator ports must be free.
 
 ## Operate
 

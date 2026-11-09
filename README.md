@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.49-alpha: Auctions finds a free port
+
+If something already uses the Auctions gateway port (8795) or mint port
+(13338), a first install now takes the next free one and remembers it in
+`/etc/torii/auctions/ports`. Setting `AUCTIONS_PORT` / `AUCTIONS_MINT_PORT`
+still wins.
+
 ### New in v0.9.48-alpha: Plebeian Auctions for the team
 
 `INSTALL_AUCTIONS=1` installs the fake-sats auction arena (four validators,

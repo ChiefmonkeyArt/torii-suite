@@ -5,8 +5,9 @@
 - [x] `installers/install-auctions.sh` + `lib/auctions.sh`: pinned release, `auctions.<domain>` vhost, mint + gateway units, no launcher card, noindex.
 - [x] `bootstrap.sh` stage (default off), `.env.example`, `docs/AUCTIONS.md`, ADR 0002.
 - [x] Tests: `test/install-auctions.test.sh` 37/37 (CI `auctions.yml`); `test/auctions-live.sh` 18/18 with e2e 30/30.
-- [ ] Release access on the VPS: make `plebeian-arena-auctions` public, or supply `AUCTIONS_TARBALL` (owner decision).
-- [ ] Deploy path: `auctions` stage in Continuum's `suite-stages-vps.yml`, or an operator SSH run (owner approval).
+- [x] Release access on the VPS: `plebeian-arena-auctions` made public (owner approved).
+- [x] v0.9.49-alpha: a first install moves a busy default port to the next free one and remembers it (8795 is taken on chiefmonkey.art).
+- [x] Deploy path: `auctions` stage in Continuum's `suite-stages-vps.yml` (Continuum PR #275, owner approved).
 - [ ] Deploy on chiefmonkey.art and share the address with the team.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
 

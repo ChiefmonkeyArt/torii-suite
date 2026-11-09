@@ -22,6 +22,27 @@ auctions_busy_ports() {
   return 0
 }
 
+# auctions_free_port <start> <taken...> → the first port from <start> (up to
+# +50) that nothing listens on and is not in <taken>. Non-zero if none.
+auctions_free_port() {
+  local start="$1" p; shift
+  local taken
+  # shellcheck disable=SC2046
+  taken=" $* $(auctions_busy_ports $(seq "$start" $((start + 50))) | tr '\n' ' ') "
+  for ((p = start; p <= start + 50; p++)); do
+    [[ "$taken" == *" $p "* ]] || { printf '%s\n' "$p"; return 0; }
+  done
+  return 1
+}
+
+# auctions_saved_port <file> <KEY> → the port saved by an earlier install, if valid.
+auctions_saved_port() {
+  local v
+  [[ -f "$1" && ! -L "$1" ]] || return 1
+  v="$(sed -n "s/^$2=\([0-9]\{2,5\}\)$/\1/p" "$1" | head -n1)"
+  auctions_valid_port "$v" && printf '%s\n' "$v"
+}
+
 # auctions_safe_tree <dir> → 0 when every symlink is relative and stays inside
 # <dir> (the bundled CPython has a few, e.g. bin/python3 -> python3.12).
 auctions_safe_tree() {
