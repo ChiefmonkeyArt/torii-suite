@@ -1,5 +1,15 @@
 # Torii Suite - Master TODO
 
+## Plebeian Auctions v0.9.48-alpha (Suite ADR 0002)
+
+- [x] `installers/install-auctions.sh` + `lib/auctions.sh`: pinned release, `auctions.<domain>` vhost, mint + gateway units, no launcher card, noindex.
+- [x] `bootstrap.sh` stage (default off), `.env.example`, `docs/AUCTIONS.md`, ADR 0002.
+- [x] Tests: `test/install-auctions.test.sh` 37/37 (CI `auctions.yml`); `test/auctions-live.sh` 18/18 with e2e 30/30.
+- [ ] Release access on the VPS: make `plebeian-arena-auctions` public, or supply `AUCTIONS_TARBALL` (owner decision).
+- [ ] Deploy path: `auctions` stage in Continuum's `suite-stages-vps.yml`, or an operator SSH run (owner approval).
+- [ ] Deploy on chiefmonkey.art and share the address with the team.
+- [ ] Later: a sign-in gate (an unlisted address is not access control).
+
 ## Continuum on its own host v0.9.31-alpha
 
 - [x] `installers/install-continuum-host.sh` + `lib/continuum-host.sh`: `continuum.<domain>` vhost (same fragment + `/api/`), main-domain `/continuum/` 301 after the certificate, headers in every Continuum location, rollback `CONTINUUM_HOST_REMOVE=1`.

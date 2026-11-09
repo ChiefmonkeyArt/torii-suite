@@ -1,0 +1,19 @@
+name: Auctions install
+on:
+  pull_request:
+    paths: ['installers/install-auctions.sh', 'lib/auctions.sh', 'bootstrap.sh', '.env.example', 'test/install-auctions.test.sh', 'test/auctions-live.sh', '.github/workflows/auctions.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Contract and helper tests
+        run: bash test/install-auctions.test.sh
+      - name: Shellcheck
+        run: shellcheck -S warning installers/install-auctions.sh lib/auctions.sh test/auctions-live.sh

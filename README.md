@@ -283,6 +283,15 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.48-alpha: Plebeian Auctions for the team
+
+`INSTALL_AUCTIONS=1` installs the fake-sats auction arena (four validators,
+3-of-4 Cashu escrow, Nutshell FakeWallet mint) at `https://auctions.<domain>/`.
+It is for the team, not the public: it gets no launcher card and is never
+indexed. Share the address directly. Prebuilt, checksum-pinned release; nothing
+is built on the box. See `docs/AUCTIONS.md` and
+[Suite ADR 0002](docs/adr-0002-team-only-auctions.md).
+
 ### New in v0.9.47-alpha: FIPS on every install
 
 Every default install now sets up the FIPS node in its own step, straight
