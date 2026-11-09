@@ -1,7 +1,7 @@
 name: FIPS node build
 on:
   pull_request:
-    paths: ['fips/**', 'installers/install-fips.sh', 'installers/install-quest.sh', 'test/install-fips.test.sh', '.github/workflows/fips-build.yml']
+    paths: ['fips/**', 'installers/install-fips.sh', 'installers/install-quest.sh', 'bootstrap.sh', 'scripts/fips-status.sh', 'test/install-fips.test.sh', 'test/bootstrap-fips.test.sh', '.github/workflows/fips-build.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -31,6 +31,12 @@ jobs:
           sudo systemctl is-active torii-fips torii-fips-relay
           sudo nft -c -f fips/mesh.nft
           bash test/install-fips.test.sh
+      - name: Bootstrap FIPS stage and status line (Suite ADR 0001)
+        run: |
+          bash test/bootstrap-fips.test.sh
+          out="$(sudo bash scripts/fips-status.sh)"
+          echo "$out"
+          [[ "$out" == "FIPS: running, 0 peers" ]]
       - name: Diagnostics on failure
         if: failure()
         run: |

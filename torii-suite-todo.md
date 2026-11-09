@@ -16,6 +16,7 @@
 - [x] v0.9.29-alpha: pinned torii-teams `0.6.1-torii.1` (tag + SHA-256).
 - [x] v0.9.30-alpha: pin `0.6.1-torii.2` (per-project sidebar, torii-teams ADR 0002); `frame-ancestors` = Continuum hosts, no `X-Frame-Options`; node file `continuum` honours `CONTINUUM_HOST` (vhost lands in v0.9.31, other session).
 - [x] v0.9.33-alpha: pin `0.6.1-torii.3` (ec2bc86; node builds never contact Cordn's coordinator, ADR 0003; project-only main pane). Redeploy: `suite-stages-vps.yml` suite_tag=v0.9.33-alpha stages=teams_app (other session).
+- [x] v0.9.47-alpha: FIPS node on every install (Suite ADR 0001, FIPS-DEFAULT-1 step 1). Next: Continuum and Quest FIPS ADRs; Plebeian later.
 - [x] v0.9.46-alpha: pin `0.6.1-torii.16` (ADR 0015, removal confirmed). Deploy Continuum v0.2.202-alpha, then teams_app.
 - [x] v0.9.45-alpha: pin `0.6.1-torii.15` (ADR 0014, shisa icons and logo). Redeploy teams_app.
 - [x] v0.9.44-alpha: pin `0.6.1-torii.14` (ADR 0013, shisa art). Redeploy teams_app.

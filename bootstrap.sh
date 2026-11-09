@@ -279,6 +279,16 @@ INSTALL_NOSTR_GIT="${INSTALL_NOSTR_GIT:-1}"
 INSTALL_TEAMS="${INSTALL_TEAMS:-0}"
 # TEAMS-2c(a): opt-in Torii Teams web app on teams.<domain> (needs INSTALL_TEAMS).
 INSTALL_TEAMS_APP="${INSTALL_TEAMS_APP:-0}"
+# Suite ADR 0001: the FIPS node on every install (needs the node relay + TUN).
+INSTALL_FIPS="${INSTALL_FIPS:-1}"
+if [[ "$INSTALL_FIPS" == "1" && "$INSTALL_NOSTR_GIT" != "1" ]]; then
+  ui_warn "FIPS needs the node relay (INSTALL_NOSTR_GIT=1), skipping FIPS"
+  INSTALL_FIPS=0
+fi
+if [[ "$INSTALL_FIPS" == "1" && ! -c "${FIPS_TUN_DEV:-/dev/net/tun}" ]]; then
+  ui_warn "FIPS needs a TUN device (/dev/net/tun) on this host, skipping FIPS"
+  INSTALL_FIPS=0
+fi
 
 if [[ "$INSTALL_TEAMS" == "1" && "$INSTALL_NOSTR_GIT" != "1" ]]; then
   ui_warn "INSTALL_TEAMS=1 needs the node relay (INSTALL_NOSTR_GIT=1), disabling Teams"
@@ -439,6 +449,9 @@ else
 fi
 export INSTALL_TEAMS_APP TORII_TEAMS_HOST TEAMS_APP_TAG TEAMS_APP_SHA256
 export INSTALL_CONTINUUM_HOST CONTINUUM_HOST
+# Quest skips its own FIPS call when this run has the FIPS stage.
+TORII_FIPS_STAGE="$INSTALL_FIPS"
+export INSTALL_FIPS TORII_FIPS_STAGE
 export INSTALL_NOSTR_GIT NOSTR_RELAY_PORT NOSTR_RELAY_DB GIT_HOST_ROOT NOSTR_PUBLIC_RELAYS STRFRY_REF TORII_RELAY_HOST
 
 # --------------------------------------------------------------------------- #
@@ -537,6 +550,7 @@ _STAGES_TOTAL=1  # base
 [[ "$INSTALL_PLEBEIAN"           == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_NOSTR_GIT"        == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_FIPS"             == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_TEAMS"            == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_TEAMS_APP"        == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_CONTINUUM_HOST"   == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
@@ -568,6 +582,7 @@ ui_box_line "Quest       $(_plan_row "$INSTALL_QUEST" "install")"
 ui_box_line "Plebeian    $(_plan_row "$INSTALL_PLEBEIAN" "tile")"
 ui_box_line "Bridges     $(_plan_row "$INSTALL_ONBOARDING_BRIDGES" "install")"
 ui_box_line "Nostr git   $(_plan_row "$INSTALL_NOSTR_GIT" "install ${UI_DIM}(relay +git host)${UI_RESET}")"
+ui_box_line "FIPS node   $(_plan_row "$INSTALL_FIPS" "install ${UI_DIM}(no peers until you add one)${UI_RESET}")"
 ui_box_line "Teams       $(_plan_row "$INSTALL_TEAMS" "install ${UI_DIM}(chat coordinator + mesh git)${UI_RESET}")"
 ui_box_line "Teams app   $(_plan_row "$INSTALL_TEAMS_APP" "install ${UI_DIM}(teams.<domain>)${UI_RESET}")"
 if [[ "$SKIP_CERTBOT" == "1" ]]; then
@@ -628,12 +643,14 @@ _stage_quest()          { "${SCRIPT_DIR}/installers/install-quest.sh"; }
 _stage_plebeian()       { "${SCRIPT_DIR}/installers/register-plebeian.sh"; }
 _stage_bridges()        { "${SCRIPT_DIR}/installers/install-bridges.sh"; }
 _stage_nostr_git()      { "${SCRIPT_DIR}/installers/install-nostr-git.sh"; }
+_stage_fips()           { "${SCRIPT_DIR}/installers/install-fips.sh"; }
 _stage_teams()          { "${SCRIPT_DIR}/installers/install-teams.sh"; }
 _stage_teams_app()      { "${SCRIPT_DIR}/installers/install-teams-app.sh"; }
 
 # Doctor is a status readout — never fatal.
 _stage_doctor() {
   torii_cli status || true
+  bash "${SCRIPT_DIR}/scripts/fips-status.sh" || true
   echo
   torii_cli doctor || true
 }
@@ -727,6 +744,12 @@ run_stage "install torii-base" _stage_base
 if [[ "$INSTALL_NOSTR_GIT" == "1" ]]; then
   stage_header "Nostr git-mirror infra (relay + git host)"
   run_stage "install Nostr relay + git host" _stage_nostr_git
+fi
+
+# Suite ADR 0001: straight after the relay, whatever apps are chosen.
+if [[ "$INSTALL_FIPS" == "1" ]]; then
+  stage_header "FIPS node (mesh transport, no peers until you add one)"
+  run_stage "install FIPS node" _stage_fips
 fi
 
 # v0.9.7-alpha (BEKKA-READY-5): install Ollama BEFORE Continuum so
@@ -823,7 +846,7 @@ if [[ "$INSTALL_ONBOARDING_BRIDGES" == "1" ]]; then
   run_stage "install bridges (cors-proxy + webssh)" _stage_bridges
 fi
 
-# After Quest: Quest provisions FIPS, which Teams git binds to.
+# Teams git binds to the FIPS node from its own stage (Suite ADR 0001).
 if [[ "$INSTALL_TEAMS" == "1" ]]; then
   stage_header "Torii Teams (chat coordinator + private mesh git)"
   run_stage "install Teams" _stage_teams

@@ -45,7 +45,9 @@ command -v npm  >/dev/null 2>&1 || die "npm not found"
 
 # Provision networking before changing the active Quest build. Existing
 # INSTALL_NOSTR_GIT=0 installations remain usable without a local mesh endpoint.
-if [[ "${INSTALL_FIPS:-1}" == 1 && -f /opt/torii/relay/strfry.conf ]]; then
+# Bootstrap's own FIPS stage already ran it (Suite ADR 0001); the Quest updater
+# and older checkouts still call it here.
+if [[ "${INSTALL_FIPS:-1}" == 1 && "${TORII_FIPS_STAGE:-0}" != 1 && -f /opt/torii/relay/strfry.conf ]]; then
   bash "$(dirname -- "${BASH_SOURCE[0]}")/install-fips.sh"
 fi
 

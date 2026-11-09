@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.47-alpha: the FIPS node on every install (2026-11-09)
+
+Suite ADR 0001. Every default install now sets up the FIPS node in its own step after the node relay, whether or not Quest is chosen, with no peers and the same limits. Without the relay or a TUN device it says so and skips; `INSTALL_FIPS=0` still opts out. The doctor step shows "FIPS: running, N peers". First of the FIPS-default ADRs; Continuum and Quest next, Plebeian later.
+
 ## Release v0.9.46-alpha: pin torii-teams 0.6.1-torii.16 (2026-11-09)
 
 Removal finishes before you leave (torii-teams ADR 0015). Pin
