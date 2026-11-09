@@ -8,7 +8,7 @@ Nothing to install, approve or configure as a player. Existing controls, world d
 
 ## Operator provisioning
 
-The Suite Quest installer calls `installers/install-fips.sh` before changing the active application when a local strfry config is present. It extracts only the two required binaries from the [pinned upstream v0.5.3 package](https://github.com/jmcorgan/fips/releases/tag/v0.5.3), verifies an embedded SHA-256 and does not execute upstream package scripts or alter global DNS.
+Since v0.9.47-alpha ([Suite ADR 0001](adr-0001-fips-on-every-install.md)) `bootstrap.sh` runs `installers/install-fips.sh` as its own "FIPS node" stage straight after the node relay, whatever apps are chosen. It is skipped with a warning when the relay (`INSTALL_NOSTR_GIT=0`) or a TUN device is missing, and quietly with `INSTALL_FIPS=0`. The Quest installer still calls it (for the Quest updater and older checkouts) unless bootstrap's stage already ran. On an existing node, the `suite-stages-vps.yml` `fips` stage installs it alone, with the operator's approval. `scripts/fips-status.sh` (also run by the doctor stage) prints one line, for example `FIPS: running, 0 peers`, and never a mesh address, key or hostname. It extracts only the two required binaries from the [pinned upstream v0.5.3 package](https://github.com/jmcorgan/fips/releases/tag/v0.5.3), verifies an embedded SHA-256 and does not execute upstream package scripts or alter global DNS.
 
 The installer requires root, TUN, a local relay, nginx, Node and 256 MiB free disk headroom. It refuses an independently managed `/etc/fips/fips.yaml` or active `fips.service`. Generated configuration lives under `/etc/torii/fips`; the node's private key stays root-only and is preserved across reruns. No personal nsec is accepted.
 

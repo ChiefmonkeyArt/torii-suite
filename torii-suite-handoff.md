@@ -4,6 +4,10 @@
 
 `installers/install-continuum-host.sh` runs only with `INSTALL_CONTINUUM_HOST=1`, right after the Continuum stage. Files: vhost `/etc/nginx/sites-available/<CONTINUUM_HOST>.conf`, main-domain redirect `/opt/torii/nginx-fragments/continuum-host.conf`, headers `/opt/torii/nginx-snippets/continuum-headers.inc`. It refuses a `continuum.conf` fragment older than v0.9.31 (re-run `install-continuum.sh` first). Rollback: `CONTINUUM_HOST_REMOVE=1`. Live test: `bash test/continuum-host-live.sh` (no root, high ports). See `docs/CONTINUUM-HOST.md`. Owned by the Continuum Teams session.
 
+## FIPS on every install: v0.9.47-alpha
+
+Suite ADR 0001 (Accepted). `bootstrap.sh`: `INSTALL_FIPS` default 1, turned off with a warning when `INSTALL_NOSTR_GIT!=1` or no TUN (`FIPS_TUN_DEV`, default `/dev/net/tun`); `_stage_fips` runs `install-fips.sh` straight after the relay stage, before Quest and Teams; exports `INSTALL_FIPS TORII_FIPS_STAGE`; plan row "FIPS node"; the doctor stage runs `scripts/fips-status.sh` (one line, running/not and peer count; no addresses, keys or hostnames). `install-quest.sh` skips its FIPS call when `TORII_FIPS_STAGE=1`. Tests: `test/bootstrap-fips.test.sh` (24), wired into `fips-build.yml` with a real-install status check. Continuum deploys don't run bootstrap; on an existing node use the `suite-stages-vps.yml` `fips` stage, with operator approval.
+
 ## Teams removal confirmed: v0.9.46-alpha
 
 Pin only: torii-teams `0.6.1-torii.16` (ADR 0015) in `installers/install-teams-app.sh`, `.env.example` and `docs/TEAMS.md`. Pairs with Continuum v0.2.202-alpha (the Team page waits for Teams' `torii:roster-synced`). CSP unchanged, no installer logic change. Deploy Continuum, then `teams_app`.
@@ -53,7 +57,7 @@ v0.9.32-alpha: Continuum is detected at `${APPS_ROOT}/continuum/agent/repo/agent
 
 ## Torii Teams services: v0.9.26-alpha
 
-`installers/install-teams.sh` runs only with `INSTALL_TEAMS=1`, after the Quest stage (Quest provisions FIPS). Services: `torii-teams-coord` (loopback relay only), `torii-teams-git` (mesh `[fd..]:7334`, skipped until FIPS + a member exist), `torii-teams-backup.timer`. Config in `/etc/torii/teams`; never overwrite `coord.key`. `torii-teams apply` regenerates `/etc/torii/fips/fips.d/teams.nft`, checks with `nft -c`, reloads the FIPS firewall and restarts git. The ngit-grasp binary comes from the `deps-ngit-grasp-v3.0.10` prerelease; to bump it, change the commit in `teams-deps.yml`, dispatch with `publish=true` from main, then pin the new SHA-256s. Do not install on chiefmonkey.art until the Continuum FIPS trial is torn down: it binds 7334 too, and the installer refuses. See `docs/TEAMS.md`.
+`installers/install-teams.sh` runs only with `INSTALL_TEAMS=1`, after the FIPS stage (bootstrap provisions FIPS, Suite ADR 0001). Services: `torii-teams-coord` (loopback relay only), `torii-teams-git` (mesh `[fd..]:7334`, skipped until FIPS + a member exist), `torii-teams-backup.timer`. Config in `/etc/torii/teams`; never overwrite `coord.key`. `torii-teams apply` regenerates `/etc/torii/fips/fips.d/teams.nft`, checks with `nft -c`, reloads the FIPS firewall and restarts git. The ngit-grasp binary comes from the `deps-ngit-grasp-v3.0.10` prerelease; to bump it, change the commit in `teams-deps.yml`, dispatch with `publish=true` from main, then pin the new SHA-256s. Do not install on chiefmonkey.art until the Continuum FIPS trial is torn down: it binds 7334 too, and the installer refuses. See `docs/TEAMS.md`.
 
 ## Quest security policy: v0.9.25-alpha
 

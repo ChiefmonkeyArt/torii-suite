@@ -283,7 +283,16 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
-### New in v0.9.46-alpha: removal you can see finish
+### New in v0.9.47-alpha: FIPS on every install
+
+Every default install now sets up the FIPS node in its own step, straight
+after the node relay, whether or not you install Quest. It starts with no
+peers and the same limits as before; the doctor step shows one line, for
+example "FIPS: running, 0 peers". Without the relay or a TUN device the
+installer says so and skips it; `INSTALL_FIPS=0` still turns it off. Decision
+record: [Suite ADR 0001](docs/adr-0001-fips-on-every-install.md).
+
+### v0.9.46-alpha: removal you can see finish
 
 Pins torii-teams `0.6.1-torii.16`. When you remove someone and save, Teams
 now tells Continuum when they're out of the encrypted chat, so the Team page
