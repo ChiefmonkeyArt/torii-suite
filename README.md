@@ -283,7 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
-### New in v0.9.45-alpha: Teams gets its own icon
+### New in v0.9.46-alpha: removal you can see finish
+
+Pins torii-teams `0.6.1-torii.16`. When you remove someone and save, Teams
+now tells Continuum when they're out of the encrypted chat, so the Team page
+can say so. Update Continuum to v0.2.202-alpha too.
+
+### v0.9.45-alpha: Teams gets its own icon
 
 Pins torii-teams `0.6.1-torii.15`. Teams now has the painted shisa pair as
 its browser-tab and home-screen icon, and its sign-in page shows the shisa
