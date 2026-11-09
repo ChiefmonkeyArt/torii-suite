@@ -1,5 +1,11 @@
 # Torii Suite Progress
 
+## Release v0.9.46-alpha: pin torii-teams 0.6.1-torii.16 (2026-11-09)
+
+Removal finishes before you leave (torii-teams ADR 0015). Pin
+`0.6.1-torii.16` (68bcc62), SHA-256
+`ca8e4cb692fd32fca623a5cea82b40e96847e00487269d7b1666f013e4b917b5`, attestation present (torii-release.yml at the tag). Pairs with Continuum v0.2.202-alpha.
+
 ## Release v0.9.45-alpha: pin torii-teams 0.6.1-torii.15 (2026-11-08)
 
 Shisa favicon, install icons and sign-in logo (torii-teams ADR 0014). Pin

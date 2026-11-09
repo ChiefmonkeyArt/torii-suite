@@ -4,6 +4,10 @@
 
 `installers/install-continuum-host.sh` runs only with `INSTALL_CONTINUUM_HOST=1`, right after the Continuum stage. Files: vhost `/etc/nginx/sites-available/<CONTINUUM_HOST>.conf`, main-domain redirect `/opt/torii/nginx-fragments/continuum-host.conf`, headers `/opt/torii/nginx-snippets/continuum-headers.inc`. It refuses a `continuum.conf` fragment older than v0.9.31 (re-run `install-continuum.sh` first). Rollback: `CONTINUUM_HOST_REMOVE=1`. Live test: `bash test/continuum-host-live.sh` (no root, high ports). See `docs/CONTINUUM-HOST.md`. Owned by the Continuum Teams session.
 
+## Teams removal confirmed: v0.9.46-alpha
+
+Pin only: torii-teams `0.6.1-torii.16` (ADR 0015) in `installers/install-teams-app.sh`, `.env.example` and `docs/TEAMS.md`. Pairs with Continuum v0.2.202-alpha (the Team page waits for Teams' `torii:roster-synced`). CSP unchanged, no installer logic change. Deploy Continuum, then `teams_app`.
+
 ## Teams shisa icons: v0.9.45-alpha
 
 Pin only: torii-teams `0.6.1-torii.15` (ADR 0014) in `installers/install-teams-app.sh`, `.env.example` and `docs/TEAMS.md`. No Continuum change, CSP unchanged, no installer logic change (the 4 KB `favicon.svg` gets a `.gz` like other SVGs over 1 KB). Deploy `teams_app`.

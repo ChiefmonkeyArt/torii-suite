@@ -68,6 +68,14 @@ provenance. No compiler runs on the VPS.
 - With no certificate yet (`SKIP_CERTBOT=1` or DNS not ready) the host answers
   plain text; the app is never served over HTTP. Rerun once DNS points here.
 
+### Removal finishes before you leave (v0.9.46-alpha, torii-teams ADR 0015)
+
+After a Continuum save, the embedded Teams answers `torii:roster-synced`
+`{slug, left, error}` (counts only, exact origin), and the Team page says
+when a removed person is out of the chat. Needs Continuum v0.2.202-alpha;
+either alone keeps the old behaviour. Pin only: no installer or CSP change.
+Deploy Continuum, then `teams_app`.
+
 ### Shisa icons and logo (v0.9.45-alpha, torii-teams ADR 0014)
 
 The tab and home-screen icons are the two painted shisa heads (the release
@@ -166,8 +174,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.45-alpha): torii-teams `0.6.1-torii.15` (commit 80f9f99),
-SHA-256 `60007a179628c1a739ba51fc0fd2178bf3195c66befa186561b30e0095b33bfe`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.46-alpha): torii-teams `0.6.1-torii.16` (commit 68bcc62),
+SHA-256 `ca8e4cb692fd32fca623a5cea82b40e96847e00487269d7b1666f013e4b917b5`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
