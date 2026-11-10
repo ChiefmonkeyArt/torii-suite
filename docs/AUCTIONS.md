@@ -13,18 +13,23 @@ sudo INSTALL_AUCTIONS=1 TORII_DOMAIN=<domain> bash /opt/torii-suite/checkout/ins
 ```
 
 The release repo is public, so the VPS downloads the pinned tarball itself
-(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.3.1.tar.gz` installs a local copy).
+(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.3.2.tar.gz` installs a local copy).
 
 Escrow (v0.2.0+): bids lock to one FROST 3-of-4 group key; each validator keeps
 its share in `/var/lib/plebeian-auctions/chain/vN/config/frost_key.json` (0600).
 The gateway unit runs `arena init -if-needed`: a chain whose
-`/var/lib/plebeian-auctions/chain/FORMAT` does not match the release (v0.3.0 and v0.3.1:
-`3`) is re-created on the next start. v0.3.1 keeps the v0.3.0 chain.
+`/var/lib/plebeian-auctions/chain/FORMAT` does not match the release (v0.3.0-v0.3.2:
+`3`) is re-created on the next start. v0.3.1 and v0.3.2 keep the v0.3.0 chain.
 
 Polling (v0.3.1+, arena ADR 0004): the page reads `/api/state?view=client`, a
 slim view without Cashu proofs that answers `304` when nothing changed, and the
 gateway gzips API JSON. The vhost needs no change: nginx passes `ETag`,
 `If-None-Match` and `Content-Encoding` through.
+
+Mint WebSocket (v0.3.2+, arena ADR 0005): Coco subscribes to the mint's NUT-17
+updates on `/mint/v1/ws`. The vhost passes `Upgrade`/`Connection` on that one
+location only (HTTP/1.1, 600 s timeouts, at most 16 open sockets per address);
+the gateway caps a socket at 10 minutes and refuses upgrades on any other path.
 
 Settings (v0.3.0+): `AUCTIONS_LOCK_MARGIN` (default 86400 s) is how long after
 an auction's hard end a bid stays locked before the bidder can reclaim it

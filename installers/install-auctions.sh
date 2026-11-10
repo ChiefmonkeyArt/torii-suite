@@ -52,11 +52,11 @@ if [[ "${AUCTIONS_REMOVE:-0}" == 1 ]]; then
   exit 0
 fi
 
-# Pinned release (v0.3.1 = plebeian-arena-auctions da6711f; SHA-256 of the CI-built
+# Pinned release (v0.3.2 = plebeian-arena-auctions ea80254; SHA-256 of the CI-built
 # release asset). Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-AUCTIONS_TAG="${AUCTIONS_TAG:-v0.3.1}"
-AUCTIONS_SHA256="${AUCTIONS_SHA256:-b2f0d453505d1a99ce869bf46d2804ae32d38189eb0857f53ac043463471157f}"
+AUCTIONS_TAG="${AUCTIONS_TAG:-v0.3.2}"
+AUCTIONS_SHA256="${AUCTIONS_SHA256:-1d544efa3eced223328b2540d74e01f5f4cb2156076c8cf6bec99cadd88b4b7f}"
 [[ "$AUCTIONS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "bad AUCTIONS_TAG"
 [[ "$AUCTIONS_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "bad AUCTIONS_SHA256"
 # Lock margin: seconds after an auction's hard end before a bidder can reclaim
@@ -222,6 +222,7 @@ if [[ -f "${CERT_DIR}/fullchain.pem" ]]; then
   { echo "# ${VHOST} - written by torii-suite install-auctions.sh (${AUCTIONS_TAG})"
     echo "# Team-only (Suite ADR 0002): no launcher card; never indexed."
     echo "limit_req_zone \$binary_remote_addr zone=torii_auctions:10m rate=30r/s;"
+    echo "limit_conn_zone \$binary_remote_addr zone=torii_auctions_ws:10m;"
     acme_block
     cat <<NGINX
 server {
@@ -245,6 +246,22 @@ server {
         add_header Cache-Control "no-store" always;
         ${H}
         ${P}
+    }
+    # Coco's NUT-17 updates (arena ADR 0005): the one path that may upgrade.
+    # The gateway caps a socket at 10 min; at most 16 open per address
+    # (Coco opens one per demo identity, so a few tabs fit).
+    location = /mint/v1/ws {
+        limit_req zone=torii_auctions burst=60 nodelay;
+        limit_conn torii_auctions_ws 16;
+        ${H}
+        proxy_pass http://127.0.0.1:${AUCTIONS_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$remote_addr;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
     }
     location /mint/ {
         limit_req zone=torii_auctions burst=60 nodelay;
