@@ -40,7 +40,10 @@ cmd_apply() {
     install -m 0644 "$tmp" "$NFT_DROPIN"; rm -f -- "$tmp"
     # Validate the whole ruleset first; a bad file never replaces good rules.
     nft -c -f /opt/torii/fips/mesh.nft || die "firewall check failed; rules unchanged"
-    systemctl restart torii-fips-firewall.service
+    # Load the checked rules in one atomic nft transaction. Restarting
+    # torii-fips-firewall would also bounce torii-fips (BindsTo=), dropping
+    # every mesh session and racing git's bind on fips0.
+    nft -f /opt/torii/fips/mesh.nft || die "firewall load failed"
     echo "mesh git admitted for ${#fds[@]} member device(s)"
   else
     echo "FIPS not installed: git stays off, chat unaffected"

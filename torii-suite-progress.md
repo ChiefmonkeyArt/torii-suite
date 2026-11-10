@@ -2,7 +2,7 @@
 
 ## Release v0.9.53-alpha: Teams members and computers from Continuum (2026-11-10)
 
-The team's private git now follows Continuum without anyone editing files over SSH (torii-teams ADR 0016). Continuum writes one file with every signed member list, invite link and each person's own list of up to three computers; a root helper on the node checks every signature itself, refuses a forged or older member list, and only then rewrites who may use git and which computers may reach it. Pins Torii Teams 0.6.1-torii.17, which adds "Your computers". Tests: mesh checker 9/9, Teams installer 60/60, FIPS peers 18/18; CI checks a real path-unit run.
+The team's private git now follows Continuum without anyone editing files over SSH (torii-teams ADR 0016). Continuum writes one file with every signed member list, invite link and each person's own list of up to three computers; a root helper on the node checks every signature itself, refuses a forged or older member list, and only then rewrites who may use git and which computers may reach it. Pins Torii Teams 0.6.1-torii.17, which adds "Your computers". Tests: mesh checker 9/9, Teams installer 62/62, FIPS peers 18/18; CI checks a real path-unit run.
 
 ## Release v0.9.52-alpha: Auctions v0.3.0, security fixes (2026-11-10)
 
