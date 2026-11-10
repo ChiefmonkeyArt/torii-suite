@@ -52,13 +52,21 @@ if [[ "${AUCTIONS_REMOVE:-0}" == 1 ]]; then
   exit 0
 fi
 
-# Pinned release (v0.2.0 = plebeian-arena-auctions fee2ce3; SHA-256 of the CI-built
+# Pinned release (v0.3.0 = plebeian-arena-auctions 088957c; SHA-256 of the CI-built
 # release asset). Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-AUCTIONS_TAG="${AUCTIONS_TAG:-v0.2.0}"
-AUCTIONS_SHA256="${AUCTIONS_SHA256:-a0ea3ef49aaeb8713159fdbeb656911680056145867893d64d432012732d2c65}"
+AUCTIONS_TAG="${AUCTIONS_TAG:-v0.3.0}"
+AUCTIONS_SHA256="${AUCTIONS_SHA256:-b2e8691f658614fe776ffb9698a0dbaab5794ed6ec0b5a316b37abb1e8428d2b}"
 [[ "$AUCTIONS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "bad AUCTIONS_TAG"
 [[ "$AUCTIONS_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "bad AUCTIONS_SHA256"
+# Lock margin: seconds after an auction's hard end before a bidder can reclaim
+# escrow alone; the seller must collect within it. Demo controls expose the
+# unauthenticated validator stop/start route; on for the team demo only, and
+# must be 0 before real sats.
+AUCTIONS_LOCK_MARGIN="${AUCTIONS_LOCK_MARGIN:-86400}"
+AUCTIONS_DEMO_CONTROLS="${AUCTIONS_DEMO_CONTROLS:-1}"
+[[ "$AUCTIONS_LOCK_MARGIN" =~ ^[0-9]{2,7}$ ]] || die "bad AUCTIONS_LOCK_MARGIN (10-9999999 seconds)"
+[[ "$AUCTIONS_DEMO_CONTROLS" =~ ^[01]$ ]] || die "bad AUCTIONS_DEMO_CONTROLS (0 or 1)"
 # Ports: an explicit setting wins; then what an earlier install chose
 # ($CONFIG/ports); then the default, or on a first install the next free port.
 port_given="${AUCTIONS_PORT:+1}" mint_given="${AUCTIONS_MINT_PORT:+1}"
@@ -145,7 +153,7 @@ install -m 0600 -o root -g root "$TMP/ports" "$CONFIG/ports"
 
 # 6. Units, stop, flip, start. Keep the last 2 releases (each carries a Python).
 auctions_mint_unit "$APP_DIR" > "$TMP/mint.unit" || die "could not write the mint unit"
-auctions_chain_unit "$APP_DIR" "$AUCTIONS_PORT" "$AUCTIONS_MINT_PORT" > "$TMP/chain.unit" || die "could not write the gateway unit"
+auctions_chain_unit "$APP_DIR" "$AUCTIONS_PORT" "$AUCTIONS_MINT_PORT" "$AUCTIONS_LOCK_MARGIN" "$AUCTIONS_DEMO_CONTROLS" > "$TMP/chain.unit" || die "could not write the gateway unit"
 if [[ "$SKIP_SYSTEMD" != 1 ]]; then systemctl stop "${UNITS[@]}" >/dev/null 2>&1 || true; fi
 install -m 0644 "$TMP/mint.unit" /etc/systemd/system/plebeian-auctions-mint.service
 install -m 0644 "$TMP/chain.unit" /etc/systemd/system/plebeian-auctions.service

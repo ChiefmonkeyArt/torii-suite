@@ -61,7 +61,8 @@ start_services(){
   for u in plebeian-auctions-mint plebeian-auctions; do
     mkdir -p "/var/lib/$u"
   done
-  # A v0.1.x chain (no FROST shares) must be replaced on start.
+  # A chain without the release's FORMAT marker (v0.1/v0.2) must be replaced on
+  # start; one with the marker must be kept (the stale file then survives).
   mkdir -p /var/lib/plebeian-auctions/chain/v1/config && touch /var/lib/plebeian-auctions/chain/v1/config/v01-stale
   ( set -a; . /etc/torii/auctions/mint.env; set +a; cd /var/lib/plebeian-auctions-mint
     HOME=/var/lib/plebeian-auctions-mint exec /apps/plebeian-auctions/current/runtime/python/bin/python3 -m cashu.mint ) > "$W/mint.log" 2>&1 &
@@ -99,7 +100,7 @@ for p in "$GW" 13338 26656 26657 7101; do
 done; ok "gateway, mint and validators bind loopback only"
 K1="$(sed -n 's/^MINT_PRIVATE_KEY=//p' /etc/torii/auctions/mint.env)"
 [[ "$(stat -c %a /etc/torii/auctions/mint.env)" == 600 ]] && ok "mint settings 0600" || fail "mint.env mode"
-[[ ! -e /var/lib/plebeian-auctions/chain/v1/config/v01-stale ]] && ok "a chain without FROST shares is re-created" || fail "stale v0.1 chain kept"
+[[ ! -e /var/lib/plebeian-auctions/chain/v1/config/v01-stale ]] && [[ "$(cat /var/lib/plebeian-auctions/chain/FORMAT)" == 3 ]] && ok "an older-format chain is re-created (FORMAT 3)" || fail "stale chain kept"
 for i in 1 2 3 4; do [[ "$(stat -c %a /var/lib/plebeian-auctions/chain/v$i/config/frost_key.json)" == 600 ]] || fail "v$i FROST share"; done
 [[ "$(get "https://$H/api/network")" == 200 ]] && python3 -c 'import json,sys; v=json.load(open(sys.argv[1])); g={x.get("groupKey") for x in v}; assert len(g)==1 and len(g.pop())==66' "$W/b" \
   && ok "four FROST shares (0600), one group key" || fail "FROST group key"
@@ -111,8 +112,27 @@ if [[ -n "$E2E" ]]; then
 fi
 
 for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; PIDS=(); sleep 3
-run "$SHA" >/dev/null && [[ "$(sed -n 's/^MINT_PRIVATE_KEY=//p' /etc/torii/auctions/mint.env)" == "$K1" ]] \
+run "$SHA" AUCTIONS_DEMO_CONTROLS=0 >/dev/null && [[ "$(sed -n 's/^MINT_PRIVATE_KEY=//p' /etc/torii/auctions/mint.env)" == "$K1" ]] \
   && ok "re-install keeps the mint key" || fail "re-install"
+! grep -q -- '-demo-controls' /etc/systemd/system/plebeian-auctions.service && ok "AUCTIONS_DEMO_CONTROLS=0 drops the demo route" || fail "demo flag kept"
+restart_gateway(){
+  if [[ "$SYSTEMD" == 1 ]]; then
+    systemctl restart plebeian-auctions-mint plebeian-auctions || fail "restart"
+    for _ in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:${GW}/api/network && return 0; sleep 1; done
+    fail "gateway did not come back"
+  else
+    for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; PIDS=(); sleep 3
+    start_services
+  fi
+}
+C=/var/lib/plebeian-auctions/chain
+[[ "$SYSTEMD" == 1 ]] || start_services
+touch "$C/v1/config/keep-me"; restart_gateway
+[[ -e "$C/v1/config/keep-me" ]] && ok "a current-format chain is kept across restarts" || fail "current chain wiped"
+rm -f "$C/FORMAT"; restart_gateway
+[[ ! -e "$C/v1/config/keep-me" && "$(cat "$C/FORMAT")" == 3 ]] && ok "a chain without the FORMAT marker is re-created on restart" || fail "old-format chain kept"
+[[ "$(get -X POST "https://$H/api/admin/validator/4/stop")" == 404 ]] && ok "validator stop/start route is off without demo controls" || fail "demo route reachable"
+for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; PIDS=(); sleep 3
 [[ "$(find /apps/plebeian-auctions/releases -mindepth 1 -maxdepth 1 -type d | wc -l)" -le 2 ]] && ok "keeps at most 2 releases" || fail "release pruning"
 env AUCTIONS_REMOVE=1 TORII_DOMAIN=$D SKIP_SYSTEMD=$((1 - SYSTEMD)) bash "$ROOT/installers/install-auctions.sh" >/dev/null \
   && [[ ! -e /etc/nginx/sites-enabled/$H.conf ]] && [[ -f /etc/torii/auctions/mint.env ]] && ok "remove: vhost gone, settings kept" || fail "remove"

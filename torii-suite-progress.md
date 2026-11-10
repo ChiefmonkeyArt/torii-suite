@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.52-alpha: Auctions v0.3.0, security fixes (2026-11-10)
+
+Pins plebeian-arena-auctions v0.3.0 (088957c, SHA-256 `b2e8691f658614fe776ffb9698a0dbaab5794ed6ec0b5a316b37abb1e8428d2b`), which fixes its internal audit: a strict bid-lock parser so the validators and mint cannot disagree (A1, critical), patched CometBFT and Go dependencies, Nutshell 0.21.0 with a re-pinned mint, lowercase-hex Nostr checks, safe listing images, HTTP timeouts. The gateway unit now runs `arena init -if-needed` against a chain FORMAT marker, so the v0.2.0 chain is replaced on upgrade (fake sats). New settings: `AUCTIONS_LOCK_MARGIN` (default 1 day) and `AUCTIONS_DEMO_CONTROLS` (default 1, team demo; 0 turns the unauthenticated stop/start route off). Tests: contract 50/50; live 25/25, e2e 34/34 over HTTPS.
+
 ## Release v0.9.51-alpha: up to eight FIPS peers (2026-11-10)
 
 The FIPS config renderer now takes up to 8 peers instead of 1, each with its own transport name, from a peer file of up to 8 KiB, matching Quest v0.2.939-alpha (ADR-0151). A node with zero or one peer renders exactly as before. New root helper: an operator-signed peer list dropped by Continuum is checked (signature against the node admin, newer than the last one, every field) and turned into `peers.json`, so peers can be added without SSH. Root uses its own copies of the code, never the app's.

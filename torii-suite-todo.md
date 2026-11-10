@@ -16,7 +16,10 @@
 - [x] Deploy path: `auctions` stage in Continuum's `suite-stages-vps.yml` (Continuum PR #275, owner approved).
 - [x] Deploy on chiefmonkey.art (v0.9.49-alpha, owner approved): https://auctions.chiefmonkey.art.
 - [x] v0.9.50-alpha: Auctions v0.2.0 (FROST 3-of-4 group-key escrow, Coco wallet); a chain without FROST shares is re-created.
-- [ ] Deploy v0.9.50-alpha on chiefmonkey.art (needs owner approval).
+- [x] Deploy v0.9.50-alpha on chiefmonkey.art (owner approved).
+- [x] v0.9.52-alpha: Auctions v0.3.0 (audit fixes A1-A11); `arena init -if-needed` with a chain FORMAT marker; `AUCTIONS_LOCK_MARGIN`, `AUCTIONS_DEMO_CONTROLS`.
+- [ ] Deploy v0.9.52-alpha on chiefmonkey.art (needs owner approval).
+- [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
 
 ## Continuum on its own host v0.9.31-alpha

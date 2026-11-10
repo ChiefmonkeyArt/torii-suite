@@ -13,11 +13,20 @@ sudo INSTALL_AUCTIONS=1 TORII_DOMAIN=<domain> bash /opt/torii-suite/checkout/ins
 ```
 
 The release repo is public, so the VPS downloads the pinned tarball itself
-(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.2.0.tar.gz` installs a local copy).
+(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.3.0.tar.gz` installs a local copy).
 
-Escrow (v0.2.0): bids lock to one FROST 3-of-4 group key; each validator keeps
+Escrow (v0.2.0+): bids lock to one FROST 3-of-4 group key; each validator keeps
 its share in `/var/lib/plebeian-auctions/chain/vN/config/frost_key.json` (0600).
-A chain without these shares (v0.1.x) is re-created on the next start.
+The gateway unit runs `arena init -if-needed`: a chain whose
+`/var/lib/plebeian-auctions/chain/FORMAT` does not match the release (v0.3.0:
+`3`) is re-created on the next start.
+
+Settings (v0.3.0+): `AUCTIONS_LOCK_MARGIN` (default 86400 s) is how long after
+an auction's hard end a bid stays locked before the bidder can reclaim it
+alone; the seller must collect within it. `AUCTIONS_DEMO_CONTROLS` (default 1)
+keeps the unauthenticated validator stop/start route for the team demo; with
+0 it answers 404. Set it to 0 before real sats. Security review:
+[arena audit](https://github.com/ChiefmonkeyArt/plebeian-arena-auctions/blob/main/docs/SECURITY_AUDIT_2026-11-10.md).
 
 ## Files and services
 
