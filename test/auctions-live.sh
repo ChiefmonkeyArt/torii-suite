@@ -138,6 +138,11 @@ C=/var/lib/plebeian-auctions/chain
 [[ "$SYSTEMD" == 1 ]] || start_services
 touch "$C/v1/config/keep-me"; restart_gateway
 [[ -e "$C/v1/config/keep-me" ]] && ok "a current-format chain is kept across restarts" || fail "current chain wiped"
+snaps=0; for v in 1 2 3 4; do
+  f=$(find "$C/v$v/data/app-state" -maxdepth 1 -name '*.json' -perm 600 2>/dev/null | head -1)
+  [[ -n "$f" ]] && snaps=$((snaps+1))
+done
+[[ "$snaps" == 4 ]] && ok "a clean stop leaves a 0600 state snapshot for each validator (ADR 0003)" || fail "state snapshots: $snaps/4"
 rm -f "$C/FORMAT"; restart_gateway
 [[ ! -e "$C/v1/config/keep-me" && "$(cat "$C/FORMAT")" == 3 ]] && ok "a chain without the FORMAT marker is re-created on restart" || fail "old-format chain kept"
 [[ "$(get -X POST "https://$H/api/admin/validator/4/stop")" == 404 ]] && ok "validator stop/start route is off without demo controls" || fail "demo route reachable"

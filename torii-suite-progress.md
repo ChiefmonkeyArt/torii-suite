@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.57-alpha: Auctions restart in seconds (2026-11-10)
+
+Pins plebeian-arena-auctions v0.3.3 (5a37ad6, SHA-256 `e9654fd94bda7b01de0a5e782dab9a496335fe6bd649e6a41ac70ab6022b3307`). Every restart used to replay all blocks from genesis (~5.5 min at 43k blocks on chiefmonkey.art, growing about 1 block a second). Validators now save checked state snapshots and start from the newest. Arena tests: Go with -race, gosec clean, e2e 48/48; clean restart 0.23 s; kill -9 recovery, corrupted and wrong snapshots refused. Suite: contract 53/53; live 29/29 (new: a clean stop leaves a 0600 snapshot per validator) with e2e 47/47 over HTTPS.
+
 ## Release v0.9.56-alpha: each project's chat on its own tab (2026-11-10)
 
 Pins torii-teams 0.6.1-torii.18 (c434c40). Continuum v0.2.205-alpha gives every project its team chat from the moment it is created, on the project's Team tab; Teams shows just that project there. No installer logic change.
