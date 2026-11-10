@@ -70,6 +70,26 @@ check "git starts with a member and a mesh address" env TEAMS_MEMBERS_FILE="$tmp
 mkdir -p "$tmp/cred"; echo nsec1bad > "$tmp/cred/coord.key"
 refuse "coordinator refuses a malformed key" env CREDENTIALS_DIRECTORY="$tmp/cred" RELAY_PORT=7777 STATE_DIRECTORY="$tmp" bash "$T/run-coord.sh"
 
+# Members from Continuum (torii-teams ADR 0016).
+check "mesh-sync.mjs parses" node --check "$T/mesh-sync.mjs"
+has '"$ROOT/fips/schnorr.mjs" "$ROOT/fips/agent-file.mjs" "$PREFIX/lib/fips/"' "$I" "sync runs root's own copies, not app code"
+has '"$ROOT/teams/mesh-sync.mjs" "$PREFIX/lib/teams/"' "$I" "mesh checker installed beside them"
+has 'PathChanged=%s' "$I" "a path unit watches the mesh file"
+has 'enable -q --now torii-teams-sync.path' "$I" "path unit enabled"
+has '"$CONFIG/owner.npub"' "$I" "owner npub recorded for signature checks"
+has 'TEAMS_MESH_FILE=%s' "$I" "mesh file location kept in teams.env"
+has 'nft -f /opt/torii/fips/mesh.nft ||' "$T/torii-teams" "apply loads rules without bouncing FIPS"
+grep -q 'restart torii-fips' "$T/torii-teams" && bad "apply never restarts FIPS units" || ok "apply never restarts FIPS units"
+has 'cmp -s' "$T/torii-teams" "sync restarts git only when the lists change"
+has '/var/lib/torii-teams-sync' "$T/torii-teams" "sync state kept apart from service data"
+has 'Type=oneshot' "$T/torii-teams-sync.service" "sync is a oneshot"
+has 'torii-teams sync --files-only ||' "$I" "installer refreshes lists without a second restart"
+grep -qx '/usr/local/sbin/torii-teams apply' "$I" && ok "installer always applies (git restarts on reinstall)" || bad "installer always applies (git restarts on reinstall)"
+d="$(mktemp -d)"; S="$d/torii-teams"; sed "s#^CONFIG=.*#CONFIG=$d#; s#^LIB=.*#LIB=$ROOT#; s#\[\[ \$EUID -eq 0 \]\].*##" "$T/torii-teams" > "$S"
+out="$(TEAMS_MESH_FILE="$d/none.json" bash "$S" sync 2>&1)"
+[[ "$out" == "no Continuum mesh file: member files unchanged" ]] && ok "no mesh file leaves member files alone" || bad "no mesh file leaves member files alone"
+rm -rf -- "$d"
+
 # After a real install (CI).
 if [[ -x /opt/torii/teams/bin/run-git.sh ]]; then
   for u in "$T"/*.service "$T"/*.timer; do

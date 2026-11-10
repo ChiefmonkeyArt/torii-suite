@@ -7,12 +7,12 @@
 //
 // Exit 0 with "peers: N" when applied, 3 when there is nothing new, 1 on refusal
 // (one-line reason, never file contents).
-import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { verifyNostrEvent, npubToHex } from './schnorr.mjs';
 import { renderConfig, MAX_PEERS } from './render-config.mjs';
+import { readAgentFile } from './agent-file.mjs';
 
 export const PEER_REQUEST_KIND = 27532;
 export const PEER_REQUEST_TAG = 'torii-fips-peers';
@@ -38,17 +38,6 @@ export function checkRequest(body, { adminHex, lastAt = 0, now = Math.floor(Date
   return { peers, createdAt: e.created_at };
 }
 
-// Read a file the agent controls without following links anywhere else.
-function readAgentFile(path) {
-  if (realpathSync(dirname(path)) !== dirname(path)) throw new Error('request directory is a link');
-  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-  try {
-    const st = fstatSync(fd);
-    if (!st.isFile() || st.size > MAX_REQUEST_BYTES) throw new Error('request must be a small regular file');
-    return readFileSync(fd, 'utf8');
-  } finally { closeSync(fd); }
-}
-
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [request, adminFile, lastFile, peersOut, yamlOut, ctl] = process.argv.slice(2);
   try {
@@ -56,7 +45,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     try { lastAt = Number(readFileSync(lastFile, 'utf8').trim()) || 0; } catch { /* first run */ }
     const adminHex = npubToHex(readFileSync(adminFile, 'utf8').trim());
     let body;
-    try { body = JSON.parse(readAgentFile(request)); } catch (e) {
+    try { body = JSON.parse(readAgentFile(request, MAX_REQUEST_BYTES)); } catch (e) {
       throw new Error(e.message.startsWith('request') ? e.message : 'request is not readable JSON');
     }
     const { peers, createdAt } = checkRequest(body, { adminHex, lastAt });

@@ -1,7 +1,7 @@
 name: Teams install
 on:
   pull_request:
-    paths: ['teams/**', 'installers/install-teams.sh', 'installers/install-fips.sh', 'fips/**', 'test/install-teams.test.sh', '.github/workflows/teams-build.yml']
+    paths: ['teams/**', 'installers/install-teams.sh', 'installers/install-fips.sh', 'fips/**', 'test/install-teams.test.sh', 'test/teams-mesh.test.mjs', 'test/fixtures/teams-mesh.json', '.github/workflows/teams-build.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -59,9 +59,26 @@ jobs:
           sudo torii-teams status
           sudo env PATH="$PATH" bash test/install-teams.test.sh
           bash test/install-fips.test.sh
+      - name: Members from Continuum's signed mesh file (ADR 0016)
+        run: |
+          set -euo pipefail
+          node --test test/teams-mesh.test.mjs
+          f=/apps/continuum/agent/repo/agent/memory/teams/mesh.json
+          node -e 'const f=require("./test/fixtures/teams-mesh.json");console.log(f.owner)' | sudo tee /etc/torii/teams/owner.npub >/dev/null
+          sudo install -d -m 0755 "$(dirname "$f")"
+          node -e 'process.stdout.write(JSON.stringify(require("./test/fixtures/teams-mesh.json").mesh))' > /tmp/mesh.json
+          sudo install -m 0644 /tmp/mesh.json "$f.tmp" && sudo mv "$f.tmp" "$f"
+          alice="$(node -e 'console.log(require("./test/fixtures/teams-mesh.json").npubs.alice)')"
+          d1="$(node -e 'console.log(require("./test/fixtures/teams-mesh.json").npubs.d1)')"
+          for i in $(seq 20); do grep -qx "$alice" /etc/torii/teams/git-members && break; sleep 1; done
+          grep -qx "$alice" /etc/torii/teams/git-members
+          grep -qx "$d1" /etc/torii/teams/member-nodes
+          sudo grep -q 'tcp dport 7334 accept' /etc/torii/fips/fips.d/teams.nft
+          sudo torii-teams sync | grep -qx 'member files unchanged'
+          sudo systemctl is-active -q torii-teams-git
       - name: Diagnostics on failure
         if: failure()
         run: |
           sudo systemctl status torii-teams-coord torii-teams-git torii-fips --no-pager || true
-          sudo journalctl -u torii-teams-coord -u torii-teams-git -n 80 --no-pager || true
+          sudo journalctl -u torii-teams-coord -u torii-teams-git -u torii-teams-sync -n 80 --no-pager || true
           tail -20 /tmp/relay.log || true

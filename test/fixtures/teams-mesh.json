@@ -1,0 +1,260 @@
+{
+ "mesh": {
+  "version": 1,
+  "projects": [
+   {
+    "slug": "site",
+    "roster": {
+     "kind": 30098,
+     "tags": [
+      [
+       "d",
+       "site"
+      ],
+      [
+       "p",
+       "d382647016f2061b7a8267f493ea81d0dff92358bde78720a5c10937788955ab",
+       "maintainer"
+      ],
+      [
+       "p",
+       "51bfd261c41ede5af94f70df67b1766e7144c8fc941859438f42cf9f745c2459",
+       "contributor"
+      ],
+      [
+       "p",
+       "5d0854ab8cb1efc1d651c735b7d8bdd0dcd7acbd1e55ba0eca8129d54d1f3a87",
+       "agent",
+       "d382647016f2061b7a8267f493ea81d0dff92358bde78720a5c10937788955ab"
+      ]
+     ],
+     "content": "",
+     "created_at": 1790000000,
+     "pubkey": "781cc86a0b9e8c88aa5d3a35c99a463f72388b2c856d7fe3d8c5adc07d0e8bbb",
+     "id": "888d9341a810fb4118546da5730335aaa3f58c7988cb0d4a744bf7c171562ad6",
+     "sig": "bceb9000e51fec7902d0066ae91e94b42c5798ab7374db87d033d3129d78ad1129a96d9db191743b1ccd85d35d9fde8c2fbe8ccbdad2def7627e165cb0cb87ae"
+    },
+    "admitted": [
+     {
+      "pubkey": "025cadc450cd9dad56a8428d02ce90e8b3a1dd2d71d77e0d6121dfd1f81bad9c",
+      "role": "contributor",
+      "grant": {
+       "kind": 27098,
+       "tags": [
+        [
+         "project",
+         "site"
+        ],
+        [
+         "invite",
+         "abc"
+        ],
+        [
+         "role",
+         "contributor"
+        ],
+        [
+         "uses",
+         "1"
+        ],
+        [
+         "expiration",
+         "1790086400"
+        ]
+       ],
+       "content": "",
+       "created_at": 1790000000,
+       "pubkey": "781cc86a0b9e8c88aa5d3a35c99a463f72388b2c856d7fe3d8c5adc07d0e8bbb",
+       "id": "c4b017696d455e79570bf3776834d69c5141c8c892feb282f5607e3ab98f9d98",
+       "sig": "936a61130803aa22ebd089cb2d7b30cb5f38e820128ab4bdf9a7ba0337f7d16510933e182e74ad646da5e3d4ad30990c78af505d33c2465026861b5c9f421d5f"
+      }
+     },
+     {
+      "pubkey": "804750b689d5eb98515a2708d521a15be4a90bdc60b0a05fb3cb00f47778914c",
+      "role": "contributor",
+      "grant": {
+       "kind": 27098,
+       "tags": [
+        [
+         "project",
+         "site"
+        ],
+        [
+         "invite",
+         "abc"
+        ],
+        [
+         "role",
+         "contributor"
+        ],
+        [
+         "uses",
+         "1"
+        ],
+        [
+         "expiration",
+         "1790086400"
+        ]
+       ],
+       "content": "",
+       "created_at": 1790000000,
+       "pubkey": "781cc86a0b9e8c88aa5d3a35c99a463f72388b2c856d7fe3d8c5adc07d0e8bbb",
+       "id": "c4b017696d455e79570bf3776834d69c5141c8c892feb282f5607e3ab98f9d98",
+       "sig": "936a61130803aa22ebd089cb2d7b30cb5f38e820128ab4bdf9a7ba0337f7d16510933e182e74ad646da5e3d4ad30990c78af505d33c2465026861b5c9f421d5f"
+      }
+     }
+    ]
+   },
+   {
+    "slug": "docs",
+    "roster": null,
+    "admitted": []
+   }
+  ],
+  "devices": [
+   {
+    "kind": 27531,
+    "tags": [
+     [
+      "t",
+      "torii-teams-devices"
+     ]
+    ],
+    "content": "{\"v\":1,\"devices\":[{\"npub\":\"npub174zkgr5gethmwx7ud26kcac7u27uczq504kpupz2udd6mrmd5fuqe2un6a\",\"label\":\"pc0\"},{\"npub\":\"npub1mh9xxwytjjt6yr2mxj0nu7ruf6djntsenrqfxej6h87va52xm2lqdkj6pd\",\"label\":\"pc1\"}]}",
+    "created_at": 1790000000,
+    "pubkey": "d382647016f2061b7a8267f493ea81d0dff92358bde78720a5c10937788955ab",
+    "id": "56c7d9dc86148edc2ddd0725e2e8b460863144d1247ed42d1509b0d1a3d58d59",
+    "sig": "f170541407192ebb2a8ddb855aad3f552c66cf6692cd1812c16f9ed5e8652f55ca266523ac69f0a08e7ba7e0b2784a436cf48d7321a3fc536bbaa0e752121021"
+   },
+   {
+    "kind": 27531,
+    "tags": [
+     [
+      "t",
+      "torii-teams-devices"
+     ]
+    ],
+    "content": "{\"v\":1,\"devices\":[{\"npub\":\"npub13agvpx9a693m84m73l3ah84p78yxmld7pfj6salqwmcajzg7dw7s8plfme\",\"label\":\"pc0\"}]}",
+    "created_at": 1790000000,
+    "pubkey": "025cadc450cd9dad56a8428d02ce90e8b3a1dd2d71d77e0d6121dfd1f81bad9c",
+    "id": "31e63b1faad6f9795842cca93a453c955fc764474d398603dc0a21bcd52a7415",
+    "sig": "21b87b58b73fe03feb7124bf9fea086fb2f4555013d850f96a0432bdaff2e99340595019e037e7222f1c888c4859f2fa8be5a9c16a6359e065fe455454552117"
+   },
+   {
+    "kind": 27531,
+    "tags": [
+     [
+      "t",
+      "torii-teams-devices"
+     ]
+    ],
+    "content": "{\"v\":1,\"devices\":[{\"npub\":\"npub10m6t4a5gkmqjdfultwdvhz7ftqg75j40p7h0x739nye8l9mcvljsjkt7xq\",\"label\":\"pc0\"}]}",
+    "created_at": 1790000000,
+    "pubkey": "1e90ded42a0217770e86f83d9f08ac78c455f1fd05fcc1720872313239cd12ba",
+    "id": "b59a47a5223a1c1293684e1e01c8f9d0dfe4094f8132657599249842f237b01e",
+    "sig": "343d31f73a2cda7cc54b60b62bb0774fbe5051c158d61c8bd50da6ed2fb717c8c93cde0d0500b449371f6e43ba7228feccf5e5033969ef3754ab9cb3869bde0e"
+   },
+   {
+    "kind": 27531,
+    "tags": [
+     [
+      "t",
+      "torii-teams-devices"
+     ]
+    ],
+    "content": "{\"v\":1,\"devices\":[{\"npub\":\"npub174zkgr5gethmwx7ud26kcac7u27uczq504kpupz2udd6mrmd5fuqe2un6a\",\"label\":\"pc0\"}]}",
+    "created_at": 1790000000,
+    "pubkey": "781cc86a0b9e8c88aa5d3a35c99a463f72388b2c856d7fe3d8c5adc07d0e8bbb",
+    "id": "ed77b5c3d9b7153a7f2005fe807f954963334e763651e139b4ff363e9788eee2",
+    "sig": "d8b258389ab3a83a1f29611a9611a37499bde55ce8295e714957858f3422187b3c51a1d660a668e17d94122d1c8d23b278ea94926d36fa1dc8f70e9d9cf0d36c"
+   }
+  ]
+ },
+ "owner": "npub10qwvs6stn6xg32ja8g6unxjx8aer3zevs4khlc7cckkuqlgw3was3ztm8w",
+ "ownerHex": "781cc86a0b9e8c88aa5d3a35c99a463f72388b2c856d7fe3d8c5adc07d0e8bbb",
+ "npubs": {
+  "owner": "npub10qwvs6stn6xg32ja8g6unxjx8aer3zevs4khlc7cckkuqlgw3was3ztm8w",
+  "alice": "npub16wpxguqk7grpk75zvl6f865p6r0ljg6chhncwg99cyynw7yf2k4su8uml9",
+  "bob": "npub12xlaycwyrm094720wr0k0vtkdec5fj8ujsv9jsu0gt8e7azuy3vsaq87ht",
+  "bot": "npub1t5y9f2uvk8hur4j3cu6m0k9a6rwd0t9are2m5rk2sy5a2ngl82rsvfwmwn",
+  "carol": "npub1qfw2m3zsekw6644gg2xs9n5saze6rhfdw8thurtpy80ar7qm4kwqexuw3l",
+  "dave": "npub1spr4pd5f6h4es526yuyd2gdpt0j2jz7uvzc2qhanevq0gamcj9xqyajzj4",
+  "mallory": "npub1r6gda4p2qgthwr5xlq7e7z9v0rz9tu0aqh7vzusgwgcnywwdz2aqtrxcs5",
+  "d1": "npub174zkgr5gethmwx7ud26kcac7u27uczq504kpupz2udd6mrmd5fuqe2un6a",
+  "d2": "npub1mh9xxwytjjt6yr2mxj0nu7ruf6djntsenrqfxej6h87va52xm2lqdkj6pd",
+  "d3": "npub13agvpx9a693m84m73l3ah84p78yxmld7pfj6salqwmcajzg7dw7s8plfme",
+  "d4": "npub10m6t4a5gkmqjdfultwdvhz7ftqg75j40p7h0x739nye8l9mcvljsjkt7xq"
+ },
+ "olderRoster": {
+  "kind": 30098,
+  "tags": [
+   [
+    "d",
+    "site"
+   ],
+   [
+    "p",
+    "d382647016f2061b7a8267f493ea81d0dff92358bde78720a5c10937788955ab",
+    "maintainer"
+   ],
+   [
+    "p",
+    "51bfd261c41ede5af94f70df67b1766e7144c8fc941859438f42cf9f745c2459",
+    "contributor"
+   ],
+   [
+    "p",
+    "5d0854ab8cb1efc1d651c735b7d8bdd0dcd7acbd1e55ba0eca8129d54d1f3a87",
+    "agent",
+    "d382647016f2061b7a8267f493ea81d0dff92358bde78720a5c10937788955ab"
+   ]
+  ],
+  "content": "",
+  "created_at": 1789999940,
+  "pubkey": "781cc86a0b9e8c88aa5d3a35c99a463f72388b2c856d7fe3d8c5adc07d0e8bbb",
+  "id": "d37a749e2d481e166f9420a3636aacd55eba877e0a16e4893beadba2052e7080",
+  "sig": "9e48bdbee83aa36783154dbbf27f8697e370b9080675b5444120d70b2ccb3f0badac03ec1a0297e90311932409eb382e177ac2042715a3f5559ae030a557ba21"
+ },
+ "newerAliceNote": {
+  "kind": 27531,
+  "tags": [
+   [
+    "t",
+    "torii-teams-devices"
+   ]
+  ],
+  "content": "{\"v\":1,\"devices\":[{\"npub\":\"npub1mh9xxwytjjt6yr2mxj0nu7ruf6djntsenrqfxej6h87va52xm2lqdkj6pd\",\"label\":\"pc0\"}]}",
+  "created_at": 1790000060,
+  "pubkey": "d382647016f2061b7a8267f493ea81d0dff92358bde78720a5c10937788955ab",
+  "id": "856be7515dbf5c6704413c07a8124853ca0df2bc297c087546521341640f784e",
+  "sig": "fdc6fe39678705ac18418cd4c548f427de6b5bc3b99e5c634a3f0cc99f5e8893fc52c124ca50eada945b2758a9d9541ef7dd8ceaa5b36e16b7b1f6aad4414685"
+ },
+ "olderAliceNote": {
+  "kind": 27531,
+  "tags": [
+   [
+    "t",
+    "torii-teams-devices"
+   ]
+  ],
+  "content": "{\"v\":1,\"devices\":[{\"npub\":\"npub10m6t4a5gkmqjdfultwdvhz7ftqg75j40p7h0x739nye8l9mcvljsjkt7xq\",\"label\":\"pc0\"}]}",
+  "created_at": 1789999940,
+  "pubkey": "d382647016f2061b7a8267f493ea81d0dff92358bde78720a5c10937788955ab",
+  "id": "e1722d8375f8ae1d69dae4d46bcb24389cc626e677f544661e081d30e01f00c0",
+  "sig": "3127dd382f7587107b7f4536dd40f365b792ef33439230f76ab4bb9d6129bd6d23c45a297bfa2be2767e1a674df05664f93829c5c3263eec1c0732980feb3a8c"
+ },
+ "strangerRoster": {
+  "kind": 30098,
+  "tags": [
+   [
+    "d",
+    "site"
+   ]
+  ],
+  "content": "",
+  "created_at": 1790000060,
+  "pubkey": "1e90ded42a0217770e86f83d9f08ac78c455f1fd05fcc1720872313239cd12ba",
+  "id": "ba8513ab46acc4c3fdcc65901179ae06e8c28d5cddecc857c507917d1b0fb072",
+  "sig": "ad65e6435ab16db1b92feafab92af0167b138b664c39908e39adfcb33051b0e1f403d5f6b8676c558126d9c6b458aa14a099c423f758ff751e20b8fad6c0b0ad"
+ }
+}

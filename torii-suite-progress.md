@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.53-alpha: Teams members and computers from Continuum (2026-11-10)
+
+The team's private git now follows Continuum without anyone editing files over SSH (torii-teams ADR 0016). Continuum writes one file with every signed member list, invite link and each person's own list of up to three computers; a root helper on the node checks every signature itself, refuses a forged or older member list, and only then rewrites who may use git and which computers may reach it. Pins Torii Teams 0.6.1-torii.17, which adds "Your computers". Tests: mesh checker 9/9, Teams installer 62/62, FIPS peers 18/18; CI checks a real path-unit run.
+
 ## Release v0.9.52-alpha: Auctions v0.3.0, security fixes (2026-11-10)
 
 Pins plebeian-arena-auctions v0.3.0 (088957c, SHA-256 `b2e8691f658614fe776ffb9698a0dbaab5794ed6ec0b5a316b37abb1e8428d2b`), which fixes its internal audit: a strict bid-lock parser so the validators and mint cannot disagree (A1, critical), patched CometBFT and Go dependencies, Nutshell 0.21.0 with a re-pinned mint, lowercase-hex Nostr checks, safe listing images, HTTP timeouts. The gateway unit now runs `arena init -if-needed` against a chain FORMAT marker, so the v0.2.0 chain is replaced on upgrade (fake sats). New settings: `AUCTIONS_LOCK_MARGIN` (default 1 day) and `AUCTIONS_DEMO_CONTROLS` (default 1, team demo; 0 turns the unauthenticated stop/start route off). Tests: contract 50/50; live 25/25, e2e 34/34 over HTTPS.

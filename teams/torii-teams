@@ -2,6 +2,8 @@
 # torii-teams: operator commands for the Teams services (root only).
 #   status   services, coordinator pubkey, member counts
 #   apply    re-read member files: mesh firewall allow list + git restart
+#   sync     rewrite the member files from Continuum's signed mesh file, then
+#            apply (torii-teams-sync.path; torii-teams ADR 0016)
 #   backup   consistent tarball of keys, members and data (daily timer)
 set -euo pipefail
 CONFIG=/etc/torii/teams
@@ -9,6 +11,7 @@ STATE=/var/lib/torii-teams
 BACKUPS=/var/backups/torii-teams
 FIPS_CTL=/opt/torii/fips/bin/fipsctl
 NFT_DROPIN=/etc/torii/fips/fips.d/teams.nft
+LIB=/opt/torii/teams/lib
 NPUB_RE='^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$'
 die() { echo "torii-teams: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run as root"
@@ -37,7 +40,10 @@ cmd_apply() {
     install -m 0644 "$tmp" "$NFT_DROPIN"; rm -f -- "$tmp"
     # Validate the whole ruleset first; a bad file never replaces good rules.
     nft -c -f /opt/torii/fips/mesh.nft || die "firewall check failed; rules unchanged"
-    systemctl restart torii-fips-firewall.service
+    # Load the checked rules in one atomic nft transaction. Restarting
+    # torii-fips-firewall would also bounce torii-fips (BindsTo=), dropping
+    # every mesh session and racing git's bind on fips0.
+    nft -f /opt/torii/fips/mesh.nft || die "firewall load failed"
     echo "mesh git admitted for ${#fds[@]} member device(s)"
   else
     echo "FIPS not installed: git stays off, chat unaffected"
@@ -45,6 +51,30 @@ cmd_apply() {
   systemctl restart torii-teams-git.service
   if systemctl is-active -q torii-teams-git.service; then echo "git: active (${GIT_HOST:-torii-teams}.fips:${GIT_PORT:-7334})"
   else echo "git: not running (needs FIPS and at least one npub in $CONFIG/git-members)"; fi
+}
+
+# --files-only: refresh the member files; the caller runs apply itself.
+cmd_sync() {
+  local apply=1; [[ "${1:-}" == --files-only ]] && apply=0
+  local mesh="${TEAMS_MESH_FILE:-/apps/continuum/agent/repo/agent/memory/teams/mesh.json}"
+  [[ -e "$mesh" ]] || { echo "no Continuum mesh file: member files unchanged"; return 0; }
+  [[ -s "$CONFIG/owner.npub" ]] || die "no project owner in $CONFIG/owner.npub"
+  # Its own state dir: /var/lib/torii-teams holds the services' data.
+  local st=/var/lib/torii-teams-sync tmp
+  install -d -m 0700 -o root -g root "$st"
+  tmp="$(mktemp -d)"; trap 'rm -rf -- "$tmp"' RETURN
+  node "$LIB/teams/mesh-sync.mjs" "$mesh" "$CONFIG/owner.npub" "$st/mesh-state.json" \
+    "$tmp/git-members" "$tmp/member-nodes"
+  if cmp -s "$tmp/git-members" "$CONFIG/git-members" && cmp -s "$tmp/member-nodes" "$CONFIG/member-nodes"; then
+    mv -f -- "$st/mesh-state.json.next" "$st/mesh-state.json"
+    echo "member files unchanged"; return 0
+  fi
+  install -m 0644 -o root -g root "$tmp/git-members" "$CONFIG/git-members"
+  install -m 0644 -o root -g root "$tmp/member-nodes" "$CONFIG/member-nodes"
+  mv -f -- "$st/mesh-state.json.next" "$st/mesh-state.json"
+  echo "member files updated"
+  ((apply)) && cmd_apply
+  return 0
 }
 
 cmd_status() {
@@ -80,6 +110,7 @@ cmd_backup() {
 case "${1:-status}" in
   status) cmd_status ;;
   apply) cmd_apply ;;
+  sync) cmd_sync "${2:-}" ;;
   backup) cmd_backup ;;
-  *) die "usage: torii-teams status|apply|backup" ;;
+  *) die "usage: torii-teams status|apply|sync [--files-only]|backup" ;;
 esac

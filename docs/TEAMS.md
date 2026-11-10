@@ -174,8 +174,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.46-alpha): torii-teams `0.6.1-torii.16` (commit 68bcc62),
-SHA-256 `ca8e4cb692fd32fca623a5cea82b40e96847e00487269d7b1666f013e4b917b5`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.53-alpha): torii-teams `0.6.1-torii.17` (commit 728d183),
+SHA-256 `a575462f4c47656f8e24b72b13848728dfdc332a49bf9613f1bcf89254471942`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
@@ -192,18 +192,31 @@ self-signed cert, served headers, wrong checksum, missing `coord.pub`). CI:
   these. First install seeds `TEAMS_OWNER_NPUB` (default `CONTINUUM_ADMIN_NPUB`).
 - `/etc/torii/teams/member-nodes`: one FIPS device npub per line. Only these
   devices can open the mesh git port.
+- `/etc/torii/teams/owner.npub`: the project owner whose signatures
+  `torii-teams sync` believes (from `TEAMS_OWNER_NPUB`).
+- `/var/lib/torii-teams-sync/mesh-state.json` (0600, root): the newest member
+  list and device note applied, so an older one is refused.
 - `/etc/torii/fips/fips.d/teams.nft`: generated allow list, loaded by the Suite
   FIPS firewall through the new `members` chain. Do not edit.
 - `/var/lib/torii-teams/{coord,git}`: data, one system user per service.
 
-Reruns never replace the key or the member lists. TEAMS-2a-4 will write the two
-member files from the signed roster; until then the operator edits them.
+Reruns never replace the key. The two member files come from Continuum
+(torii-teams ADR 0016): the agent writes `memory/teams/mesh.json` with each
+project's owner-signed member list, the owner-signed invite links people joined
+by, and each person's own signed list of their computers (up to 3, added in the
+Teams app under "Your computers"). `torii-teams-sync.path` notices the change and
+runs `torii-teams sync` as root, which checks every signature itself with its
+own copy of the code (`/opt/torii/teams/lib`), refuses a forged or older member
+list outright, drops any other bad entry, then rewrites both files and runs
+`apply` only if they changed. Until Continuum writes a mesh file the operator
+edits the files by hand; once it does, `sync` replaces them.
 
 ## Operating
 
 ```bash
 sudo torii-teams status
-sudo torii-teams apply     # after editing git-members or member-nodes
+sudo torii-teams sync      # rebuild both member files from Continuum now
+sudo torii-teams apply     # after editing git-members or member-nodes by hand
 sudo torii-teams backup
 ```
 

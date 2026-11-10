@@ -4,7 +4,8 @@
 
 - [x] `fips/render-config.mjs` cap 8, duplicates refused, 8 KiB; `docs/FIPS.md`; test case.
 - [x] Root path unit `torii-fips-peers` that writes `peers.json` from an operator-signed Continuum list (torii-continuum `docs/adr-fips-default.md` §4); `test/fips-peers.test.sh`, CI real apply.
-- [ ] Mesh projection unit for Teams git members and devices (§3, next release).
+- [x] Mesh projection unit for Teams git members and devices (§3): v0.9.53-alpha `torii-teams sync` (torii-teams ADR 0016).
+- [ ] Real two-computer test of private git over the mesh.
 
 ## Plebeian Auctions v0.9.48-alpha (Suite ADR 0002)
 

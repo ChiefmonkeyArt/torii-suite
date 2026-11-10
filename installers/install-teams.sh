@@ -21,6 +21,10 @@ GIT_PORT=7334
 # A FIPS shortname. Never npub-prefixed: ngit cuts URLs at the first "npub1".
 [[ "$GIT_HOST" =~ ^[a-z][a-z0-9-]{0,30}[a-z0-9]$ && "$GIT_HOST" != npub1* ]] || die "bad TEAMS_GIT_HOST"
 NPUB_RE='^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$'
+if [[ -z "${TEAMS_OWNER_NPUB:-}${CONTINUUM_ADMIN_NPUB:-}" && -f "$ROOT/.env" ]]; then
+  # shellcheck disable=SC1091
+  CONTINUUM_ADMIN_NPUB="$(set -a; . "$ROOT/.env" >/dev/null 2>&1; printf '%s' "${CONTINUUM_ADMIN_NPUB:-}")"
+fi
 OWNER="${TEAMS_OWNER_NPUB:-${CONTINUUM_ADMIN_NPUB:-}}"
 [[ -z "$OWNER" || "$OWNER" =~ $NPUB_RE ]] || die "TEAMS_OWNER_NPUB must be an npub"
 
@@ -65,13 +69,17 @@ if [[ "$(cat "$PREFIX/bin/.grasp.sha" 2>/dev/null)" != "$GRASP_SHA" ]]; then
 fi
 install -m 0755 "$ROOT/teams/run-coord.sh" "$ROOT/teams/run-git.sh" "$PREFIX/bin/"
 install -m 0750 "$ROOT/teams/torii-teams" /usr/local/sbin/torii-teams
+# torii-teams sync (ADR 0016): root's own copies, never app-owned code.
+install -d -m 0755 "$PREFIX/lib" "$PREFIX/lib/fips" "$PREFIX/lib/teams"
+install -m 0644 "$ROOT/fips/schnorr.mjs" "$ROOT/fips/agent-file.mjs" "$PREFIX/lib/fips/"
+install -m 0644 "$ROOT/teams/mesh-sync.mjs" "$PREFIX/lib/teams/"
 
 for u in torii-teams-coord torii-teams-git; do
   id -u "$u" >/dev/null 2>&1 || useradd --system --shell /usr/sbin/nologin --home-dir /nonexistent --no-create-home "$u"
 done
 
 install -d -m 0755 -o root -g root "$CONFIG"
-for f in coord.key git-members member-nodes; do
+for f in coord.key git-members member-nodes owner.npub; do
   [[ ! -L "$CONFIG/$f" ]] || die "refusing symlinked $CONFIG/$f"
 done
 if [[ ! -s "$CONFIG/coord.key" ]]; then
@@ -89,6 +97,12 @@ if [[ ! -e "$CONFIG/member-nodes" ]]; then
   echo "# One FIPS device npub per line (fipsctl show). Mesh git port opens only to these." > "$CONFIG/member-nodes"
 fi
 chmod 0644 "$CONFIG/git-members" "$CONFIG/member-nodes"
+# The project owner whose signatures torii-teams sync believes.
+if [[ -n "$OWNER" ]]; then
+  printf '%s\n' "$OWNER" > "$CONFIG/owner.npub"; chmod 0644 "$CONFIG/owner.npub"
+fi
+MESH_FILE="${TEAMS_MESH_FILE:-${APPS_ROOT:-/apps}/continuum/agent/repo/agent/memory/teams/mesh.json}"
+[[ "$MESH_FILE" =~ ^/[A-Za-z0-9._/-]+$ ]] || die "bad TEAMS_MESH_FILE"
 
 MESH_IP=""
 if [[ -x /opt/torii/fips/bin/fipsctl && -f /etc/torii/fips/fips.key ]]; then
@@ -101,18 +115,26 @@ if [[ -x /opt/torii/fips/bin/fipsctl && -f /etc/torii/fips/fips.key ]]; then
     die "port $GIT_PORT already in use (tear down the FIPS trial first)"
   fi
 fi
-printf 'RELAY_PORT=%s\nGIT_HOST=%s\nGIT_PORT=%s\nMESH_IP=%s\n' \
-  "$RELAY_PORT" "$GIT_HOST" "$GIT_PORT" "$MESH_IP" > "$CONFIG/teams.env"
+printf 'RELAY_PORT=%s\nGIT_HOST=%s\nGIT_PORT=%s\nMESH_IP=%s\nTEAMS_MESH_FILE=%s\n' \
+  "$RELAY_PORT" "$GIT_HOST" "$GIT_PORT" "$MESH_IP" "$MESH_FILE" > "$CONFIG/teams.env"
 chmod 0644 "$CONFIG/teams.env"
 
 install -m 0644 "$ROOT"/teams/torii-teams-*.service "$ROOT"/teams/torii-teams-backup.timer /etc/systemd/system/
+printf '[Unit]\nDescription=Torii Teams: watch Continuum'"'"'s signed mesh file\n\n[Path]\nPathChanged=%s\nUnit=torii-teams-sync.service\n\n[Install]\nWantedBy=paths.target\n' \
+  "$MESH_FILE" > /etc/systemd/system/torii-teams-sync.path
 systemctl daemon-reload
 systemctl enable -q torii-teams-coord.service torii-teams-git.service torii-teams-backup.timer
+systemctl enable -q --now torii-teams-sync.path
 systemctl restart torii-teams-coord.service
 systemctl start torii-teams-backup.timer
+# Member lists from Continuum when it has written one; otherwise the files as they are.
+# apply always runs: a reinstall must restart git even when the lists did not change.
+if [[ -s "$CONFIG/owner.npub" ]]; then
+  /usr/local/sbin/torii-teams sync --files-only || echo "sync refused: member files kept as they were" >&2
+fi
 /usr/local/sbin/torii-teams apply
 sleep 2
 systemctl is-active -q torii-teams-coord.service || die "torii-teams-coord failed to start"
 echo "Teams chat coordinator: $(cat "$CONFIG/coord.pub") via wss://relay.${TORII_DOMAIN:-<domain>}"
 [[ -n "$MESH_IP" ]] && echo "Teams git (mesh only): http://${GIT_HOST}.fips:${GIT_PORT}; members map '${GIT_HOST}' to this node's FIPS npub"
-echo "Members: $CONFIG/git-members, devices: $CONFIG/member-nodes, then: torii-teams apply"
+echo "Members and devices come from Continuum (torii-teams sync); files: $CONFIG/git-members, $CONFIG/member-nodes"
