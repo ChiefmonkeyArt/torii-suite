@@ -24,6 +24,8 @@
 - [x] Deploy v0.9.54-alpha on chiefmonkey.art (owner approved, 2026-11-10).
 - [x] v0.9.55-alpha: Auctions v0.3.2 slim pre-bid check, burst polling, mint WebSocket through nginx (arena ADR 0005).
 - [x] Deploy v0.9.55-alpha on chiefmonkey.art (owner approved, 2026-11-10).
+- [x] v0.9.56-alpha: pin torii-teams 0.6.1-torii.18 (ADR 0017) with Continuum v0.2.205-alpha.
+- [ ] Deploy v0.9.56-alpha (stage teams_app) on chiefmonkey.art (ask first).
 - [ ] Arena: state snapshots (ADR 0003) so a restart does not replay from genesis (~5 min at 42k blocks).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).

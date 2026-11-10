@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.56-alpha: each project's chat on its own tab (2026-11-10)
+
+Pins torii-teams 0.6.1-torii.18 (c434c40). Continuum v0.2.205-alpha gives every project its team chat from the moment it is created, on the project's Team tab; Teams shows just that project there. No installer logic change.
+
 ## Release v0.9.55-alpha: Auctions feel live (2026-11-10)
 
 Pins plebeian-arena-auctions v0.3.2 (ea80254, SHA-256 `1d544efa3eced223328b2540d74e01f5f4cb2156076c8cf6bec99cadd88b4b7f`). v0.3.1 still felt slow: every bid, including the demo bots', first downloaded the whole 1.25 MB history, which also made more bids lose the race and fail with a 400; your own bid waited up to a poll after its block; and the wallet's live connection to the mint failed on every try because nginx did not pass WebSocket upgrades. Now a bid checks the slim view, the page polls fast for 3 s after you act, and `/mint/v1/ws` upgrades (only that path, capped per address). Chain kept. Tests: contract 53/53; live 28/28, e2e 47/47 over HTTPS.

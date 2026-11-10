@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## Teams torii.18 pin: v0.9.56-alpha
+
+Pin only: torii-teams `0.6.1-torii.18` (c434c40), SHA-256 `c72caff2a063318cbfbe258ec47033794990bcabf811f693e9d2a6bdc4ade3fa` (checked against the release and its `.sha256`). Teams ADR 0017: framed in Continuum, no project list, Your computers in the chat header. Ships with Continuum v0.2.205-alpha (`docs/adr-project-team-chat.md`). Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only.
+
 ## Auctions v0.3.2 live feel: v0.9.55-alpha
 
 Pin: plebeian-arena-auctions `v0.3.2` (ea80254), SHA-256 `1d544efa3eced223328b2540d74e01f5f4cb2156076c8cf6bec99cadd88b4b7f`. Arena ADR 0005: `placeBid` checks the slim view instead of the full 1.25 MB state (bots did this several times a second); the page polls every 250 ms for 3 s after the user's own bid or new lot; the gateway lets only `GET /mint/v1/ws` upgrade (10-minute cap, replaces the 15 s/60 s server deadlines; other upgrades 400). Vhost change: new `location = /mint/v1/ws` with HTTP/1.1, `Upgrade`/`Connection`, 600 s timeouts and `limit_conn torii_auctions_ws 16` (zone declared next to `limit_req_zone`); before this every Coco WebSocket attempt got a 404. Chain FORMAT stays `3`, so the chain is kept; a restart still replays from genesis (~5 min at 42k blocks). Tests: contract 53/53; live 28/28 (new: 101 on `/mint/v1/ws`, none off it) with e2e 47/47 through nginx (step W holds a socket 17 s and pings). Arena main is f43828d (test-only follow-up, no tag). Deployed to chiefmonkey.art 2026-11-10 (owner approved, Continuum run 42864489303): ~5.5 min replay, then `/mint/v1/ws` 101, view 8,954 B gz with 304, 4/4 validators same app hash at 43,674, group key 024dc953…; headless browser on the live site for 40 s: 62 view polls, 0 full-state fetches, 9 bids all 200, 2 WebSockets / 99 frames, no console errors.
