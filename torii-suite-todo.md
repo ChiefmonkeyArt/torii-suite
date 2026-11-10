@@ -19,7 +19,9 @@
 - [x] v0.9.50-alpha: Auctions v0.2.0 (FROST 3-of-4 group-key escrow, Coco wallet); a chain without FROST shares is re-created.
 - [x] Deploy v0.9.50-alpha on chiefmonkey.art (owner approved).
 - [x] v0.9.52-alpha: Auctions v0.3.0 (audit fixes A1-A11); `arena init -if-needed` with a chain FORMAT marker; `AUCTIONS_LOCK_MARGIN`, `AUCTIONS_DEMO_CONTROLS`.
-- [ ] Deploy v0.9.52-alpha on chiefmonkey.art (needs owner approval).
+- [x] Deploy v0.9.52-alpha on chiefmonkey.art (owner approved).
+- [x] v0.9.54-alpha: Auctions v0.3.1 slim state view, ETag/304 and gzip (arena ADR 0004); chain kept (FORMAT 3).
+- [ ] Deploy v0.9.54-alpha on chiefmonkey.art (needs owner approval).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
 

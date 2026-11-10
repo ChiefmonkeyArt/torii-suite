@@ -93,6 +93,11 @@ js="$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' "$ROOT/../plebeian-arena-auction
   && grep -qi '^cache-control: public, max-age=31536000, immutable' "$W/h" && ok "bundle gzipped and immutable" || fail "assets"
 [[ "$(get "https://$H/api/network")" == 200 ]] && python3 -c 'import json,sys; v=json.load(open(sys.argv[1])); assert len(v)==4' "$W/b" \
   && ok "four validators answer through nginx" || fail "api"
+[[ "$(get -H 'Accept-Encoding: gzip' "https://$H/api/state?view=client")" == 200 ]] && grep -qi '^content-encoding: gzip' "$W/h" \
+  && TAG1="$(sed -n 's/^[Ee][Tt][Aa][Gg]: *//p' "$W/h" | tr -d '\r')" && [[ -n "$TAG1" ]] \
+  && python3 -c 'import gzip,json,sys; v=json.loads(gzip.open(sys.argv[1]).read()); assert v["view"]=="client" and "usedY" not in v' "$W/b" \
+  && ok "slim state view gzipped through nginx, with an ETag" || fail "state view"
+[[ "$(get -H "If-None-Match: $TAG1" "https://$H/api/state?view=client")" == 304 ]] && ok "unchanged state view answers 304 through nginx" || fail "state view 304"
 [[ "$(get "https://$H/mint/v1/info")" == 200 ]] && grep -q 'Nutshell' "$W/b" && ok "fake-sats mint answers through nginx" || fail "mint"
 [[ "$(get -X PUT "https://$H/api/network")" == 405 ]] && [[ "$(get -X POST "https://$H/")" == 405 ]] && ok "only GET/HEAD, and POST to the API" || fail "methods"
 for p in "$GW" 13338 26656 26657 7101; do
