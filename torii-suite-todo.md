@@ -28,6 +28,8 @@
 - [ ] Deploy v0.9.56-alpha (stage teams_app) on chiefmonkey.art (ask first).
 - [x] v0.9.57-alpha: Auctions v0.3.3 state snapshots (arena ADR 0003 §2); a restart no longer replays from genesis.
 - [x] Deploy v0.9.57-alpha (stage auctions) on chiefmonkey.art (owner approved, 2026-11-10).
+- [x] v0.9.58-alpha: Auctions v0.3.4 instant bid feedback and one-tap bids (arena ADR 0006).
+- [ ] Deploy v0.9.58-alpha (stage auctions) on chiefmonkey.art (ask first; restart from snapshot, expected seconds).
 - [ ] Time a live validator restart from a snapshot (demo stop/start; ask first).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).

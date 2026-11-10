@@ -52,11 +52,11 @@ if [[ "${AUCTIONS_REMOVE:-0}" == 1 ]]; then
   exit 0
 fi
 
-# Pinned release (v0.3.3 = plebeian-arena-auctions 5a37ad6; SHA-256 of the CI-built
+# Pinned release (v0.3.4 = plebeian-arena-auctions 92519ba; SHA-256 of the CI-built
 # release asset). Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-AUCTIONS_TAG="${AUCTIONS_TAG:-v0.3.3}"
-AUCTIONS_SHA256="${AUCTIONS_SHA256:-e9654fd94bda7b01de0a5e782dab9a496335fe6bd649e6a41ac70ab6022b3307}"
+AUCTIONS_TAG="${AUCTIONS_TAG:-v0.3.4}"
+AUCTIONS_SHA256="${AUCTIONS_SHA256:-08746e10244a580ea022eea3e825554bc6b079297d8acf2907de6635f8a59a1f}"
 [[ "$AUCTIONS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "bad AUCTIONS_TAG"
 [[ "$AUCTIONS_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "bad AUCTIONS_SHA256"
 # Lock margin: seconds after an auction's hard end before a bidder can reclaim
