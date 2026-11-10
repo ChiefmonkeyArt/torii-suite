@@ -52,11 +52,11 @@ if [[ "${AUCTIONS_REMOVE:-0}" == 1 ]]; then
   exit 0
 fi
 
-# Pinned release (v0.3.4 = plebeian-arena-auctions 92519ba; SHA-256 of the CI-built
+# Pinned release (v0.4.1 = plebeian-arena-auctions 818b7e1; SHA-256 of the CI-built
 # release asset). Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-AUCTIONS_TAG="${AUCTIONS_TAG:-v0.3.4}"
-AUCTIONS_SHA256="${AUCTIONS_SHA256:-08746e10244a580ea022eea3e825554bc6b079297d8acf2907de6635f8a59a1f}"
+AUCTIONS_TAG="${AUCTIONS_TAG:-v0.4.1}"
+AUCTIONS_SHA256="${AUCTIONS_SHA256:-8255e5142258247d48b95e73d42ad8eb819fa5942d02bd03694d45394c0dca41}"
 [[ "$AUCTIONS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "bad AUCTIONS_TAG"
 [[ "$AUCTIONS_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "bad AUCTIONS_SHA256"
 # Lock margin: seconds after an auction's hard end before a bidder can reclaim
@@ -241,6 +241,23 @@ server {
     if (\$request_method !~ ^(GET|HEAD|POST)\$) { return 405; }
 
     location /.well-known/ { return 404; }
+    # Live chain push (arena ADR 0007): one long-lived SSE stream per tab. Not
+    # buffered or gzipped; the gateway pings every 15 s and ends a stream after
+    # 15 min. Shares the per-address cap of 16 long-lived connections with
+    # /mint/v1/ws.
+    location = /api/events {
+        limit_req zone=torii_auctions burst=60 nodelay;
+        limit_conn torii_auctions_ws 16;
+        ${H}
+        proxy_pass http://127.0.0.1:${AUCTIONS_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$remote_addr;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        gzip off;
+        proxy_read_timeout 60s;
+    }
     location /api/ {
         limit_req zone=torii_auctions burst=60 nodelay;
         add_header Cache-Control "no-store" always;

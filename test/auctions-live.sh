@@ -17,7 +17,11 @@ TAG="$(tar -xzOf "$TARBALL" ./MANIFEST.json | python3 -c 'import json,sys; print
 SHA="$(sha256sum "$TARBALL" | cut -d' ' -f1)"
 SYSTEMD=0; [[ "$(ps -o comm= -p 1)" == systemd ]] && SYSTEMD=1
 PIDS=()
-cleanup(){ for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; rm -rf -- "$W"; }
+# Also stop anything still running from the install (a failed check exits early,
+# and killing a wrapper subshell does not reach the gateway or its validators).
+cleanup(){ for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done
+  [[ "$SYSTEMD" == 1 ]] || pkill -TERM -f '^/apps/plebeian-auctions/' 2>/dev/null || true
+  rm -rf -- "$W"; }
 trap cleanup EXIT
 
 rm -f /tmp/torii-register.log
@@ -103,21 +107,26 @@ WSH=(-H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version:
 [[ "$(get --http1.1 -m 3 "${WSH[@]}" "https://$H/mint/v1/ws" || true)" == 101 ]] \
   && [[ "$(get --http1.1 -m 3 "${WSH[@]}" "https://$H/mint/v1/info" || true)" != 101 ]] \
   && ok "mint WebSocket upgrades through nginx, only on /mint/v1/ws" || fail "mint websocket"
+[[ "$(get -N -m 4 -H 'Accept-Encoding: gzip' "https://$H/api/events" || true)" == 200 ]] \
+  && grep -qi '^content-type: text/event-stream' "$W/h" && ! grep -qi '^content-encoding:' "$W/h" \
+  && grep -q '^data: {"h":' "$W/b" && ok "live push (/api/events) streams through nginx, unbuffered and not gzipped" || fail "event stream"
 [[ "$(get -X PUT "https://$H/api/network")" == 405 ]] && [[ "$(get -X POST "https://$H/")" == 405 ]] && ok "only GET/HEAD, and POST to the API" || fail "methods"
 for p in "$GW" 13338 26656 26657 7101; do
   ss -Htln | awk '{print $4}' | grep -qE "^(127\.0\.0\.1|\[::1\]):$p$" || fail "port $p not loopback-only"
 done; ok "gateway, mint and validators bind loopback only"
 K1="$(sed -n 's/^MINT_PRIVATE_KEY=//p' /etc/torii/auctions/mint.env)"
 [[ "$(stat -c %a /etc/torii/auctions/mint.env)" == 600 ]] && ok "mint settings 0600" || fail "mint.env mode"
-[[ ! -e /var/lib/plebeian-auctions/chain/v1/config/v01-stale ]] && [[ "$(cat /var/lib/plebeian-auctions/chain/FORMAT)" == 3 ]] && ok "an older-format chain is re-created (FORMAT 3)" || fail "stale chain kept"
+[[ ! -e /var/lib/plebeian-auctions/chain/v1/config/v01-stale ]] && [[ "$(cat /var/lib/plebeian-auctions/chain/FORMAT)" == 4 ]] && ok "an older-format chain is re-created (FORMAT 4)" || fail "stale chain kept"
 for i in 1 2 3 4; do [[ "$(stat -c %a /var/lib/plebeian-auctions/chain/v$i/config/frost_key.json)" == 600 ]] || fail "v$i FROST share"; done
 [[ "$(get "https://$H/api/network")" == 200 ]] && python3 -c 'import json,sys; v=json.load(open(sys.argv[1])); g={x.get("groupKey") for x in v}; assert len(g)==1 and len(g.pop())==66' "$W/b" \
   && ok "four FROST shares (0600), one group key" || fail "FROST group key"
 
 if [[ -n "$E2E" ]]; then
   grep -q "$H" /etc/hosts || echo "127.0.0.1 $H" >> /etc/hosts
-  NODE_TLS_REJECT_UNAUTHORIZED=0 node "$E2E" "https://$H" > "$W/e2e.log" 2>&1 || { tail -20 "$W/e2e.log"; fail "acceptance suite"; }
+  NODE_TLS_REJECT_UNAUTHORIZED=0 node "$E2E" "https://$H" > "$W/e2e.log" 2>&1 || { grep -B2 -A2 FAIL "$W/e2e.log"; tail -5 "$W/e2e.log"; fail "acceptance suite"; }
   ok "acceptance suite through nginx: $(grep -o 'RESULT: .*' "$W/e2e.log")"
+  L=0; for v in 1 2 3 4; do [[ -s /var/lib/plebeian-auctions/chain/v$v/data/ledger.jsonl ]] && L=$((L+1)); done
+  [[ "$L" == 4 ]] && ok "each validator keeps a ledger archive (arena ADR 0003 §4)" || fail "ledger archive: $L/4"
 fi
 
 for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; PIDS=(); sleep 3
@@ -144,7 +153,7 @@ snaps=0; for v in 1 2 3 4; do
 done
 [[ "$snaps" == 4 ]] && ok "a clean stop leaves a 0600 state snapshot for each validator (ADR 0003)" || fail "state snapshots: $snaps/4"
 rm -f "$C/FORMAT"; restart_gateway
-[[ ! -e "$C/v1/config/keep-me" && "$(cat "$C/FORMAT")" == 3 ]] && ok "a chain without the FORMAT marker is re-created on restart" || fail "old-format chain kept"
+[[ ! -e "$C/v1/config/keep-me" && "$(cat "$C/FORMAT")" == 4 ]] && ok "a chain without the FORMAT marker is re-created on restart" || fail "old-format chain kept"
 [[ "$(get -X POST "https://$H/api/admin/validator/4/stop")" == 404 ]] && ok "validator stop/start route is off without demo controls" || fail "demo route reachable"
 for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; PIDS=(); sleep 3
 [[ "$(find /apps/plebeian-auctions/releases -mindepth 1 -maxdepth 1 -type d | wc -l)" -le 2 ]] && ok "keeps at most 2 releases" || fail "release pruning"
