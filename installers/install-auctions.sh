@@ -52,11 +52,11 @@ if [[ "${AUCTIONS_REMOVE:-0}" == 1 ]]; then
   exit 0
 fi
 
-# Pinned release (v0.1.0 = plebeian-arena-auctions 282ac2c; SHA-256 of the CI-built
+# Pinned release (v0.2.0 = plebeian-arena-auctions fee2ce3; SHA-256 of the CI-built
 # release asset). Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-AUCTIONS_TAG="${AUCTIONS_TAG:-v0.1.0}"
-AUCTIONS_SHA256="${AUCTIONS_SHA256:-76fbf0dfe7297a0928d99e8046caecc9436e1ff6bbd3e9daf226e52cfba397f0}"
+AUCTIONS_TAG="${AUCTIONS_TAG:-v0.2.0}"
+AUCTIONS_SHA256="${AUCTIONS_SHA256:-a0ea3ef49aaeb8713159fdbeb656911680056145867893d64d432012732d2c65}"
 [[ "$AUCTIONS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "bad AUCTIONS_TAG"
 [[ "$AUCTIONS_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "bad AUCTIONS_SHA256"
 # Ports: an explicit setting wins; then what an earlier install chose
@@ -107,7 +107,7 @@ printf '%s  %s\n' "$AUCTIONS_SHA256" "$TARBALL" | sha256sum --check --status \
 # 3. Unpack and sanity-check before anything live changes.
 mkdir "$TMP/x"
 tar -xzf "$TARBALL" -C "$TMP/x" --no-same-owner --no-same-permissions
-for f in MANIFEST.json bin/arena web/index.html runtime/python/bin/python3; do
+for f in MANIFEST.json bin/arena bin/arena-frost web/index.html runtime/python/bin/python3; do
   [[ -e "$TMP/x/$f" ]] || die "artifact is missing $f"
 done
 auctions_safe_tree "$TMP/x" || die "artifact has a symlink that leaves the release"

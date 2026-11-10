@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.50-alpha: Auctions v0.2.0, FROST and Coco (2026-11-10)
+
+Pins plebeian-arena-auctions v0.2.0 (fee2ce3, SHA-256 `a0ea3ef49aaeb8713159fdbeb656911680056145867893d64d432012732d2c65`): escrow is one FROST 3-of-4 group key (frost-secp256k1-tr 3.0.0) instead of NUT-11 multisig, and the browser wallet is Coco (coco-core 2.0.0). The installer requires `bin/arena-frost`; the gateway unit re-runs `arena init` when `chain/v1/config/frost_key.json` is missing, so v0.1 chains are replaced on upgrade. Tests: contract 45/45; live 21/21 (stale v0.1 chain replaced, four 0600 shares, one group key), e2e 34/34 over HTTPS. v0.9.49-alpha was deployed to chiefmonkey.art (owner approved) and serves v0.1.0 until this release is deployed.
+
 ## Release v0.9.49-alpha: Auctions picks a free port (2026-11-09)
 
 The first VPS run (Continuum `suite-stages-vps.yml`, stage `auctions`, Suite v0.9.48-alpha) stopped safely before installing anything: 8795 was already in use on chiefmonkey.art. On a first install, the installer now moves an unset gateway or mint port to the next free one (up to +50) and saves the choice in `/etc/torii/auctions/ports` (0600); later runs reuse it. Explicit settings still win, and validator ports still fail closed. Tests: contract 43/43; live 19/19 with a listener on 8795 (gateway moved to 8796), e2e 30/30. The release repo is now public (owner approved), so the VPS downloads it directly.

@@ -12,8 +12,12 @@ checkout at a release that has this installer:
 sudo INSTALL_AUCTIONS=1 TORII_DOMAIN=<domain> bash /opt/torii-suite/checkout/installers/install-auctions.sh
 ```
 
-While the release repo is private, download the tarball first and add
-`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.1.0.tar.gz`.
+The release repo is public, so the VPS downloads the pinned tarball itself
+(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.2.0.tar.gz` installs a local copy).
+
+Escrow (v0.2.0): bids lock to one FROST 3-of-4 group key; each validator keeps
+its share in `/var/lib/plebeian-auctions/chain/vN/config/frost_key.json` (0600).
+A chain without these shares (v0.1.x) is re-created on the next start.
 
 ## Files and services
 
@@ -49,4 +53,4 @@ journalctl -u plebeian-auctions -n 50
 - `bash test/install-auctions.test.sh`: contract and helper checks, any user.
 - `sudo bash test/auctions-live.sh <tarball> [e2e.mjs]`: real install against
   nginx with a self-signed cert on a throwaway host; with the arena's
-  `tests/e2e.mjs` it also runs the 30 acceptance checks over HTTPS.
+  `tests/e2e.mjs` it also runs the 34 acceptance checks over HTTPS.

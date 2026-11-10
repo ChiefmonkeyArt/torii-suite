@@ -8,7 +8,9 @@
 - [x] Release access on the VPS: `plebeian-arena-auctions` made public (owner approved).
 - [x] v0.9.49-alpha: a first install moves a busy default port to the next free one and remembers it (8795 is taken on chiefmonkey.art).
 - [x] Deploy path: `auctions` stage in Continuum's `suite-stages-vps.yml` (Continuum PR #275, owner approved).
-- [ ] Deploy on chiefmonkey.art and share the address with the team.
+- [x] Deploy on chiefmonkey.art (v0.9.49-alpha, owner approved): https://auctions.chiefmonkey.art.
+- [x] v0.9.50-alpha: Auctions v0.2.0 (FROST 3-of-4 group-key escrow, Coco wallet); a chain without FROST shares is re-created.
+- [ ] Deploy v0.9.50-alpha on chiefmonkey.art (needs owner approval).
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
 
 ## Continuum on its own host v0.9.31-alpha
