@@ -13,13 +13,21 @@ sudo INSTALL_AUCTIONS=1 TORII_DOMAIN=<domain> bash /opt/torii-suite/checkout/ins
 ```
 
 The release repo is public, so the VPS downloads the pinned tarball itself
-(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.3.2.tar.gz` installs a local copy).
+(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.3.3.tar.gz` installs a local copy).
 
 Escrow (v0.2.0+): bids lock to one FROST 3-of-4 group key; each validator keeps
 its share in `/var/lib/plebeian-auctions/chain/vN/config/frost_key.json` (0600).
 The gateway unit runs `arena init -if-needed`: a chain whose
-`/var/lib/plebeian-auctions/chain/FORMAT` does not match the release (v0.3.0-v0.3.2:
-`3`) is re-created on the next start. v0.3.1 and v0.3.2 keep the v0.3.0 chain.
+`/var/lib/plebeian-auctions/chain/FORMAT` does not match the release (v0.3.0-v0.3.3:
+`3`) is re-created on the next start. v0.3.1 to v0.3.3 keep the v0.3.0 chain.
+
+State snapshots (v0.3.3+, arena ADR 0003 §2): each validator writes its app state to
+`chain/vN/data/app-state/<height>.json` (mode 0600, the newest 2 kept) every 1,000
+blocks and on a clean stop, and starts from the newest one instead of replaying every
+block from genesis. A snapshot is used only if its hash, canonical form, file name and
+the app hash the chain recorded for that height all agree; otherwise the validator
+refuses to start (delete the bad file to fall back to the previous one). The first
+start after upgrading from v0.3.2 still replays once (v0.3.2 wrote no snapshots).
 
 Polling (v0.3.1+, arena ADR 0004): the page reads `/api/state?view=client`, a
 slim view without Cashu proofs that answers `304` when nothing changed, and the

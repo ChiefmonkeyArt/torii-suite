@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## Auctions v0.3.3 state snapshots: v0.9.57-alpha
+
+Pin: plebeian-arena-auctions `v0.3.3` (5a37ad6), SHA-256 `e9654fd94bda7b01de0a5e782dab9a496335fe6bd649e6a41ac70ab6022b3307` (checked against the release `.sha256`; MANIFEST commit matches). Arena ADR 0003 §2: each validator writes `chain/vN/data/app-state/<h>.json` (0600, atomic, newest 2 kept) every 1,000 blocks (`-snapshot-every`) and on a clean stop, and `Info` reports the restored height so CometBFT replays only the blocks after it. Load refuses (validator exits) on: hash mismatch, non-canonical state, misnamed file, symlink, >256 MiB, or an app hash that disagrees with the chain's record for that height. The gateway now stops the 4 validators in parallel (fits the 20 s `TimeoutStopSec`). FORMAT stays `3`; the first start after upgrade replays once (~6 min at ~44k blocks), later restarts take seconds. §1, §3-§5 (blocks on demand, state sync, pruning, trimming) still proposed. No Suite code change beyond the pin. Tests: contract 53/53; live 29/29 (new snapshot check) with e2e 47/47 through nginx.
+
 ## Teams torii.18 pin: v0.9.56-alpha
 
 Pin only: torii-teams `0.6.1-torii.18` (c434c40), SHA-256 `c72caff2a063318cbfbe258ec47033794990bcabf811f693e9d2a6bdc4ade3fa` (checked against the release and its `.sha256`). Teams ADR 0017: framed in Continuum, no project list, Your computers in the chat header. Ships with Continuum v0.2.205-alpha (`docs/adr-project-team-chat.md`). Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only.
