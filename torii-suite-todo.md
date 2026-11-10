@@ -23,7 +23,7 @@
 - [x] v0.9.54-alpha: Auctions v0.3.1 slim state view, ETag/304 and gzip (arena ADR 0004); chain kept (FORMAT 3).
 - [x] Deploy v0.9.54-alpha on chiefmonkey.art (owner approved, 2026-11-10).
 - [x] v0.9.55-alpha: Auctions v0.3.2 slim pre-bid check, burst polling, mint WebSocket through nginx (arena ADR 0005).
-- [ ] Deploy v0.9.55-alpha on chiefmonkey.art (needs owner approval).
+- [x] Deploy v0.9.55-alpha on chiefmonkey.art (owner approved, 2026-11-10).
 - [ ] Arena: state snapshots (ADR 0003) so a restart does not replay from genesis (~5 min at 42k blocks).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
