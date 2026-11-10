@@ -3,11 +3,18 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+// torii-quest ADR-0151: up to 8 operator-introduced peers (Quest's MAX_PEERS).
+export const MAX_PEERS = 8;
+export const MAX_PEER_FILE_BYTES = 8192;
+
 export function renderConfig(input, addressFor) {
-  if (input.version !== 1 || !Array.isArray(input.peers) || input.peers.length > 1) {
-    throw new Error('expected one remote peer at most');
+  if (input.version !== 1 || !Array.isArray(input.peers) || input.peers.length > MAX_PEERS) {
+    throw new Error(`expected at most ${MAX_PEERS} remote peers`);
   }
+  const seen = new Set();
   const peers = input.peers.map(p => {
+    if (seen.has(p.transportNpub)) throw new Error('duplicate peer');
+    seen.add(p.transportNpub);
     if (!/^[0-9a-f]{64}$/.test(p.beaconPubkey) || !/^[0-9a-f]{64}$/.test(p.ownerPubkey)
       || typeof p.zoneId !== 'string' || !p.zoneId || p.zoneId.length > 128) throw new Error('invalid heartbeat pin');
     const url = new URL(p.website);
@@ -39,7 +46,7 @@ export function renderConfig(input, addressFor) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [input, output, ctl] = process.argv.slice(2);
   const text = readFileSync(input, 'utf8');
-  if (Buffer.byteLength(text) > 4096) throw new Error('peer file exceeds 4 KiB');
+  if (Buffer.byteLength(text) > MAX_PEER_FILE_BYTES) throw new Error('peer file exceeds 8 KiB');
   const config = renderConfig(JSON.parse(text), npub =>
     execFileSync(ctl, ['address', npub], { encoding: 'utf8', timeout: 2000 }).trim());
   writeFileSync(output, JSON.stringify(config, null, 2) + '\n', { mode: 0o600 });

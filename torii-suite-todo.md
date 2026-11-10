@@ -1,5 +1,11 @@
 # Torii Suite - Master TODO
 
+## FIPS peers up to 8 v0.9.51-alpha (torii-quest ADR-0151)
+
+- [x] `fips/render-config.mjs` cap 8, duplicates refused, 8 KiB; `docs/FIPS.md`; test case.
+- [x] Root path unit `torii-fips-peers` that writes `peers.json` from an operator-signed Continuum list (torii-continuum `docs/adr-fips-default.md` §4); `test/fips-peers.test.sh`, CI real apply.
+- [ ] Mesh projection unit for Teams git members and devices (§3, next release).
+
 ## Plebeian Auctions v0.9.48-alpha (Suite ADR 0002)
 
 - [x] `installers/install-auctions.sh` + `lib/auctions.sh`: pinned release, `auctions.<domain>` vhost, mint + gateway units, no launcher card, noindex.

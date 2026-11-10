@@ -1,0 +1,7 @@
+[Unit]
+Description=Torii FIPS: apply the operator-signed peer list from Continuum
+After=torii-fips.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/torii-fips-peers apply
