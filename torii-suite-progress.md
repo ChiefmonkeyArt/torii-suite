@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.51-alpha: up to eight FIPS peers (2026-11-10)
+
+The FIPS config renderer now takes up to 8 peers instead of 1, each with its own transport name, from a peer file of up to 8 KiB, matching Quest v0.2.939-alpha (ADR-0151). No installer logic or service change; a node with zero or one peer renders exactly as before.
+
 ## Release v0.9.50-alpha: Auctions v0.2.0, FROST and Coco (2026-11-10)
 
 Pins plebeian-arena-auctions v0.2.0 (fee2ce3, SHA-256 `a0ea3ef49aaeb8713159fdbeb656911680056145867893d64d432012732d2c65`): escrow is one FROST 3-of-4 group key (frost-secp256k1-tr 3.0.0) instead of NUT-11 multisig, and the browser wallet is Coco (coco-core 2.0.0). The installer requires `bin/arena-frost`; the gateway unit re-runs `arena init` when `chain/v1/config/frost_key.json` is missing, so v0.1 chains are replaced on upgrade. Tests: contract 45/45; live 21/21 (stale v0.1 chain replaced, four 0600 shares, one group key), e2e 34/34 over HTTPS. v0.9.49-alpha was deployed to chiefmonkey.art (owner approved) and serves v0.1.0 until this release is deployed.

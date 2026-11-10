@@ -283,6 +283,12 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.51-alpha: up to eight FIPS peers
+
+A node can now be introduced to up to 8 other nodes in
+`/etc/torii/fips/peers.json` (was 1), so Quest follows up to eight friends'
+worlds over the mesh. See `docs/FIPS.md` and Quest ADR-0151.
+
 ### New in v0.9.50-alpha: Auctions uses FROST and Coco
 
 Auctions v0.2.0: bids lock to a single FROST 3-of-4 key shared by the four

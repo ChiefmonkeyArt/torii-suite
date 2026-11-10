@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## FIPS peers up to 8: v0.9.51-alpha
+
+`fips/render-config.mjs`: `MAX_PEERS = 8` (torii-quest ADR-0151), distinct transport names, peer file limit 4 → 8 KiB. Pairs with Quest v0.2.939-alpha (`fipsPresence.js` reads up to 8 peers round-robin). Peers still come from root `/etc/torii/fips/peers.json`; rerun `install-fips.sh` (or the `fips` stage) to reload. Test: `test/install-fips.test.sh` (new 8-peer case).
+
 ## Auctions FROST + Coco: v0.9.50-alpha
 
 Pin: plebeian-arena-auctions `v0.2.0` (fee2ce3), SHA-256 `a0ea3ef49aaeb8713159fdbeb656911680056145867893d64d432012732d2c65`. Bids lock to one FROST 3-of-4 group key (Rust helper `bin/arena-frost`, now required in the artifact); the browser wallet is Coco. The gateway unit's init condition is now `[ -f /var/lib/plebeian-auctions/chain/v1/config/frost_key.json ]`, so the first start after upgrading replaces the v0.1 chain (fake sats; the mint and its key are kept). Tests: contract 45/45; live 21/21 with e2e 34/34.

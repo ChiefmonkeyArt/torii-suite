@@ -33,7 +33,7 @@ Write `/etc/torii/fips/peers.json` as root, mode 0644, using this schema and rep
 }
 ```
 
-At most one peer is permitted. Rerun the installer from the reviewed Suite tag and restart Quest to reload the pins. The generated FIPS YAML is derived from this file and should not be edited separately.
+Up to 8 peers are permitted (torii-quest ADR-0151, Suite v0.9.51-alpha), each with a distinct transport name; the file may be up to 8 KiB. Rerun the installer from the reviewed Suite tag and restart Quest to reload the pins. The generated FIPS YAML is derived from this file and should not be edited separately.
 
 Both VPS/provider firewalls must permit UDP 2121 between the two public hosts. The installer does not disable or broaden a pre-existing host firewall. This slice uses static UDP endpoints derived from the verified world hostname, not open discovery or NAT traversal. Changes to endpoint policy need a separate review.
 
@@ -45,7 +45,7 @@ Other mesh ports stay dropped unless a service adds an allow list. Since v0.9.26
 
 - **Binary footprint:** install only `fips` and `fipsctl`, approximately 21.4 MB in the verified v0.5.3 amd64 package before filesystem overhead. Download/extraction temporary files are removed on exit; platform dependencies can add more.
 - **Identity/configuration:** small persistent root-owned files; no browser or owner secret copied to the node.
-- **Heartbeats:** Quest holds one latest peer event in RAM, at most 8 KiB, with original expiry. It does not persist the remote event or replicate relay history.
+- **Heartbeats:** Quest holds the latest event per peer in RAM (at most 8 peers × 8 KiB), with original expiry, and reads peers one at a time with backoff for a failing one. It does not persist the remote event or replicate relay history.
 - **Logs:** an 8 MiB volatile journal namespace shared by FIPS and its mesh proxy. Access logs are disabled; no writable profiler directory is granted.
 - **Runtime ceilings:** FIPS 192 MiB and 20% of one CPU; proxy 64 MiB and 10%. These are initial protection limits, not measured steady-state consumption.
 - **Visited worlds:** this integration never fetches, pins, imports or republishes their assets. Existing world loading, browser cache and strfry storage policy remain unchanged.
