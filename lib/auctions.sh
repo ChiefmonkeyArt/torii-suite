@@ -162,7 +162,8 @@ UNIT
 
 # auctions_chain_unit <app dir> <gateway port> <mint port> → the gateway unit.
 # The gateway supervises the four validator processes (CometBFT + co-signer);
-# the chain is created on first start, once the mint answers.
+# the chain is created on first start, once the mint answers. A chain without
+# FROST key shares (v0.1.x) is re-created: arena init replaces the whole root.
 auctions_chain_unit() {
   local app="$1" port="$2" mport="$3" s=/var/lib/plebeian-auctions
   [[ "$app" =~ ^/[A-Za-z0-9/._-]+$ ]] && auctions_valid_port "$port" && auctions_valid_port "$mport" || return 1
@@ -175,7 +176,7 @@ Requires=plebeian-auctions-mint.service
 
 [Service]
 ExecStartPre=/bin/sh -c 'for i in \$\$(seq 60); do /usr/bin/curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:${mport}/v1/info && exit 0; sleep 1; done; exit 1'
-ExecStartPre=/bin/sh -c '[ -d ${s}/chain/v1 ] || exec ${app}/current/bin/arena init -root ${s}/chain -mint http://127.0.0.1:${mport}'
+ExecStartPre=/bin/sh -c '[ -f ${s}/chain/v1/config/frost_key.json ] || exec ${app}/current/bin/arena init -root ${s}/chain -mint http://127.0.0.1:${mport}'
 ExecStart=${app}/current/bin/arena gateway -root ${s}/chain -static ${app}/current/web -addr 127.0.0.1:${port} -mint http://127.0.0.1:${mport}
 WorkingDirectory=${s}
 StateDirectory=plebeian-auctions

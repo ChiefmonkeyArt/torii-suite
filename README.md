@@ -283,6 +283,12 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.50-alpha: Auctions uses FROST and Coco
+
+Auctions v0.2.0: bids lock to a single FROST 3-of-4 key shared by the four
+validators, and the browser wallet is Coco. Upgrading starts a fresh chain
+(fake sats only).
+
 ### New in v0.9.49-alpha: Auctions finds a free port
 
 If something already uses the Auctions gateway port (8795) or mint port

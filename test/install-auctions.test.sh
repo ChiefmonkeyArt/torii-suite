@@ -66,6 +66,8 @@ env="$(auctions_mint_env 13338 /var/lib/plebeian-auctions-mint)"
 refuse "mint env refuses a bad port" auctions_mint_env 80 /x
 u="$(auctions_chain_unit /apps/plebeian-auctions 8795 13338)"
 [[ "$u" == *"-addr 127.0.0.1:8795"* && "$u" == *'$$(seq 60)'* ]] && ok "gateway unit: loopback, systemd-escaped loop" || bad "gateway unit"
+[[ "$u" == *"[ -f /var/lib/plebeian-auctions/chain/v1/config/frost_key.json ] || exec"* ]] && ok "gateway unit: re-inits a chain without FROST shares" || bad "gateway unit: FROST init condition"
+has 'bin/arena bin/arena-frost' "$I" "artifact must carry the FROST helper"
 refuse "gateway unit refuses a bad path" auctions_chain_unit 'x;y' 8795 13338
 echo "install-auctions: ${pass} passed, ${fail} failed"
 (( fail == 0 ))

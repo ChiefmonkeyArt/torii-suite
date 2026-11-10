@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## Auctions FROST + Coco: v0.9.50-alpha
+
+Pin: plebeian-arena-auctions `v0.2.0` (fee2ce3), SHA-256 `a0ea3ef49aaeb8713159fdbeb656911680056145867893d64d432012732d2c65`. Bids lock to one FROST 3-of-4 group key (Rust helper `bin/arena-frost`, now required in the artifact); the browser wallet is Coco. The gateway unit's init condition is now `[ -f /var/lib/plebeian-auctions/chain/v1/config/frost_key.json ]`, so the first start after upgrading replaces the v0.1 chain (fake sats; the mint and its key are kept). Tests: contract 45/45; live 21/21 with e2e 34/34.
+
 ## Auctions ports: v0.9.49-alpha
 
 Port order: `AUCTIONS_PORT` / `AUCTIONS_MINT_PORT` from the environment, then `/etc/torii/auctions/ports` from an earlier install, then 8795 / 13338. On a first install (unit not running) a busy unset port moves to the next free one (`auctions_free_port`, up to +50). chiefmonkey.art already uses 8795. plebeian-arena-auctions is public now; the VPS downloads the release itself.
