@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.56-alpha: each project's chat on its own tab
+
+Pins torii-teams `0.6.1-torii.18`. Inside Continuum, Teams now shows one project's
+chat at a time, at full width on that project's Team tab, with "Your computers" in
+the chat header. Opened on its own, Teams is unchanged. Update Continuum to
+v0.2.205-alpha too.
+
 ### New in v0.9.55-alpha: Auctions feel live
 
 Auctions v0.3.2 removes the last lag. A bid no longer downloads the whole auction
