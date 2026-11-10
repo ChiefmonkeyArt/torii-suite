@@ -483,7 +483,7 @@ FIPS mesh only. See `docs/TEAMS.md`.
   devices in `/etc/torii/teams/member-nodes`; members in `git-members`.
 - Pinned binaries (cordn-server v0.5.1-next.3; ngit-grasp v3.0.10 built by
   `teams-deps.yml`); no compiler on the VPS. Keys and member lists survive reruns.
-- Daily root-only backups with retention; `torii-teams status|apply|sync|backup`.
+- Daily root-only backups with retention; `torii-teams status|apply|sync [--files-only]|backup`.
 - FIPS moves to v0.5.3, and its firewall gains a `members` chain filled from
   `/etc/torii/fips/fips.d/*.nft` drop-ins.
 - Tests: `bash test/install-teams.test.sh`; CI installs, reruns and checks the

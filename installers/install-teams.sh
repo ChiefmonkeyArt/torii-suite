@@ -128,8 +128,11 @@ systemctl enable -q --now torii-teams-sync.path
 systemctl restart torii-teams-coord.service
 systemctl start torii-teams-backup.timer
 # Member lists from Continuum when it has written one; otherwise the files as they are.
-if [[ -s "$CONFIG/owner.npub" ]]; then /usr/local/sbin/torii-teams sync || /usr/local/sbin/torii-teams apply
-else /usr/local/sbin/torii-teams apply; fi
+# apply always runs: a reinstall must restart git even when the lists did not change.
+if [[ -s "$CONFIG/owner.npub" ]]; then
+  /usr/local/sbin/torii-teams sync --files-only || echo "sync refused: member files kept as they were" >&2
+fi
+/usr/local/sbin/torii-teams apply
 sleep 2
 systemctl is-active -q torii-teams-coord.service || die "torii-teams-coord failed to start"
 echo "Teams chat coordinator: $(cat "$CONFIG/coord.pub") via wss://relay.${TORII_DOMAIN:-<domain>}"

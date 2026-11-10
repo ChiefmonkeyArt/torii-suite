@@ -50,7 +50,9 @@ cmd_apply() {
   else echo "git: not running (needs FIPS and at least one npub in $CONFIG/git-members)"; fi
 }
 
+# --files-only: refresh the member files; the caller runs apply itself.
 cmd_sync() {
+  local apply=1; [[ "${1:-}" == --files-only ]] && apply=0
   local mesh="${TEAMS_MESH_FILE:-/apps/continuum/agent/repo/agent/memory/teams/mesh.json}"
   [[ -e "$mesh" ]] || { echo "no Continuum mesh file: member files unchanged"; return 0; }
   [[ -s "$CONFIG/owner.npub" ]] || die "no project owner in $CONFIG/owner.npub"
@@ -67,7 +69,9 @@ cmd_sync() {
   install -m 0644 -o root -g root "$tmp/git-members" "$CONFIG/git-members"
   install -m 0644 -o root -g root "$tmp/member-nodes" "$CONFIG/member-nodes"
   mv -f -- "$st/mesh-state.json.next" "$st/mesh-state.json"
-  cmd_apply
+  echo "member files updated"
+  ((apply)) && cmd_apply
+  return 0
 }
 
 cmd_status() {
@@ -103,7 +107,7 @@ cmd_backup() {
 case "${1:-status}" in
   status) cmd_status ;;
   apply) cmd_apply ;;
-  sync) cmd_sync ;;
+  sync) cmd_sync "${2:-}" ;;
   backup) cmd_backup ;;
-  *) die "usage: torii-teams status|apply|sync|backup" ;;
+  *) die "usage: torii-teams status|apply|sync [--files-only]|backup" ;;
 esac
