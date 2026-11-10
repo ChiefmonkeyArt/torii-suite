@@ -1,0 +1,181 @@
+{
+ "now": 1800000010,
+ "adminNpub": "npub1fu64hh9hes90w2808n8tjc2ajp5yhddjef0ctx4s7zmsgp6cwx4qgy4eg9",
+ "adminHex": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+ "good": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1800000000,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub19m240addxd4nrfyc2ljwjejf2jkrxwz65g9f8ckkf0l87z84zfmsy440j7\",\"beaconPubkey\":\"35f737927627c4af1e9a39ae02b086c6b31426d0d64f01e5ce3ee8a445bbd667\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer0.example/quest/\"},{\"transportNpub\":\"npub1dyc0gmwsk9kcvm2e6yz54f3jnze4wjvu6xrzaut08a2lrjhuawpqt5jdch\",\"beaconPubkey\":\"baf7689c0a3558fb604589036a8d1e4b685d909f6e0e2c6018a14049ae64ec26\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer1.example/quest/\"}]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "84187a3bcb32b10197a4a34e6955d59c792ec3f1ea103c74e49ac0c359c99f56",
+   "sig": "d2a2a9f97da49d76a0ed79a92004f0b50780833555b9bad83a80b16b495990c822177f10733a36846d8fbc061a93980d5995c4d782bb8ad0dad3721755a3bd3f"
+  }
+ },
+ "later": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1800000005,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub19m240addxd4nrfyc2ljwjejf2jkrxwz65g9f8ckkf0l87z84zfmsy440j7\",\"beaconPubkey\":\"35f737927627c4af1e9a39ae02b086c6b31426d0d64f01e5ce3ee8a445bbd667\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer0.example/quest/\"}]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "f0e1530533176fcc3118146fd96d82a2a22c31860a6ec61bd1fe8ec30abc0ad4",
+   "sig": "45af379718c92c186fb99e920380338878e3faa840c6924039247da71cece6ee7f157c7547e676ac73c75eca30a97e623b0cec955c75b754c2d0560c140fc54a"
+  }
+ },
+ "empty": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1800000006,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "504371f3992d34ef22a198a66c6bc6a599972ce8666eba058f9bd8ea33e12975",
+   "sig": "23be106355e7f1179953fdb857c425b96693df5843f58a6dfc3eb47420d83b6e0c1104861ab07b67bcc573169e461a48b0697b46761c5fd92812a83b03ba8adb"
+  }
+ },
+ "wrongSigner": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1800000000,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub19m240addxd4nrfyc2ljwjejf2jkrxwz65g9f8ckkf0l87z84zfmsy440j7\",\"beaconPubkey\":\"35f737927627c4af1e9a39ae02b086c6b31426d0d64f01e5ce3ee8a445bbd667\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer0.example/quest/\"}]}",
+   "pubkey": "466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27",
+   "id": "abadc59f1408add96ae72b295c966b1776f64f7fcb64a2d5618ebff3d6613ccf",
+   "sig": "11faa6deaaa1e05a6f08fe399255e88f815344e7289c3a776ea48bfd0bb923276937ecb9bae8394a442b6c829bc0c66da8d6aa60f9a6e87e901cfbe2decf6203"
+  }
+ },
+ "wrongKind": {
+  "event": {
+   "kind": 1,
+   "created_at": 1800000000,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub19m240addxd4nrfyc2ljwjejf2jkrxwz65g9f8ckkf0l87z84zfmsy440j7\",\"beaconPubkey\":\"35f737927627c4af1e9a39ae02b086c6b31426d0d64f01e5ce3ee8a445bbd667\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer0.example/quest/\"}]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "32c24c7f986d39df871277c9c90ec8e794e6e256bc3a1ec5ab6b45ce83e49058",
+   "sig": "f476d16de2ddc5c4469196826e96f78fe8865e513b35e10cf554e6e9298953ed15fc720b2c4bd4ae024adee570b5d25a03766cfb206b6c8a375a3abc9b3719d9"
+  }
+ },
+ "wrongTag": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1800000000,
+   "tags": [
+    [
+     "t",
+     "x"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub19m240addxd4nrfyc2ljwjejf2jkrxwz65g9f8ckkf0l87z84zfmsy440j7\",\"beaconPubkey\":\"35f737927627c4af1e9a39ae02b086c6b31426d0d64f01e5ce3ee8a445bbd667\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer0.example/quest/\"}]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "686f27c57baaa516382f5b2e72c4d1bddc87ba7f968a00b575dac7c2c14b7b4b",
+   "sig": "5e61ab58e43d0c24f184364f139b1e8bf4c9709b38f9236e1208e1621190e40f05929fd2d018e4317967f0a800c9470f6637073b90afb024bb6b1b96249401c1"
+  }
+ },
+ "tampered": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1800000000,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub1jzvemwl5xq6tl7ca65l2c845cvayagwy7j96tpw0mcurppq0q42swqhm8w\",\"beaconPubkey\":\"9c1f585aa80762f9f4458f6806978b7befb46c7b68af82d399630793ff1a2b50\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer2.example/quest/\"}]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "84187a3bcb32b10197a4a34e6955d59c792ec3f1ea103c74e49ac0c359c99f56",
+   "sig": "d2a2a9f97da49d76a0ed79a92004f0b50780833555b9bad83a80b16b495990c822177f10733a36846d8fbc061a93980d5995c4d782bb8ad0dad3721755a3bd3f"
+  }
+ },
+ "nine": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1800000000,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub19m240addxd4nrfyc2ljwjejf2jkrxwz65g9f8ckkf0l87z84zfmsy440j7\",\"beaconPubkey\":\"35f737927627c4af1e9a39ae02b086c6b31426d0d64f01e5ce3ee8a445bbd667\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer0.example/quest/\"},{\"transportNpub\":\"npub1dyc0gmwsk9kcvm2e6yz54f3jnze4wjvu6xrzaut08a2lrjhuawpqt5jdch\",\"beaconPubkey\":\"baf7689c0a3558fb604589036a8d1e4b685d909f6e0e2c6018a14049ae64ec26\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer1.example/quest/\"},{\"transportNpub\":\"npub1jzvemwl5xq6tl7ca65l2c845cvayagwy7j96tpw0mcurppq0q42swqhm8w\",\"beaconPubkey\":\"9c1f585aa80762f9f4458f6806978b7befb46c7b68af82d399630793ff1a2b50\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer2.example/quest/\"},{\"transportNpub\":\"npub183e2mk60muy6l98se9xhl6f28p48uux03gwctytrs6aj2dw8kxcsw0rcm2\",\"beaconPubkey\":\"1428f3a3532ff4f1cac70f7292bfad06d1037f800ee8839b56ebba917a22e900\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer3.example/quest/\"},{\"transportNpub\":\"npub1gp7t5c6jat4ex4xuwh9zvwt8ske84pw06n2c2aw7gsysy2fdvc4qd67wer\",\"beaconPubkey\":\"1162ffa0f68dda9783c9e3c419ed824a086c1594dc8d3333306016611739dfc1\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer4.example/quest/\"},{\"transportNpub\":\"npub1kgwmg7n4emh9cqg0d8mx6jx45qt7fch5ddrmf9ka7q6f3snwrnkq860qd3\",\"beaconPubkey\":\"9ac20335eb38768d2052be1dbbc3c8f6178407458e51e6b4ad22f1d91758895b\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer5.example/quest/\"},{\"transportNpub\":\"npub1ul56et9akslun7m34rd32dkqlpnv4fudaaylveh6zgdx7725hvqsjvcddu\",\"beaconPubkey\":\"887b313b55d7c6706037fe7bd554364faccfe21bc2652a2a6a0b0d7026c585ea\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer6.example/quest/\"},{\"transportNpub\":\"npub15yuydy950vckg7rxs3v8p6e95dyaepffew9pm36xuf2spm94vvyqqwe5vk\",\"beaconPubkey\":\"cea8c5859201cae256ebc4a9cc71540316c53dc66ae43288fb8807c2fb8d58c1\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer7.example/quest/\"},{\"transportNpub\":\"npub1zvfszm5kwr0tf9mecxcvv3kk5fd9g4cjvk8e0qveta3rhngdpv7svna95a\",\"beaconPubkey\":\"44b9c62b2e40f9623c61ec464829cf5af49e0abf99cdac5564d05158ddf5a925\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer8.example/quest/\"}]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "6ce65214a433dff89ee276e5bc731cfccd4886898f2893d77901208dc04ad236",
+   "sig": "89bcd8e0b30b0284ab30e5aceafb6770db25d8f7fd7e605e906a3b2c9b6a712bd41aa45777c4c16939ecc8cfcffdad67db83b4303980a0d81372cee12f2420f2"
+  }
+ },
+ "old": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1799910000,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub19m240addxd4nrfyc2ljwjejf2jkrxwz65g9f8ckkf0l87z84zfmsy440j7\",\"beaconPubkey\":\"35f737927627c4af1e9a39ae02b086c6b31426d0d64f01e5ce3ee8a445bbd667\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer0.example/quest/\"}]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "897de7ff42bd961dd50890a17c983023c995eb914a85c24127cbbcdf0c04792d",
+   "sig": "ecfd36c9cfc2677827d817956abc6c59c080875419c653e6819a60965c787c647d670600f432a3f0c237f0a379735ba246df917381942ff118c66631f405c204"
+  }
+ },
+ "extraFields": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1800000000,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub19m240addxd4nrfyc2ljwjejf2jkrxwz65g9f8ckkf0l87z84zfmsy440j7\",\"beaconPubkey\":\"35f737927627c4af1e9a39ae02b086c6b31426d0d64f01e5ce3ee8a445bbd667\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://peer0.example/quest/\",\"evil\":\"x\"}]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "80afa73d8e22ef53c884fac5af56e94d9815e52886898c02aeaa02d09430c1da",
+   "sig": "f00ea145db61a4ae91118739eb4def1433f43c76606304fe3614e8f8f56ee30a1867937bf9ec28aaab679aec21f39808a8eb96eb8ee81e8f4dd8322631fd4d49"
+  }
+ },
+ "badPeer": {
+  "event": {
+   "kind": 27532,
+   "created_at": 1800000000,
+   "tags": [
+    [
+     "t",
+     "torii-fips-peers"
+    ]
+   ],
+   "content": "{\"version\":1,\"peers\":[{\"transportNpub\":\"npub19m240addxd4nrfyc2ljwjejf2jkrxwz65g9f8ckkf0l87z84zfmsy440j7\",\"beaconPubkey\":\"35f737927627c4af1e9a39ae02b086c6b31426d0d64f01e5ce3ee8a445bbd667\",\"ownerPubkey\":\"466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27\",\"zoneId\":\"quest-torii\",\"website\":\"https://localhost/\"}]}",
+   "pubkey": "4f355bdcb7cc0af728ef3cceb9615d90684bb5b2ca5f859ab0f0b704075871aa",
+   "id": "0cca5d0ccc9f3139bcd312e9f4a84f788305ebef717f3b81f18d96de9446a8ed",
+   "sig": "85bc9844affaad72ffec3757fdbd98b4d84bcce1a9e62d7adedbfbbb87f03be2642e5421f07939410b4df4a02074758bfb5038594d72d6135dbd511ebe13e8fa"
+  }
+ }
+}

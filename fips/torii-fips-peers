@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# torii-fips-peers: apply an operator-signed FIPS peer list (root only).
+#   apply   read the Continuum agent's signed request, rewrite peers.json +
+#           fips.yaml, restart FIPS (run by torii-fips-peers.path on change)
+#   status  peer count and the last applied request time
+# torii-continuum docs/adr-fips-default.md §4; Quest re-reads peers.json itself.
+set -euo pipefail
+CONFIG=/etc/torii/fips
+PREFIX=/opt/torii/fips
+STATE=/var/lib/torii-fips
+# shellcheck disable=SC1091
+[[ -r "$CONFIG/peers.env" ]] && . "$CONFIG/peers.env"
+REQUEST="${TORII_FIPS_PEER_REQUEST:-/apps/continuum/agent/repo/agent/memory/fips/peer-request.json}"
+die() { echo "torii-fips-peers: $*" >&2; exit 1; }
+[[ $EUID -eq 0 ]] || die "run as root"
+
+cmd_apply() {
+  [[ -x "$PREFIX/bin/fipsctl" ]] || { echo "FIPS not installed: nothing to do"; return 0; }
+  [[ -e "$REQUEST" ]] || { echo "no peer request"; return 0; }
+  [[ -s "$CONFIG/admin.npub" ]] || die "no node admin in $CONFIG/admin.npub"
+  install -d -m 0755 "$STATE"
+  local tmp rc=0; tmp="$(mktemp -d)"; trap 'rm -rf -- "$tmp"' RETURN
+  node "$PREFIX/lib/apply-peer-request.mjs" "$REQUEST" "$CONFIG/admin.npub" "$STATE/peer-request.last" \
+    "$tmp/peers.json" "$tmp/fips.yaml" "$PREFIX/bin/fipsctl" || rc=$?
+  ((rc == 3)) && return 0
+  ((rc == 0)) || exit "$rc"
+  install -m 0644 -o root -g root "$tmp/peers.json" "$CONFIG/peers.json"
+  install -m 0600 -o root -g root "$tmp/fips.yaml" "$CONFIG/fips.yaml"
+  mv -f -- "$STATE/peer-request.last.next" "$STATE/peer-request.last"
+  systemctl restart torii-fips.service
+  local ready=0
+  for _ in {1..30}; do
+    if ip -6 addr show dev fips0 2>/dev/null | grep -q 'inet6 fd'; then ready=1; break; fi
+    sleep 1
+  done
+  ((ready)) || die "FIPS TUN did not come back; peers.json is written, rerun install-fips.sh"
+  systemctl restart torii-fips-relay.service
+  echo "FIPS peers applied: $(grep -o '"transportNpub"' "$CONFIG/peers.json" | wc -l)"
+}
+
+cmd_status() {
+  echo "peers: $(grep -o '"transportNpub"' "$CONFIG/peers.json" 2>/dev/null | wc -l)"
+  [[ -s "$STATE/peer-request.last" ]] && echo "last request: $(date -u -d "@$(cat "$STATE/peer-request.last")" +%FT%TZ)"
+  return 0
+}
+
+case "${1:-status}" in
+  apply) cmd_apply ;;
+  status) cmd_status ;;
+  *) die "usage: torii-fips-peers apply|status" ;;
+esac

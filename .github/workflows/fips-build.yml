@@ -1,7 +1,7 @@
 name: FIPS node build
 on:
   pull_request:
-    paths: ['fips/**', 'installers/install-fips.sh', 'installers/install-quest.sh', 'bootstrap.sh', 'scripts/fips-status.sh', 'test/install-fips.test.sh', 'test/bootstrap-fips.test.sh', '.github/workflows/fips-build.yml']
+    paths: ['fips/**', 'installers/install-fips.sh', 'installers/install-quest.sh', 'bootstrap.sh', 'scripts/fips-status.sh', 'test/install-fips.test.sh', 'test/bootstrap-fips.test.sh', 'test/fips-peers.test.sh', 'test/fixtures/fips-peer-requests.json', '.github/workflows/fips-build.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,6 +37,34 @@ jobs:
           out="$(sudo bash scripts/fips-status.sh)"
           echo "$out"
           [[ "$out" == "FIPS: running, 0 peers" ]]
+      - name: Peer introductions through the root path unit (Continuum ADR fips-default §4)
+        run: |
+          bash test/fips-peers.test.sh
+          # Re-install with a node admin and a request path, as on a real node.
+          ADMIN="$(node -p 'require("./test/fixtures/fips-peer-requests.json").adminNpub')"
+          sudo mkdir -p /var/tmp/cont/fips
+          sudo env PATH="$PATH" CONTINUUM_ADMIN_NPUB="$ADMIN" TORII_FIPS_PEER_REQUEST=/var/tmp/cont/fips/peer-request.json bash installers/install-fips.sh
+          systemctl is-enabled torii-fips-peers.path
+          # Test-only signer: the fixture admin key signs a fresh 2-peer list now.
+          npm i -s --prefix /tmp/nt nostr-tools@2 >/dev/null
+          node --input-type=module -e '
+            import { finalizeEvent } from "/tmp/nt/node_modules/nostr-tools/lib/esm/index.js";
+            const F = (await import("./test/fixtures/fips-peer-requests.json", { with: { type: "json" } })).default;
+            const peers = JSON.parse(F.good.event.content).peers;
+            const event = finalizeEvent({ kind: 27532, created_at: Math.floor(Date.now() / 1000), tags: [["t", "torii-fips-peers"]],
+              content: JSON.stringify({ version: 1, peers }) }, Uint8Array.from(Buffer.from("11".repeat(32), "hex")));
+            process.stdout.write(JSON.stringify({ event }));' > /tmp/req.json
+          sudo cp /tmp/req.json /var/tmp/cont/fips/peer-request.json
+          for _ in $(seq 1 40); do grep -q peer1.example /etc/torii/fips/peers.json && break; sleep 1; done
+          grep -c transportNpub /etc/torii/fips/peers.json
+          [[ "$(sudo torii-fips-peers status | head -1)" == "peers: 2" ]]
+          sudo systemctl is-active torii-fips torii-fips-relay
+          # A request signed by anyone else changes nothing.
+          node -e 'const F=require("./test/fixtures/fips-peer-requests.json"); process.stdout.write(JSON.stringify(F.wrongSigner))' > /tmp/bad.json
+          sudo cp /tmp/bad.json /var/tmp/cont/fips/peer-request.json
+          sleep 3
+          [[ "$(sudo torii-fips-peers status | head -1)" == "peers: 2" ]]
+          sudo journalctl -u torii-fips-peers --no-pager -n 20
       - name: Diagnostics on failure
         if: failure()
         run: |

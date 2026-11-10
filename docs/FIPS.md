@@ -33,7 +33,9 @@ Write `/etc/torii/fips/peers.json` as root, mode 0644, using this schema and rep
 }
 ```
 
-Up to 8 peers are permitted (torii-quest ADR-0151, Suite v0.9.51-alpha), each with a distinct transport name; the file may be up to 8 KiB. Rerun the installer from the reviewed Suite tag and restart Quest to reload the pins. The generated FIPS YAML is derived from this file and should not be edited separately.
+Up to 8 peers are permitted (torii-quest ADR-0151, Suite v0.9.51-alpha), each with a distinct transport name; the file may be up to 8 KiB.
+
+**From Continuum (v0.9.51-alpha).** Instead of editing the file, the operator can paste another node's introduction card into Continuum (torii-continuum `docs/adr-fips-default.md` §4). The agent writes the operator-signed list (kind 27532, tag `torii-fips-peers`) to `TORII_FIPS_PEER_REQUEST` (default `/apps/continuum/agent/repo/agent/memory/fips/peer-request.json`, kept in `/etc/torii/fips/peers.env`). `torii-fips-peers.path` runs `torii-fips-peers apply` as root, which uses its own copies in `/opt/torii/fips/lib/` (no app code), checks the BIP-340 signature against `/etc/torii/fips/admin.npub` (from `CONTINUUM_ADMIN_NPUB`), refuses anything not newer than the last applied list (`/var/lib/torii-fips/peer-request.last`), validates every peer like the renderer, then rewrites `peers.json` and `fips.yaml` and restarts FIPS. Quest re-reads `peers.json` within 30 s without a restart. `sudo torii-fips-peers status` shows the count. Rerun the installer from the reviewed Suite tag and restart Quest to reload the pins. The generated FIPS YAML is derived from this file and should not be edited separately.
 
 Both VPS/provider firewalls must permit UDP 2121 between the two public hosts. The installer does not disable or broaden a pre-existing host firewall. This slice uses static UDP endpoints derived from the verified world hostname, not open discovery or NAT traversal. Changes to endpoint policy need a separate review.
 

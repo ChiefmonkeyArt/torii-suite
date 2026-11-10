@@ -2,7 +2,7 @@
 
 ## Release v0.9.51-alpha: up to eight FIPS peers (2026-11-10)
 
-The FIPS config renderer now takes up to 8 peers instead of 1, each with its own transport name, from a peer file of up to 8 KiB, matching Quest v0.2.939-alpha (ADR-0151). No installer logic or service change; a node with zero or one peer renders exactly as before.
+The FIPS config renderer now takes up to 8 peers instead of 1, each with its own transport name, from a peer file of up to 8 KiB, matching Quest v0.2.939-alpha (ADR-0151). A node with zero or one peer renders exactly as before. New root helper: an operator-signed peer list dropped by Continuum is checked (signature against the node admin, newer than the last one, every field) and turned into `peers.json`, so peers can be added without SSH. Root uses its own copies of the code, never the app's.
 
 ## Release v0.9.50-alpha: Auctions v0.2.0, FROST and Coco (2026-11-10)
 

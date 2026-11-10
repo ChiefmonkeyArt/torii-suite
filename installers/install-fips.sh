@@ -104,8 +104,29 @@ printf '[Journal]\nStorage=volatile\nRuntimeMaxUse=8M\nRuntimeMaxFileSize=1M\nMa
   > /etc/systemd/journald@torii-fips.conf.d/limits.conf
 printf '[Service]\nLogsDirectory=\n' \
   > /etc/systemd/system/systemd-journald@torii-fips.service.d/volatile.conf
+# Peer introductions from Continuum (torii-continuum docs/adr-fips-default.md
+# §4): the agent drops an admin-signed list; this root path unit checks the
+# signature against the node admin and rewrites peers.json. The helper and its
+# libraries are copied here so root never runs app-owned code.
+install -d -m 0755 "$PREFIX/lib"
+install -m 0644 "$ROOT/fips/render-config.mjs" "$ROOT/fips/schnorr.mjs" "$ROOT/fips/apply-peer-request.mjs" "$PREFIX/lib/"
+install -m 0755 "$ROOT/fips/torii-fips-peers" /usr/local/sbin/torii-fips-peers
+if [[ -z "${CONTINUUM_ADMIN_NPUB:-}" && -f "$ROOT/.env" ]]; then
+  # shellcheck disable=SC1091
+  CONTINUUM_ADMIN_NPUB="$(set -a; . "$ROOT/.env" >/dev/null 2>&1; printf '%s' "${CONTINUUM_ADMIN_NPUB:-}")"
+fi
+if [[ "${CONTINUUM_ADMIN_NPUB:-}" =~ ^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$ ]]; then
+  printf '%s\n' "$CONTINUUM_ADMIN_NPUB" > "$CONFIG/admin.npub"
+  chmod 0644 "$CONFIG/admin.npub"
+fi
+PEER_REQUEST="${TORII_FIPS_PEER_REQUEST:-${APPS_ROOT:-/apps}/continuum/agent/repo/agent/memory/fips/peer-request.json}"
+[[ "$PEER_REQUEST" =~ ^/[A-Za-z0-9._/-]+$ ]] || { echo "Invalid TORII_FIPS_PEER_REQUEST" >&2; exit 1; }
+printf 'TORII_FIPS_PEER_REQUEST=%s\n' "$PEER_REQUEST" > "$CONFIG/peers.env"
+printf '[Unit]\nDescription=Torii FIPS: watch for an operator-signed peer list\n\n[Path]\nPathChanged=%s\nUnit=torii-fips-peers.service\n\n[Install]\nWantedBy=paths.target\n' \
+  "$PEER_REQUEST" > /etc/systemd/system/torii-fips-peers.path
 systemctl daemon-reload
 systemctl enable --now torii-fips-firewall.service
+systemctl enable -q --now torii-fips-peers.path
 systemctl enable torii-fips.service torii-fips-relay.service
 systemctl restart torii-fips.service
 # Upstream can remain active in DEGRADED state without TUN. Require the actual
