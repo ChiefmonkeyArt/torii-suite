@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.54-alpha: faster Auctions
+
+Auctions v0.3.1 makes bidding snappy again. Each second the page used to download the
+whole auction history, over 1 MB by the end of the first day. Now it downloads only open
+lots, recent results and the visitor's own unsettled lots, compressed, and
+nothing at all when nothing has changed. The chain is kept on upgrade.
+
 ### New in v0.9.53-alpha: Teams members and computers from Continuum
 
 The private git's member list and the computers allowed to reach it now follow

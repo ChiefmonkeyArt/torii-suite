@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.54-alpha: faster Auctions (2026-11-10)
+
+Pins plebeian-arena-auctions v0.3.1 (da6711f, SHA-256 `b2f0d453505d1a99ce869bf46d2804ae32d38189eb0857f53ac043463471157f`). The page polled a 1.19 MB uncompressed state every second; it now asks for a slim view (about 10 KB gzipped for a new visitor, 28 KB with five bidders) and gets a tiny "not modified" answer when nothing changed. Bid proofs are fetched only when claiming. The chain format is unchanged, so the running chain is kept. Tests: contract 50/50; live 27/27, e2e 44/44 over HTTPS.
+
 ## Release v0.9.53-alpha: Teams members and computers from Continuum (2026-11-10)
 
 The team's private git now follows Continuum without anyone editing files over SSH (torii-teams ADR 0016). Continuum writes one file with every signed member list, invite link and each person's own list of up to three computers; a root helper on the node checks every signature itself, refuses a forged or older member list, and only then rewrites who may use git and which computers may reach it. Pins Torii Teams 0.6.1-torii.17, which adds "Your computers". Tests: mesh checker 9/9, Teams installer 62/62, FIPS peers 18/18; CI checks a real path-unit run.

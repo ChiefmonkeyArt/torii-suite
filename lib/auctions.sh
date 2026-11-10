@@ -164,7 +164,7 @@ UNIT
 # → the gateway unit. The gateway supervises the four validator processes
 # (CometBFT + co-signer); the chain is created on first start, once the mint
 # answers. "arena init -if-needed" keeps a chain only when its FORMAT marker
-# matches the release (v0.3.0: format 3), otherwise it replaces the whole root.
+# matches the release (v0.3.0 and v0.3.1: format 3), otherwise it replaces the whole root.
 # Demo controls (unauthenticated validator stop/start) are off unless demo=1.
 auctions_chain_unit() {
   local app="$1" port="$2" mport="$3" margin="${4:-86400}" demo="${5:-0}" s=/var/lib/plebeian-auctions dflag=""
