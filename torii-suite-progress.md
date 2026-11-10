@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.59-alpha: Auctions update live (2026-11-10)
+
+Pins plebeian-arena-auctions v0.4.1 (818b7e1, SHA-256 `8255e5142258247d48b95e73d42ad8eb819fa5942d02bd03694d45394c0dca41`), chain format 4, so the fake-sats chain starts fresh on this upgrade. The page now gets a push when a block lands instead of polling every second; bids appear on chain in under a second and lots close within about a second of their end (they used to wait for the next empty block). A bid that loses a race is recorded as void and refundable at once instead of locked for a day. While idle the chain makes one block a minute instead of one a second, keeps only its last 100,000 blocks and archives every transaction to a per-validator ledger file. The Network drawer times your last bids. v0.4.1 fixes a stale first push message found by this release's live test. Vhost: `/api/events` gets its own unbuffered, ungzipped location with the per-address connection cap. Arena tests: Go -race, e2e 55/55. Suite: contract 56/56; live 31/31 (new: event stream through nginx, four ledgers) with e2e 55/55 over HTTPS.
+
 ## Release v0.9.58-alpha: Bids respond on tap (2026-11-10)
 
 Pins plebeian-arena-auctions v0.3.4 (92519ba, SHA-256 `08746e10244a580ea022eea3e825554bc6b079297d8acf2907de6635f8a59a1f`). Bidding felt laggy and the one-tap buttons seemed dead: the page showed nothing until the bid's round trips finished, extra taps were dropped, and the bots in your own browser raced you. Now a tap shows your bid at once and the chain confirms about a second later. Arena tests: Go -race ok, e2e 48/48, headless mobile with bots on frenzy: pending visible ~0.1 s, on chain 0.6-1.6 s, triple tap = one bid, 8/8 accepted. Suite: contract 53/53; live 29/29 with e2e 47/47 over HTTPS.

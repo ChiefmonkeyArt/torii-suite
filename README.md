@@ -283,6 +283,14 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.59-alpha: Auctions update live
+
+Auctions v0.4.1 pushes each new block to the page, so bids and closes show up
+within about half a second, and a lot closes on time. A bid that loses a race is
+refundable straight away. The chain stops growing while nobody bids, and the
+Network drawer shows how long your last bids took. The fake-sats chain starts
+fresh on this upgrade.
+
 ### New in v0.9.58-alpha: Bids respond on tap
 
 Auctions v0.3.4 shows your bid the moment you tap (sending, then sent, then on the

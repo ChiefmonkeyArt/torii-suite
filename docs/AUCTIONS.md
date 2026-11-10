@@ -13,13 +13,16 @@ sudo INSTALL_AUCTIONS=1 TORII_DOMAIN=<domain> bash /opt/torii-suite/checkout/ins
 ```
 
 The release repo is public, so the VPS downloads the pinned tarball itself
-(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.3.4.tar.gz` installs a local copy).
+(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.4.1.tar.gz` installs a local copy).
 
 Escrow (v0.2.0+): bids lock to one FROST 3-of-4 group key; each validator keeps
 its share in `/var/lib/plebeian-auctions/chain/vN/config/frost_key.json` (0600).
 The gateway unit runs `arena init -if-needed`: a chain whose
 `/var/lib/plebeian-auctions/chain/FORMAT` does not match the release (v0.3.0-v0.3.4:
-`3`) is re-created on the next start. v0.3.1 to v0.3.4 keep the v0.3.0 chain.
+`3`; v0.4.0+: `4`) is re-created on the next start. v0.3.1 to v0.3.4 kept the v0.3.0
+chain; upgrading to v0.4.0 re-creates it (lots, bids and block history go; fake-sats
+wallet balances stay in the browser, and a bid still locked to the old group key
+can be reclaimed alone once its lock time passes).
 
 State snapshots (v0.3.3+, arena ADR 0003 §2): each validator writes its app state to
 `chain/vN/data/app-state/<height>.json` (mode 0600, the newest 2 kept) every 1,000
@@ -28,6 +31,24 @@ block from genesis. A snapshot is used only if its hash, canonical form, file na
 the app hash the chain recorded for that height all agree; otherwise the validator
 refuses to start (delete the bad file to fall back to the previous one). The first
 start after upgrading from v0.3.2 still replays once (v0.3.2 wrote no snapshots).
+
+Block growth (v0.4.0+, arena ADR 0003 §1, §4): no empty blocks while idle (one
+heartbeat block a minute), and the app hash leaves out height and time, so an idle
+chain barely grows. Each validator keeps only its last 100,000 blocks; every
+transaction's outcome goes first to an append-only archive,
+`chain/vN/data/ledger.jsonl` (one JSON line per transaction, fsynced). Back up
+that file, not the block store. Block times come from proposer-based timestamps
+(2 s message delay), and the validators close a lot on chain within about a
+second of its end.
+
+Live push and void bids (v0.4.0+, arena ADR 0007): the page listens on
+`/api/events` (Server-Sent Events, one stream per tab, pinged every 15 s, ended
+after 15 min, at most 512 per gateway) and fetches the view only when a block
+lands; it falls back to polling if the stream drops. The vhost gives that path its
+own location: HTTP/1.1, no buffering, no gzip, 60 s read timeout, and the same cap
+of 16 long-lived connections per address as `/mint/v1/ws`. A bid that loses a race
+(outbid in the same block, or sent after the close) is recorded as void, so its
+fake sats are refundable at once instead of locked until the margin passes.
 
 Polling (v0.3.1+, arena ADR 0004): the page reads `/api/state?view=client`, a
 slim view without Cashu proofs that answers `304` when nothing changed, and the
