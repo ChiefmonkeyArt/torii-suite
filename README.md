@@ -290,7 +290,7 @@ Continuum automatically (torii-teams ADR 0016). Each person adds up to three of
 their own computers in the Teams app; root checks every signature itself before
 rewriting `/etc/torii/teams/git-members` and `member-nodes`. A forged or older
 member list is refused. See `docs/TEAMS.md`. Tests: `node --test
-test/teams-mesh.test.mjs`; CI drops a signed mesh file and checks the result.
+test/teams-mesh.test.mjs`; CI drops a signed mesh file and checks the result. Pins torii-teams `0.6.1-torii.17` ("Your computers"); update Continuum to v0.2.204-alpha too.
 
 ### New in v0.9.52-alpha: Auctions security fixes
 
