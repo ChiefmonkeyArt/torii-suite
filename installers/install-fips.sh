@@ -109,7 +109,7 @@ printf '[Service]\nLogsDirectory=\n' \
 # signature against the node admin and rewrites peers.json. The helper and its
 # libraries are copied here so root never runs app-owned code.
 install -d -m 0755 "$PREFIX/lib"
-install -m 0644 "$ROOT/fips/render-config.mjs" "$ROOT/fips/schnorr.mjs" "$ROOT/fips/apply-peer-request.mjs" "$PREFIX/lib/"
+install -m 0644 "$ROOT/fips/render-config.mjs" "$ROOT/fips/schnorr.mjs" "$ROOT/fips/agent-file.mjs" "$ROOT/fips/apply-peer-request.mjs" "$PREFIX/lib/"
 install -m 0755 "$ROOT/fips/torii-fips-peers" /usr/local/sbin/torii-fips-peers
 if [[ -z "${CONTINUUM_ADMIN_NPUB:-}" && -f "$ROOT/.env" ]]; then
   # shellcheck disable=SC1091

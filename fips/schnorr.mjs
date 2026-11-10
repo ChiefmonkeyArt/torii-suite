@@ -87,13 +87,9 @@ export function verifyNostrEvent(e) {
 }
 
 const B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-/** npub1… → 64-hex, or null. Bech32 checksum verified. */
-export function npubToHex(npub) {
-  const s = String(npub || '');
-  if (!/^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$/.test(s)) return null;
-  const data = [...s.slice(5)].map((c) => B32.indexOf(c));
-  const hrp = [...'npub'].map((c) => c.charCodeAt(0));
-  const values = [...hrp.map((c) => c >> 5), 0, ...hrp.map((c) => c & 31), ...data];
+const HRP = [...'npub'].map((c) => c.charCodeAt(0));
+const HRP_X = [...HRP.map((c) => c >> 5), 0, ...HRP.map((c) => c & 31)];
+function polymod(values) {
   const G5 = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
   let chk = 1;
   for (const v of values) {
@@ -101,11 +97,34 @@ export function npubToHex(npub) {
     chk = ((chk & 0x1ffffff) << 5) ^ v;
     for (let i = 0; i < 5; i++) if ((top >>> i) & 1) chk ^= G5[i];
   }
-  if (chk !== 1) return null;
+  return chk;
+}
+
+/** npub1… → 64-hex, or null. Bech32 checksum verified. */
+export function npubToHex(npub) {
+  const s = String(npub || '');
+  if (!/^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$/.test(s)) return null;
+  const data = [...s.slice(5)].map((c) => B32.indexOf(c));
+  if (polymod([...HRP_X, ...data]) !== 1) return null;
   let acc = 0, bits = 0; const out = [];
   for (const v of data.slice(0, -6)) {
-    acc = (acc << 5) | v; bits += 5;
+    acc = ((acc << 5) | v) & 0xfff; bits += 5;
     while (bits >= 8) { bits -= 8; out.push((acc >>> bits) & 0xff); }
   }
   return out.length === 32 ? Buffer.from(out).toString('hex') : null;
+}
+
+/** 64-hex → npub1…, or null. */
+export function hexToNpub(hex) {
+  if (!/^[0-9a-f]{64}$/.test(String(hex || ''))) return null;
+  const data = [];
+  let acc = 0, bits = 0;
+  for (const b of Buffer.from(hex, 'hex')) {
+    acc = ((acc << 8) | b) & 0xfff; bits += 8;
+    while (bits >= 5) { bits -= 5; data.push((acc >>> bits) & 31); }
+  }
+  if (bits) data.push((acc << (5 - bits)) & 31);
+  const mod = polymod([...HRP_X, ...data, 0, 0, 0, 0, 0, 0]) ^ 1;
+  for (let i = 0; i < 6; i++) data.push((mod >>> (5 * (5 - i))) & 31);
+  return 'npub1' + data.map((d) => B32[d]).join('');
 }

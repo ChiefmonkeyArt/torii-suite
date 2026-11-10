@@ -192,18 +192,31 @@ self-signed cert, served headers, wrong checksum, missing `coord.pub`). CI:
   these. First install seeds `TEAMS_OWNER_NPUB` (default `CONTINUUM_ADMIN_NPUB`).
 - `/etc/torii/teams/member-nodes`: one FIPS device npub per line. Only these
   devices can open the mesh git port.
+- `/etc/torii/teams/owner.npub`: the project owner whose signatures
+  `torii-teams sync` believes (from `TEAMS_OWNER_NPUB`).
+- `/var/lib/torii-teams-sync/mesh-state.json` (0600, root): the newest member
+  list and device note applied, so an older one is refused.
 - `/etc/torii/fips/fips.d/teams.nft`: generated allow list, loaded by the Suite
   FIPS firewall through the new `members` chain. Do not edit.
 - `/var/lib/torii-teams/{coord,git}`: data, one system user per service.
 
-Reruns never replace the key or the member lists. TEAMS-2a-4 will write the two
-member files from the signed roster; until then the operator edits them.
+Reruns never replace the key. The two member files come from Continuum
+(torii-teams ADR 0016): the agent writes `memory/teams/mesh.json` with each
+project's owner-signed member list, the owner-signed invite links people joined
+by, and each person's own signed list of their computers (up to 3, added in the
+Teams app under "Your computers"). `torii-teams-sync.path` notices the change and
+runs `torii-teams sync` as root, which checks every signature itself with its
+own copy of the code (`/opt/torii/teams/lib`), refuses a forged or older member
+list outright, drops any other bad entry, then rewrites both files and runs
+`apply` only if they changed. Until Continuum writes a mesh file the operator
+edits the files by hand; once it does, `sync` replaces them.
 
 ## Operating
 
 ```bash
 sudo torii-teams status
-sudo torii-teams apply     # after editing git-members or member-nodes
+sudo torii-teams sync      # rebuild both member files from Continuum now
+sudo torii-teams apply     # after editing git-members or member-nodes by hand
 sudo torii-teams backup
 ```
 

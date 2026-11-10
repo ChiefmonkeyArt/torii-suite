@@ -2,6 +2,8 @@
 # torii-teams: operator commands for the Teams services (root only).
 #   status   services, coordinator pubkey, member counts
 #   apply    re-read member files: mesh firewall allow list + git restart
+#   sync     rewrite the member files from Continuum's signed mesh file, then
+#            apply (torii-teams-sync.path; torii-teams ADR 0016)
 #   backup   consistent tarball of keys, members and data (daily timer)
 set -euo pipefail
 CONFIG=/etc/torii/teams
@@ -9,6 +11,7 @@ STATE=/var/lib/torii-teams
 BACKUPS=/var/backups/torii-teams
 FIPS_CTL=/opt/torii/fips/bin/fipsctl
 NFT_DROPIN=/etc/torii/fips/fips.d/teams.nft
+LIB=/opt/torii/teams/lib
 NPUB_RE='^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$'
 die() { echo "torii-teams: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run as root"
@@ -47,6 +50,26 @@ cmd_apply() {
   else echo "git: not running (needs FIPS and at least one npub in $CONFIG/git-members)"; fi
 }
 
+cmd_sync() {
+  local mesh="${TEAMS_MESH_FILE:-/apps/continuum/agent/repo/agent/memory/teams/mesh.json}"
+  [[ -e "$mesh" ]] || { echo "no Continuum mesh file: member files unchanged"; return 0; }
+  [[ -s "$CONFIG/owner.npub" ]] || die "no project owner in $CONFIG/owner.npub"
+  # Its own state dir: /var/lib/torii-teams holds the services' data.
+  local st=/var/lib/torii-teams-sync tmp
+  install -d -m 0700 -o root -g root "$st"
+  tmp="$(mktemp -d)"; trap 'rm -rf -- "$tmp"' RETURN
+  node "$LIB/teams/mesh-sync.mjs" "$mesh" "$CONFIG/owner.npub" "$st/mesh-state.json" \
+    "$tmp/git-members" "$tmp/member-nodes"
+  if cmp -s "$tmp/git-members" "$CONFIG/git-members" && cmp -s "$tmp/member-nodes" "$CONFIG/member-nodes"; then
+    mv -f -- "$st/mesh-state.json.next" "$st/mesh-state.json"
+    echo "member files unchanged"; return 0
+  fi
+  install -m 0644 -o root -g root "$tmp/git-members" "$CONFIG/git-members"
+  install -m 0644 -o root -g root "$tmp/member-nodes" "$CONFIG/member-nodes"
+  mv -f -- "$st/mesh-state.json.next" "$st/mesh-state.json"
+  cmd_apply
+}
+
 cmd_status() {
   local u
   for u in torii-teams-coord torii-teams-git torii-teams-backup.timer; do
@@ -80,6 +103,7 @@ cmd_backup() {
 case "${1:-status}" in
   status) cmd_status ;;
   apply) cmd_apply ;;
+  sync) cmd_sync ;;
   backup) cmd_backup ;;
-  *) die "usage: torii-teams status|apply|backup" ;;
+  *) die "usage: torii-teams status|apply|sync|backup" ;;
 esac

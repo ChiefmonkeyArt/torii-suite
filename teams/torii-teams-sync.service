@@ -1,0 +1,7 @@
+[Unit]
+Description=Torii Teams: member files from Continuum's signed mesh file (ADR 0016)
+After=torii-teams-git.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/torii-teams sync

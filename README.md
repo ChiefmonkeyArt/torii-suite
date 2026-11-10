@@ -283,6 +283,15 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.53-alpha: Teams members and computers from Continuum
+
+The private git's member list and the computers allowed to reach it now follow
+Continuum automatically (torii-teams ADR 0016). Each person adds up to three of
+their own computers in the Teams app; root checks every signature itself before
+rewriting `/etc/torii/teams/git-members` and `member-nodes`. A forged or older
+member list is refused. See `docs/TEAMS.md`. Tests: `node --test
+test/teams-mesh.test.mjs`; CI drops a signed mesh file and checks the result.
+
 ### New in v0.9.52-alpha: Auctions security fixes
 
 Auctions v0.3.0 fixes the findings of its internal security audit (strict
@@ -474,7 +483,7 @@ FIPS mesh only. See `docs/TEAMS.md`.
   devices in `/etc/torii/teams/member-nodes`; members in `git-members`.
 - Pinned binaries (cordn-server v0.5.1-next.3; ngit-grasp v3.0.10 built by
   `teams-deps.yml`); no compiler on the VPS. Keys and member lists survive reruns.
-- Daily root-only backups with retention; `torii-teams status|apply|backup`.
+- Daily root-only backups with retention; `torii-teams status|apply|sync|backup`.
 - FIPS moves to v0.5.3, and its firewall gains a `members` chain filled from
   `/etc/torii/fips/fips.d/*.nft` drop-ins.
 - Tests: `bash test/install-teams.test.sh`; CI installs, reruns and checks the

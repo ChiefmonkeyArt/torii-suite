@@ -2,7 +2,7 @@
 
 ## Next priority after the Teams MVP: FIPS on by default (owner, 2026-11-04)
 
-High priority, after the Teams MVP: FIPS becomes the default network path for every app: Plebeian (market), Torii Quest, Torii Continuum and the marketplace. Each app gets its own ADR before its behaviour changes. Changes to PlebeianApp/market need the owner's explicit approval (read-only analysis until then). The FIPS trial teardown only frees port 7334 for the real Teams FIPS install; it does not remove or pause FIPS.
+High priority, after the Teams MVP: FIPS becomes the default network path for every app: Plebeian (market), Torii Quest, Torii Continuum and the marketplace. Each app gets its own ADR before its behaviour changes. Changes to PlebeianApp/market need the owner's explicit approval (read-only analysis until then). Teams' private git takes its members and their computers from Continuum's signed lists, checked by root (v0.9.53-alpha, torii-teams ADR 0016). The FIPS trial teardown only frees port 7334 for the real Teams FIPS install; it does not remove or pause FIPS.
 
 Order (owner, 2026-11-09): Suite first ([ADR 0001](docs/adr-0001-fips-on-every-install.md), the FIPS node on every install, v0.9.47-alpha), then Continuum and Quest ADRs (both Accepted 2026-11-10: Continuum `docs/adr-fips-default.md`, Quest ADR-0151; up to 8 peers since v0.9.51-alpha). Plebeian market and CMS wait for a later stage.
 
