@@ -283,6 +283,12 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.58-alpha: Bids respond on tap
+
+Auctions v0.3.4 shows your bid the moment you tap (sending, then sent, then on the
+chain about a second later). Next, Jump and Big move bid in one tap. Extra taps
+while a bid is in flight are held, not lost, and the demo bots wait for you.
+
 ### New in v0.9.57-alpha: Auctions restart in seconds
 
 Auctions v0.3.3 saves each validator's state to disk every 1,000 blocks and when it

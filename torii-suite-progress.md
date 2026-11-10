@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.58-alpha: Bids respond on tap (2026-11-10)
+
+Pins plebeian-arena-auctions v0.3.4 (92519ba, SHA-256 `08746e10244a580ea022eea3e825554bc6b079297d8acf2907de6635f8a59a1f`). Bidding felt laggy and the one-tap buttons seemed dead: the page showed nothing until the bid's round trips finished, extra taps were dropped, and the bots in your own browser raced you. Now a tap shows your bid at once and the chain confirms about a second later. Arena tests: Go -race ok, e2e 48/48, headless mobile with bots on frenzy: pending visible ~0.1 s, on chain 0.6-1.6 s, triple tap = one bid, 8/8 accepted. Suite: contract 53/53; live 29/29 with e2e 47/47 over HTTPS.
+
 ## Release v0.9.57-alpha: Auctions restart in seconds (2026-11-10)
 
 Pins plebeian-arena-auctions v0.3.3 (5a37ad6, SHA-256 `e9654fd94bda7b01de0a5e782dab9a496335fe6bd649e6a41ac70ab6022b3307`). Every restart used to replay all blocks from genesis (~5.5 min at 43k blocks on chiefmonkey.art, growing about 1 block a second). Validators now save checked state snapshots and start from the newest. Arena tests: Go with -race, gosec clean, e2e 48/48; clean restart 0.23 s; kill -9 recovery, corrupted and wrong snapshots refused. Suite: contract 53/53; live 29/29 (new: a clean stop leaves a 0600 snapshot per validator) with e2e 47/47 over HTTPS.
