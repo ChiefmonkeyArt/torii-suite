@@ -66,7 +66,13 @@ env="$(auctions_mint_env 13338 /var/lib/plebeian-auctions-mint)"
 refuse "mint env refuses a bad port" auctions_mint_env 80 /x
 u="$(auctions_chain_unit /apps/plebeian-auctions 8795 13338)"
 [[ "$u" == *"-addr 127.0.0.1:8795"* && "$u" == *'$$(seq 60)'* ]] && ok "gateway unit: loopback, systemd-escaped loop" || bad "gateway unit"
-[[ "$u" == *"[ -f /var/lib/plebeian-auctions/chain/v1/config/frost_key.json ] || exec"* ]] && ok "gateway unit: re-inits a chain without FROST shares" || bad "gateway unit: FROST init condition"
+[[ "$u" == *"arena init -if-needed -root /var/lib/plebeian-auctions/chain"* && "$u" == *"-lock-margin 86400"* ]] && ok "gateway unit: re-inits a chain of another format, 24 h lock margin" || bad "gateway unit: init -if-needed / margin"
+[[ "$u" != *"-demo-controls"* ]] && ok "gateway unit: demo controls off by default" || bad "gateway unit: demo controls default"
+u2="$(auctions_chain_unit /apps/plebeian-auctions 8795 13338 600 1)"
+[[ "$u2" == *"-lock-margin 600"* && "$u2" == *"-mint http://127.0.0.1:13338 -demo-controls"* ]] && ok "gateway unit: margin and demo controls on request" || bad "gateway unit: margin/demo flags"
+refuse "gateway unit refuses a bad margin" auctions_chain_unit /apps/plebeian-auctions 8795 13338 '1;x' 0
+refuse "gateway unit refuses a bad demo flag" auctions_chain_unit /apps/plebeian-auctions 8795 13338 600 yes
+has 'AUCTIONS_DEMO_CONTROLS:-1' "$I" "installer keeps the team demo controls on unless set to 0"
 has 'bin/arena bin/arena-frost' "$I" "artifact must carry the FROST helper"
 refuse "gateway unit refuses a bad path" auctions_chain_unit 'x;y' 8795 13338
 echo "install-auctions: ${pass} passed, ${fail} failed"

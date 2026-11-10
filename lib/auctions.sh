@@ -160,13 +160,17 @@ WantedBy=multi-user.target
 UNIT
 }
 
-# auctions_chain_unit <app dir> <gateway port> <mint port> → the gateway unit.
-# The gateway supervises the four validator processes (CometBFT + co-signer);
-# the chain is created on first start, once the mint answers. A chain without
-# FROST key shares (v0.1.x) is re-created: arena init replaces the whole root.
+# auctions_chain_unit <app dir> <gateway port> <mint port> [lock margin s] [demo 0|1]
+# → the gateway unit. The gateway supervises the four validator processes
+# (CometBFT + co-signer); the chain is created on first start, once the mint
+# answers. "arena init -if-needed" keeps a chain only when its FORMAT marker
+# matches the release (v0.3.0: format 3), otherwise it replaces the whole root.
+# Demo controls (unauthenticated validator stop/start) are off unless demo=1.
 auctions_chain_unit() {
-  local app="$1" port="$2" mport="$3" s=/var/lib/plebeian-auctions
+  local app="$1" port="$2" mport="$3" margin="${4:-86400}" demo="${5:-0}" s=/var/lib/plebeian-auctions dflag=""
   [[ "$app" =~ ^/[A-Za-z0-9/._-]+$ ]] && auctions_valid_port "$port" && auctions_valid_port "$mport" || return 1
+  [[ "$margin" =~ ^[0-9]{2,7}$ ]] && [[ "$demo" =~ ^[01]$ ]] || return 1
+  [[ "$demo" == 1 ]] && dflag=" -demo-controls"
   cat <<UNIT
 # written by torii-suite (lib/auctions.sh); Suite ADR 0002
 [Unit]
@@ -176,8 +180,8 @@ Requires=plebeian-auctions-mint.service
 
 [Service]
 ExecStartPre=/bin/sh -c 'for i in \$\$(seq 60); do /usr/bin/curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:${mport}/v1/info && exit 0; sleep 1; done; exit 1'
-ExecStartPre=/bin/sh -c '[ -f ${s}/chain/v1/config/frost_key.json ] || exec ${app}/current/bin/arena init -root ${s}/chain -mint http://127.0.0.1:${mport}'
-ExecStart=${app}/current/bin/arena gateway -root ${s}/chain -static ${app}/current/web -addr 127.0.0.1:${port} -mint http://127.0.0.1:${mport}
+ExecStartPre=${app}/current/bin/arena init -if-needed -root ${s}/chain -mint http://127.0.0.1:${mport} -lock-margin ${margin}
+ExecStart=${app}/current/bin/arena gateway -root ${s}/chain -static ${app}/current/web -addr 127.0.0.1:${port} -mint http://127.0.0.1:${mport}${dflag}
 WorkingDirectory=${s}
 StateDirectory=plebeian-auctions
 StateDirectoryMode=0700

@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## Auctions audit fixes: v0.9.52-alpha
+
+Pin: plebeian-arena-auctions `v0.3.0` (088957c), SHA-256 `b2e8691f658614fe776ffb9698a0dbaab5794ed6ec0b5a316b37abb1e8428d2b`. Fixes arena audit A1-A11 (strict lock parser, CometBFT v1.0.1, Nutshell 0.21.0 with new SIG_ALL message, lowercase-hex Nostr, safe image paths, HTTP timeouts). Gateway unit: `ExecStartPre=…/arena init -if-needed -root /var/lib/plebeian-auctions/chain -mint … -lock-margin ${AUCTIONS_LOCK_MARGIN}` (default 86400) keeps a chain only when `chain/FORMAT` is `3`, so v0.2.0 chains are re-created on upgrade; the mint DB migrates in place (0.20.2 → 0.21.0, same keyset id, checked). `AUCTIONS_DEMO_CONTROLS` (default 1 for the team demo) adds `-demo-controls`; with 0 `/api/admin/validator/` is 404. `auctions_chain_unit <app> <port> <mint port> [margin] [demo]`. Tests: contract 50/50; live 25/25 (format kept / re-created on restart, demo route off) with e2e 34/34 (24 h margin: reclaim wait skipped, locked sats counted).
+
 ## FIPS peers up to 8: v0.9.51-alpha
 
 `fips/render-config.mjs`: `MAX_PEERS = 8` (torii-quest ADR-0151), distinct transport names, peer file limit 4 → 8 KiB. Pairs with Quest v0.2.939-alpha (`fipsPresence.js` reads up to 8 peers round-robin). Peers still come from root `/etc/torii/fips/peers.json`; rerun `install-fips.sh` (or the `fips` stage) to reload. Test: `test/install-fips.test.sh` (new 8-peer case).

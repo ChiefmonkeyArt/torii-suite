@@ -283,6 +283,14 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.52-alpha: Auctions security fixes
+
+Auctions v0.3.0 fixes the findings of its internal security audit (strict
+bid-lock checks, Nutshell 0.21 mint, patched dependencies). Bids now stay
+locked for 24 hours after an auction ends (`AUCTIONS_LOCK_MARGIN`), and the
+validator stop/start demo buttons can be switched off with
+`AUCTIONS_DEMO_CONTROLS=0`. Upgrading starts a fresh chain (fake sats only).
+
 ### New in v0.9.51-alpha: up to eight FIPS peers
 
 A node can now be introduced to up to 8 other nodes in
