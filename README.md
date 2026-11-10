@@ -283,6 +283,12 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.55-alpha: Auctions feel live
+
+Auctions v0.3.2 removes the last lag. A bid no longer downloads the whole auction
+history before it is sent, your own bids show the moment their block lands, and
+the wallet gets instant updates from the mint instead of failing to connect.
+
 ### New in v0.9.54-alpha: faster Auctions
 
 Auctions v0.3.1 makes bidding snappy again. Each second the page used to download the

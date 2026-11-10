@@ -99,6 +99,10 @@ js="$(grep -o 'assets/index-[A-Za-z0-9_-]*\.js' "$ROOT/../plebeian-arena-auction
   && ok "slim state view gzipped through nginx, with an ETag" || fail "state view"
 [[ "$(get -H "If-None-Match: $TAG1" "https://$H/api/state?view=client")" == 304 ]] && ok "unchanged state view answers 304 through nginx" || fail "state view 304"
 [[ "$(get "https://$H/mint/v1/info")" == 200 ]] && grep -q 'Nutshell' "$W/b" && ok "fake-sats mint answers through nginx" || fail "mint"
+WSH=(-H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==')
+[[ "$(get --http1.1 -m 3 "${WSH[@]}" "https://$H/mint/v1/ws" || true)" == 101 ]] \
+  && [[ "$(get --http1.1 -m 3 "${WSH[@]}" "https://$H/mint/v1/info" || true)" != 101 ]] \
+  && ok "mint WebSocket upgrades through nginx, only on /mint/v1/ws" || fail "mint websocket"
 [[ "$(get -X PUT "https://$H/api/network")" == 405 ]] && [[ "$(get -X POST "https://$H/")" == 405 ]] && ok "only GET/HEAD, and POST to the API" || fail "methods"
 for p in "$GW" 13338 26656 26657 7101; do
   ss -Htln | awk '{print $4}' | grep -qE "^(127\.0\.0\.1|\[::1\]):$p$" || fail "port $p not loopback-only"

@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.55-alpha: Auctions feel live (2026-11-10)
+
+Pins plebeian-arena-auctions v0.3.2 (ea80254, SHA-256 `1d544efa3eced223328b2540d74e01f5f4cb2156076c8cf6bec99cadd88b4b7f`). v0.3.1 still felt slow: every bid, including the demo bots', first downloaded the whole 1.25 MB history, which also made more bids lose the race and fail with a 400; your own bid waited up to a poll after its block; and the wallet's live connection to the mint failed on every try because nginx did not pass WebSocket upgrades. Now a bid checks the slim view, the page polls fast for 3 s after you act, and `/mint/v1/ws` upgrades (only that path, capped per address). Chain kept. Tests: contract 53/53; live 28/28, e2e 47/47 over HTTPS.
+
 ## Release v0.9.54-alpha: faster Auctions (2026-11-10)
 
 Pins plebeian-arena-auctions v0.3.1 (da6711f, SHA-256 `b2f0d453505d1a99ce869bf46d2804ae32d38189eb0857f53ac043463471157f`). The page polled a 1.19 MB uncompressed state every second; it now asks for a slim view (about 10 KB gzipped for a new visitor, 28 KB with five bidders) and gets a tiny "not modified" answer when nothing changed. Bid proofs are fetched only when claiming. The chain format is unchanged, so the running chain is kept. Tests: contract 50/50; live 27/27, e2e 44/44 over HTTPS.
