@@ -83,6 +83,8 @@ class Logic(unittest.TestCase):
             for block in re.split(r"\n(?=[A-Za-z])", text.split("\n", 1)[1]):
                 if block.strip() and not block.startswith("#"):
                     self.assertIn("--hash=sha256:", block, block)
+        self.assertIn("numpy==2.3.5 ", (ROOT / "lib/gliclass/requirements-runtime.txt").read_text(),
+                      "numpy 2.4+ needs x86-64-v2; see ADR 0004 before changing the pin")
         self.assertIn("onnxruntime==1.28.0 ", (ROOT / "lib/gliclass/requirements-runtime.txt").read_text(),
                       "onnxruntime 1.29+ sends telemetry to Microsoft; see ADR 0004 before changing the pin")
 

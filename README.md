@@ -283,6 +283,12 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.68-alpha: GLiClass Edge runs on older virtual CPUs
+
+NumPy is pinned at 2.3.5 so GLiClass Edge installs on virtual CPUs that only
+offer plain x86-64 (no SSE4.2). The installer reports the CPU level and warns
+when there is no AVX2, which makes answers slower.
+
 ### New in v0.9.67-alpha: GLiClass Edge installs without apt
 
 The GLiClass Edge installer no longer needs apt or `python3-venv`: it makes

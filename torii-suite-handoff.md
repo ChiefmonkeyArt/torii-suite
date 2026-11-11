@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## GLiClass Edge on x86-64-v1: v0.9.68-alpha
+
+Run 43038733666: `RuntimeError: NumPy was built with baseline optimizations: (X86_V2) but your machine doesn't support: (X86_V2)` in convert.py. numpy 2.5.4 → 2.3.5 (cp313/cp314 hashes). Verified with `qemu-x86_64 -cpu qemu64,-ssse3,-sse4.1,-sse4.2,-popcnt`: numpy 2.4.0 SIGILL, 2.3.5 ok; onnxruntime 1.28.0, onnx 1.23.2, ml_dtypes 0.6.0, tokenizers load; self-test ok (356 s emulated); convert.py ok. Installer logs `x86-64-vN` from /proc/cpuinfo flags. Left on the VPS by run 43038733666: `/opt/gliclass-edge/venv` only (the next run rebuilds it).
+
 ## GLiClass Edge without apt: v0.9.67-alpha
 
 Run 43037247696: root `getent` worked for huggingface.co/pypi.org/files.pythonhosted.org/raw.githubusercontent.com, but apt failed to resolve archive.ubuntu.com and security.ubuntu.com (apt fetches as the `_apt` user; cause not yet diagnosed — worth checking resolver/egress rules for `_apt` or the Ubuntu mirror names). `install-gliclass.sh` now uses `python3 -m venv --without-pip` and bootstraps pip 26.3 from `files.pythonhosted.org` (SHA-256 `f3b60b20…`), running pip from the wheel itself. No apt anywhere in this installer (test enforces it).
