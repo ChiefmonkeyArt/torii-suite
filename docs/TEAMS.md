@@ -174,8 +174,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.56-alpha): torii-teams `0.6.1-torii.18` (commit c434c40),
-SHA-256 `c72caff2a063318cbfbe258ec47033794990bcabf811f693e9d2a6bdc4ade3fa`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.60-alpha): torii-teams `0.6.1-torii.19` (commit 0f0d212),
+SHA-256 `f22e1619bfd828ee5b4165e0d7a0a5a581be761ce2958b67927b6d467383325e`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and

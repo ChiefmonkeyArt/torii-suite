@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.60-alpha: Teams loads lighter and quieter
+
+Pins torii-teams `0.6.1-torii.19`. Teams on the node leaves out the unused news
+feed (about 26 KB smaller), a reload no longer asks your signer for anything,
+and long chats find their actions through an index instead of reading every
+message.
+
 ### New in v0.9.59-alpha: Auctions update live
 
 Auctions v0.4.1 pushes each new block to the page, so bids and closes show up
