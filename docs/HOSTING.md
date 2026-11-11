@@ -22,12 +22,11 @@ The rest of this document walks through each in enough detail to get from
 Every path needs the same three things:
 
 1. **A VPS** running Ubuntu 22.04 LTS or 24.04 LTS with at least
-   **1 vCPU / 4 GB RAM / 20 GB disk**. Continuum's default local LLM
-   (`qwen3:0.6b` via Ollama, kept resident for fast turn-taking) sits at
-   ~3.3 GB in RAM once warmed. If you set `OLLAMA_MODE=remote` or
-   `INSTALL_OLLAMA=0`, 2 GB is still enough — the rest of the stack idles
-   around ~200 MB. The bootstrap script refuses to enable local Ollama on
-   hosts below 3 GB and points you at the two escape hatches.
+   **1 vCPU / 2 GB RAM / 20 GB disk**. The local LLM is off by default
+   since v0.9.64-alpha (`INSTALL_OLLAMA=0`). With `INSTALL_OLLAMA=1` the
+   local model (via Ollama, kept resident for fast turn-taking) needs
+   **4 GB RAM** and about 2 GB more disk; the bootstrap script refuses it on
+   hosts below 3 GB.
 2. **A domain** with a single `A` record pointing at the VPS's public IP.
    Cheap TLDs work fine; you'll want to control DNS from your registrar.
 3. **A NIP-07 signer** in your browser (Plebeian Signer, nos2x, Alby)
@@ -55,9 +54,8 @@ Any of these will host a Torii comfortably on their smallest paid tier:
 ### Steps
 
 ```bash
-# 1. Provision a fresh Ubuntu 22.04 or 24.04 server (4 GB RAM minimum for
-#    the local LLM; 2 GB is fine only with OLLAMA_MODE=remote or
-#    INSTALL_OLLAMA=0).
+# 1. Provision a fresh Ubuntu 22.04 or 24.04 server (2 GB RAM; 4 GB only
+#    if you opt into the local LLM with INSTALL_OLLAMA=1).
 # 2. Point your domain's A record at the server's public IP. Wait for DNS
 #    to resolve (usually a few minutes; check with `dig +short A yourdomain`).
 # 3. SSH in as root and:

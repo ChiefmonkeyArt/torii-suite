@@ -127,7 +127,7 @@ if [[ -r /etc/os-release ]]; then
         # 26.04 has worked in testing but is untested at scale. Flag it here
         # so the operator has an audit trail if something Ollama-shaped fails
         # later. The escape hatch is INSTALL_OLLAMA=0 (or OLLAMA_MODE=remote).
-        if [[ "${INSTALL_OLLAMA:-1}" == "1" && "${OLLAMA_MODE:-local}" == "local" ]]; then
+        if [[ "${INSTALL_OLLAMA:-0}" == "1" && "${OLLAMA_MODE:-local}" == "local" ]]; then
           ui_info "Ubuntu 26.04 detected - local Ollama install is unofficial-but-should-work. If it fails, re-run with INSTALL_OLLAMA=0 or OLLAMA_MODE=remote."
         fi
         ;;
@@ -271,7 +271,7 @@ INSTALL_CONTINUUM="${INSTALL_CONTINUUM:-1}"
 # v0.9.31: opt-in Continuum on its own origin, continuum.<domain> (docs/CONTINUUM-HOST.md).
 INSTALL_CONTINUUM_HOST="${INSTALL_CONTINUUM_HOST:-0}"
 INSTALL_QUEST="${INSTALL_QUEST:-1}"
-INSTALL_OLLAMA="${INSTALL_OLLAMA:-1}"
+INSTALL_OLLAMA="${INSTALL_OLLAMA:-0}"
 INSTALL_PLEBEIAN="${INSTALL_PLEBEIAN:-1}"
 INSTALL_ONBOARDING_BRIDGES="${INSTALL_ONBOARDING_BRIDGES:-0}"
 INSTALL_NOSTR_GIT="${INSTALL_NOSTR_GIT:-1}"

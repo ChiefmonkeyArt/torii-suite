@@ -34,7 +34,7 @@ Release v0.9.24-alpha integrates FIPS provisioning with the Suite Quest path, pa
 The suite is a bootstrap script + a set of installer scripts + a shared lib. It orchestrates:
 
 - **torii-base** — hardening, users, firewall, systemd shape
-- **Ollama** — optional LLM fallback; local (installed) or remote (existing endpoint)
+- **Ollama** — optional LLM fallback, off by default since v0.9.64-alpha (ADR 0003); local (installed) or remote (existing endpoint); `ollama_remove` stage takes it off
 - **torii-continuum** — the agent + web UI (Nostr wallet/dashboard)
 - **torii-quest** — the metaverse game server (arena-ws)
 - **plebeian** — Bitcoin/Nostr marketplace surface
