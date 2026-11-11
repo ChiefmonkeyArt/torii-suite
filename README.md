@@ -283,6 +283,11 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.66-alpha: GLiClass Edge install fix
+
+The GLiClass Edge installer refreshes the package list before installing
+`python3-venv` and checks name lookups first, with a plain message if they fail.
+
 ### New in v0.9.65-alpha: an optional choice model on the CPU
 
 `INSTALL_GLICLASS=1` installs GLiClass Edge (Apache-2.0), a small model that

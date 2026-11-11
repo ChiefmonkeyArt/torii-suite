@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## GLiClass Edge apt fix: v0.9.66-alpha
+
+`install-gliclass.sh`: `getent ahosts` precheck for huggingface.co, pypi.org, files.pythonhosted.org, raw.githubusercontent.com; `apt-get update -qq` before `apt-get install --no-install-recommends python3-venv`. Cause: run 43036830421 (stale list + "Temporary failure resolving archive.ubuntu.com"). Nothing installed by that run except `INSTALL_GLICLASS=1` in the operator .env.
+
 ## GLiClass Edge optional: v0.9.65-alpha
 
 ADR 0004 (Accepted, owner 2026-11-11). Files: `installers/install-gliclass.sh` (root, x86_64, CPython 3.13/3.14, ≥3500 MB disk and ≥4000 MB MemAvailable; runtime venv `/opt/gliclass-edge/venv`; conversion libs via `pip --target` in a temp dir; HF rev `885af1a…` model.onnx + tokenizer.json SHA-256 pinned; `lib/gliclass/convert.py` 4-bit MatMulNBits/GatherBlockQuantized; self-test gate; OpenSystem1 bench data at 842dcfc with SHA-256; stamp `INSTALLED` makes re-runs a 5 s no-op), `installers/bench-gliclass.sh` (systemd-run DynamicUser + PrivateNetwork + MemoryMax 3G, falls back to unshare --net + setpriv nobody when systemd-run is unusable; JSON in `/var/lib/gliclass-edge/`), `installers/remove-gliclass.sh` (refuses dirs that are not an install). `lib/gliclass/gliclass_edge.py` is the engine (`selftest`, `bench`). Telemetry: onnxruntime 1.28.0 pinned (1.29+ phones home to mobile.events.data.microsoft.com), `ORT_DISABLE_TELEMETRY=1` everywhere, installer greps the venv for the collector and refuses. Tests: `test/install-gliclass.test.sh` (25 as root) + `test/gliclass_edge_test.py` (7). Sandbox end-to-end: install 69 s, 630 MB. Next: Continuum wiring after the VPS numbers.

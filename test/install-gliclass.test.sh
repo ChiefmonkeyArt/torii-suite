@@ -35,6 +35,10 @@ grep -q 'events.data.microsoft.com' installers/install-gliclass.sh || fail "tele
 grep -q -- '-E ORT_DISABLE_TELEMETRY=1' installers/bench-gliclass.sh || fail "bench sandbox telemetry switch"; ok
 grep -q 'os.environ\["ORT_DISABLE_TELEMETRY"\] = "1"' lib/gliclass/convert.py || fail "convert telemetry switch"; ok
 grep -q 'PrivateNetwork=yes' installers/bench-gliclass.sh || fail "bench offline"; ok
+# v0.9.66: refresh the package list before installing python3-venv (the
+# v0.9.65 stage failed on a stale list), and check name lookups first.
+awk '/apt-get update -qq/{u=NR} /apt-get install .*python3-venv/{i=NR} END{exit !(u && i && u<i)}' installers/install-gliclass.sh || fail "apt-get update before install"; ok
+grep -q 'getent ahosts' installers/install-gliclass.sh || fail "DNS precheck"; ok
 
 if [[ $EUID -eq 0 ]]; then
   # Refuses a relative root before touching anything.
