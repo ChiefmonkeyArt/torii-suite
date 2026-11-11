@@ -37,7 +37,7 @@
 - [x] v0.9.61-alpha: the installer makes room before copying (old tarballs, half-copied releases, old-format chain) and checks free space.
 - [x] Deploy v0.9.61-alpha (stage auctions) on chiefmonkey.art (owner approved, 2026-11-11; the owner first freed disk space from the SHC console).
 - [x] v0.9.62-alpha: pin Auctions v0.4.2 (arena ADR 0008, wallet maths in a Web Worker, 10 Hz redraw).
-- [ ] Deploy v0.9.62-alpha (stage auctions) on chiefmonkey.art (needs owner approval).
+- [x] Deploy v0.9.62-alpha (stage auctions) on chiefmonkey.art (owner approved, 2026-11-11; Continuum run 43004683506).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
 

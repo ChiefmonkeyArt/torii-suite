@@ -4,6 +4,8 @@
 
 Pin only: plebeian-arena-auctions v0.4.2 (0d03078), SHA-256 `b3d538a3fef6bbd77525e6ffc0c4798b071da1f6a3eff770425cc7096241aa46`; MANIFEST commit checked. Arena ADR 0008: Coco wallets and proof maths in a module Web Worker (CSP `worker-src 'self'` already allows it), 10 Hz redraw plus an immediate frame after a tap or new block, memoised public keys, cached formatters. Chain FORMAT stays 4 (`AUCTIONS_CHAIN_FORMAT` default follows the pin), so the live chain is kept. Deploy: stage `auctions` only.
 
+Deployed to chiefmonkey.art 2026-11-11 (owner approved; Continuum run 43004683506): bundle `index-kZqx2vEh.js`, chain kept (group key 0221c569…, height 92), 4/4 validators on one app hash. Live 40 s tap test at 4x throttle: 5 long tasks, 705 ms in total (v0.4.1: 18, 2.9 s).
+
 ## Make room before copying: v0.9.61-alpha
 
 The v0.9.59-alpha deploy (Continuum run 42934429730) failed with ENOSPC in `cp -a` into `/apps/plebeian-auctions/releases/20261111T005020Z-v0.4.1`. Services were untouched (still v0.3.4, height ~65k). The likely cause is v0.3.4's unpruned block store, which grows about 1 block/s on each of the 4 validators, with tx index and ABCI responses kept (fixed in v0.4.x). New step 3b in `installers/install-auctions.sh`, after verify and unpack, before copy:
