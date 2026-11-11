@@ -130,8 +130,17 @@ if [[ -n "$E2E" ]]; then
 fi
 
 for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null || true; done; PIDS=(); sleep 3
+# What a full disk left on chiefmonkey.art (v0.9.59): a half-copied release, an
+# older tarball and an old-format chain. The re-install clears them before copying.
+HALF=/apps/plebeian-auctions/releases/20200101T000000Z-v0.0.1; mkdir -p "$HALF/bin" && touch "$HALF/bin/arena"
+ART=/opt/torii-suite/work/artifacts; mkdir -p "$ART" && touch "$ART/plebeian-auctions-v0.0.1.tar.gz"
+CUR0="$(readlink -f /apps/plebeian-auctions/current)"
+echo 3 > /var/lib/plebeian-auctions/chain/FORMAT; touch /var/lib/plebeian-auctions/chain/v1/config/old-format
 run "$SHA" AUCTIONS_DEMO_CONTROLS=0 >/dev/null && [[ "$(sed -n 's/^MINT_PRIVATE_KEY=//p' /etc/torii/auctions/mint.env)" == "$K1" ]] \
   && ok "re-install keeps the mint key" || fail "re-install"
+[[ ! -e "$HALF" && ! -e "$ART/plebeian-auctions-v0.0.1.tar.gz" && -d "$CUR0" ]] \
+  && ok "re-install removes a half-copied release and old tarballs, keeps the previous release" || fail "make room: releases"
+[[ ! -e /var/lib/plebeian-auctions/chain/v1/config/old-format ]] && ok "an old-format chain is removed before the copy" || fail "make room: chain"
 ! grep -q -- '-demo-controls' /etc/systemd/system/plebeian-auctions.service && ok "AUCTIONS_DEMO_CONTROLS=0 drops the demo route" || fail "demo flag kept"
 restart_gateway(){
   if [[ "$SYSTEMD" == 1 ]]; then
@@ -145,11 +154,16 @@ restart_gateway(){
 }
 C=/var/lib/plebeian-auctions/chain
 [[ "$SYSTEMD" == 1 ]] || start_services
+# A fresh chain (the re-install removed the old one) needs a committed block
+# before a clean stop can snapshot it.
+for _ in $(seq 1 60); do
+  curl -fs "http://127.0.0.1:${GW}/api/network" 2>/dev/null | python3 -c 'import json,sys; v=json.load(sys.stdin); sys.exit(0 if all(x.get("height",0)>=1 for x in v) else 1)' && break; sleep 1
+done
 touch "$C/v1/config/keep-me"; restart_gateway
 [[ -e "$C/v1/config/keep-me" ]] && ok "a current-format chain is kept across restarts" || fail "current chain wiped"
 snaps=0; for v in 1 2 3 4; do
   f=$(find "$C/v$v/data/app-state" -maxdepth 1 -name '*.json' -perm 600 2>/dev/null | head -1)
-  [[ -n "$f" ]] && snaps=$((snaps+1))
+  if [[ -n "$f" ]]; then snaps=$((snaps+1)); fi
 done
 [[ "$snaps" == 4 ]] && ok "a clean stop leaves a 0600 state snapshot for each validator (ADR 0003)" || fail "state snapshots: $snaps/4"
 rm -f "$C/FORMAT"; restart_gateway

@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.61-alpha: Auctions upgrades make room first
+
+Before copying a new Auctions release, the installer removes older release
+downloads, any release folder a failed install left half-copied, and a chain the
+new release would replace anyway. If the disk is still too full, it stops before
+changing anything and lists what is using the space.
+
 ### New in v0.9.60-alpha: Teams loads lighter and quieter
 
 Pins torii-teams `0.6.1-torii.19`. Teams on the node leaves out the unused news

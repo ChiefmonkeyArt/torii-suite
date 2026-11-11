@@ -194,3 +194,11 @@ $(_auctions_sandbox)
 WantedBy=multi-user.target
 UNIT
 }
+
+# Files every release has; a release folder missing any is incomplete.
+AUCTIONS_RELEASE_FILES=(MANIFEST.json bin/arena bin/arena-frost web/index.html runtime/python/bin/python3)
+# auctions_release_complete <dir> → 0 when every release file is there.
+auctions_release_complete() {
+  local f
+  for f in "${AUCTIONS_RELEASE_FILES[@]}"; do [[ -e "$1/$f" ]] || return 1; done
+}
