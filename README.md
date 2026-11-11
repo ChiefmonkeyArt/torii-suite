@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.69-alpha: Teams chat stays up
+
+The Teams chat server is started again within a minute if anything stops it,
+and the nightly backup no longer leaves it stopped when the disk is full.
+`sudo torii-teams pause` stops it on purpose. The Teams app (0.6.1-torii.21)
+says "Chat server is down" instead of letting messages look sent.
+
 ### New in v0.9.68-alpha: GLiClass Edge runs on older virtual CPUs
 
 NumPy is pinned at 2.3.5 so GLiClass Edge installs on virtual CPUs that only

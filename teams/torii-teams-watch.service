@@ -1,0 +1,6 @@
+[Unit]
+Description=Torii Teams: start chat and git again if they are not running (Suite ADR 0005)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/torii-teams watch

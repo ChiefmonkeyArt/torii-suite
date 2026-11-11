@@ -90,6 +90,71 @@ out="$(TEAMS_MESH_FILE="$d/none.json" bash "$S" sync 2>&1)"
 [[ "$out" == "no Continuum mesh file: member files unchanged" ]] && ok "no mesh file leaves member files alone" || bad "no mesh file leaves member files alone"
 rm -rf -- "$d"
 
+# Chat stays up (Suite ADR 0005): backup always restarts what it stopped, the
+# one-minute watch starts stopped services, pause is respected.
+has 'Restart=always' "$C" "coordinator restarts after any exit"
+has 'StartLimitIntervalSec=0' "$C" "coordinator never hits a start limit"
+has 'Restart=on-failure' "$G" "git keeps on-failure (its skip is not a failure)"
+has 'OnUnitActiveSec=1min' "$T/torii-teams-watch.timer" "watch runs every minute"
+has 'torii-teams watch' "$T/torii-teams-watch.service" "watch service runs torii-teams watch"
+has '"$ROOT"/teams/torii-teams-watch.timer' "$I" "installer copies the watch timer"
+has 'enable -q --now torii-teams-watch.timer' "$I" "installer arms the watch timer"
+w="$(mktemp -d)"; mkdir -p "$w/bin" "$w/cfg" "$w/state" "$w/bk"
+cat > "$w/bin/systemctl" <<'S'
+#!/bin/bash
+echo "$*" >> "$W/calls"; cmd="$1"; shift; [[ "$cmd" == -q ]] && { cmd="$1"; shift; }
+[[ "${1:-}" == -q ]] && shift
+u="${1%.service}"
+case "$cmd" in
+  is-active) s="$(cat "$W/st.$u" 2>/dev/null || echo inactive)"; [[ " $* " == *" -q "* ]] || echo "$s"; [[ "$s" == active ]] ;;
+  is-enabled) [[ ! -e "$W/off.$u" ]] ;;
+  stop) for x in "$@"; do echo inactive > "$W/st.${x%.service}"; done ;;
+  start) for x in "$@"; do echo active > "$W/st.${x%.service}"; done ;;
+esac
+S
+printf '#!/bin/bash\necho "$*" >> "$W/log"\n' > "$w/bin/logger"
+cat > "$w/bin/df" <<'S'
+#!/bin/bash
+echo "Filesystem 1K-blocks Used Available Use% Mounted"; echo "x 1 1 ${DF_FREE:-9999999} 1% /"
+S
+cat > "$w/bin/tar" <<'S'
+#!/bin/bash
+while (($#)); do [[ "$1" == -czf ]] && { echo x > "$2"; break; }; shift; done
+[[ ! -e "$W/tarfail" ]]
+S
+printf '#!/bin/bash\n[[ -e "$W/gitok" ]]\n' > "$w/bin/run-git"
+# Not root here: same install, minus the owner flags.
+printf '#!/bin/bash\na=(); while (($#)); do case "$1" in -o|-g) shift 2 ;; *) a+=("$1"); shift ;; esac; done\nexec /usr/bin/install "${a[@]}"\n' > "$w/bin/install"
+chmod +x "$w/bin/"*
+S2="$w/torii-teams"
+sed "s#^CONFIG=.*#CONFIG=$w/cfg#; s#^STATE=.*#STATE=$w/state#; s#^BACKUPS=.*#BACKUPS=$w/bk#; s#^RUN_GIT=.*#RUN_GIT=$w/bin/run-git#; s#^LOCK=.*#LOCK=$w/lock#; s#\[\[ \$EUID -eq 0 \]\].*##" "$T/torii-teams" > "$S2"
+tt(){ W="$w" PATH="$w/bin:$PATH" bash "$S2" "$@" >/dev/null 2>&1; }
+up(){ echo active > "$w/st.torii-teams-coord"; echo active > "$w/st.torii-teams-git"; : > "$w/calls"; : > "$w/log"; }
+up; touch "$w/tarfail"; tt backup && bad "failed backup reports failure" || ok "failed backup reports failure"
+[[ "$(cat "$w/st.torii-teams-coord")" == active && "$(cat "$w/st.torii-teams-git")" == active ]] \
+  && ok "failed backup restarts chat and git" || bad "failed backup restarts chat and git"
+compgen -G "$w/bk/*.part" >/dev/null && bad "failed backup leaves no .part" || ok "failed backup leaves no .part"
+rm -f "$w/tarfail"; up; DF_FREE=10 tt backup && bad "full disk: backup refused" || ok "full disk: backup refused"
+grep -q stop "$w/calls" && bad "full disk: nothing stopped" || ok "full disk: nothing stopped"
+grep -q 'backup skipped' "$w/log" && ok "full disk: reason logged" || bad "full disk: reason logged"
+up; tt backup && compgen -G "$w/bk/torii-teams-*.tar.gz" >/dev/null && ok "backup writes a tarball" || bad "backup writes a tarball"
+[[ "$(cat "$w/st.torii-teams-coord")" == active ]] && ok "backup restarts chat after a good copy" || bad "backup restarts chat after a good copy"
+up; echo inactive > "$w/st.torii-teams-coord"; echo inactive > "$w/st.torii-teams-git"; tt watch
+[[ "$(cat "$w/st.torii-teams-coord")" == active ]] && ok "watch starts a stopped coordinator" || bad "watch starts a stopped coordinator"
+grep -q 'torii-teams-coord.service was inactive' "$w/log" && ok "watch logs the start" || bad "watch logs the start"
+[[ "$(cat "$w/st.torii-teams-git")" == inactive ]] && ok "watch leaves unconfigured git alone" || bad "watch leaves unconfigured git alone"
+touch "$w/gitok"; tt watch; [[ "$(cat "$w/st.torii-teams-git")" == active ]] && ok "watch starts configured git" || bad "watch starts configured git"
+up; echo activating > "$w/st.torii-teams-coord"; tt watch; grep -q '^start' "$w/calls" && bad "watch leaves a restarting unit alone" || ok "watch leaves a restarting unit alone"
+up; echo inactive > "$w/st.torii-teams-coord"; touch "$w/off.torii-teams-coord"; tt watch
+grep -q '^start' "$w/calls" && bad "watch ignores a disabled unit" || ok "watch ignores a disabled unit"; rm -f "$w/off.torii-teams-coord"
+up; tt pause; [[ -e "$w/cfg/paused" && "$(cat "$w/st.torii-teams-coord")" == inactive ]] && ok "pause stops chat" || bad "pause stops chat"
+tt watch; [[ "$(cat "$w/st.torii-teams-coord")" == inactive ]] && ok "watch respects pause" || bad "watch respects pause"
+tt resume; [[ ! -e "$w/cfg/paused" && "$(cat "$w/st.torii-teams-coord")" == active ]] && ok "resume starts chat" || bad "resume starts chat"
+up; echo inactive > "$w/st.torii-teams-coord"; ( exec 8>"$w/lock"; flock 8; W="$w" PATH="$w/bin:$PATH" bash "$S2" watch; true )
+[[ "$(cat "$w/st.torii-teams-coord")" == inactive ]] && ok "watch waits while a backup holds the lock" || bad "watch waits while a backup holds the lock"
+up; DF_FREE=1000 tt watch; grep -q 'low disk' "$w/log" && ok "watch warns on low disk" || bad "watch warns on low disk"
+rm -rf -- "$w"
+
 # After a real install (CI).
 if [[ -x /opt/torii/teams/bin/run-git.sh ]]; then
   for u in "$T"/*.service "$T"/*.timer; do
@@ -97,6 +162,7 @@ if [[ -x /opt/torii/teams/bin/run-git.sh ]]; then
   done
   check "coordinator is running" systemctl is-active -q torii-teams-coord
   check "backup timer is armed" systemctl is-active -q torii-teams-backup.timer
+  check "watch timer is armed" systemctl is-active -q torii-teams-watch.timer
   [[ "$(stat -c %a /etc/torii/teams/coord.key)" == 600 ]] && ok "installed key is 0600" || bad "installed key is 0600"
 fi
 

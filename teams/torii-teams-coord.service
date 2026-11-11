@@ -2,6 +2,8 @@
 Description=Torii Teams chat coordinator (Cordn)
 After=network-online.target torii-relay.service
 Wants=network-online.target
+# Keep retrying; the one-minute torii-teams-watch check backs this up (Suite ADR 0005).
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -13,7 +15,8 @@ StateDirectory=torii-teams/coord
 StateDirectoryMode=0700
 WorkingDirectory=/var/lib/torii-teams/coord
 ExecStart=/opt/torii/teams/bin/run-coord.sh
-Restart=on-failure
+# Any exit, clean or not: a stopped coordinator silently drops every message.
+Restart=always
 RestartSec=5
 # Loopback relay only; nothing else in or out.
 IPAddressAllow=localhost
