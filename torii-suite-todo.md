@@ -4,7 +4,7 @@
 
 - [x] Backup: global stopped list (trap works), `.part` removed, free-space check, shared lock; coordinator `Restart=always`; `torii-teams watch` every minute; `pause`/`resume`. Tests: `test/install-teams.test.sh`, CI real systemd.
 - [x] Pin torii-teams 0.6.1-torii.21 (Teams ADR 0020, "Chat server is down" banner).
-- [ ] Deploy v0.9.69-alpha (stages `teams,teams_app`) on chiefmonkey.art (owner approved, 2026-11-11).
+- [x] Deploy v0.9.69-alpha (stages `teams,teams_app`) on chiefmonkey.art (owner approved, 2026-11-11; Continuum run 43068335115); MANIFEST reports 0.6.1-torii.21; live chat round trip ok.
 
 ## FIPS peers up to 8 v0.9.51-alpha (torii-quest ADR-0151)
 
