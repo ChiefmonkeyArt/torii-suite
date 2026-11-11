@@ -283,6 +283,14 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.63-alpha: Teammates are added in seconds
+
+Pins torii-teams `0.6.1-torii.20`. While someone is waiting to join, the
+owner's Teams page checks every 15 seconds (for up to 15 minutes) instead of
+once a minute, so adding a teammate takes seconds rather than about a minute.
+Your signer is only asked when you first sign in or when membership really
+changes.
+
 ### New in v0.9.62-alpha: Auctions stays smooth on phones
 
 Pins Auctions v0.4.2. The wallet's ecash maths now runs in the background
