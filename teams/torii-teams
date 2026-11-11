@@ -5,6 +5,9 @@
 #   sync     rewrite the member files from Continuum's signed mesh file, then
 #            apply (torii-teams-sync.path; torii-teams ADR 0016)
 #   backup   consistent tarball of keys, members and data (daily timer)
+#   watch    start chat and git again if they are not running (1-min timer)
+#   pause    stop chat and git on purpose; watch leaves them stopped
+#   resume   undo pause
 set -euo pipefail
 CONFIG=/etc/torii/teams
 STATE=/var/lib/torii-teams
@@ -12,6 +15,8 @@ BACKUPS=/var/backups/torii-teams
 FIPS_CTL=/opt/torii/fips/bin/fipsctl
 NFT_DROPIN=/etc/torii/fips/fips.d/teams.nft
 LIB=/opt/torii/teams/lib
+RUN_GIT=/opt/torii/teams/bin/run-git.sh
+LOCK=/run/torii-teams.lock
 NPUB_RE='^npub1[023456789acdefghjklmnpqrstuvwxyz]{58}$'
 die() { echo "torii-teams: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run as root"
@@ -79,32 +84,92 @@ cmd_sync() {
 
 cmd_status() {
   local u
-  for u in torii-teams-coord torii-teams-git torii-teams-backup.timer; do
+  for u in torii-teams-coord torii-teams-git torii-teams-backup.timer torii-teams-watch.timer; do
     printf '%-26s %s\n' "$u" "$(systemctl is-active "$u" 2>/dev/null || true)"
   done
   [[ -s "$CONFIG/coord.pub" ]] && echo "coordinator pubkey: $(cat "$CONFIG/coord.pub")"
   echo "git members: $(npubs "$CONFIG/git-members" | wc -l)  member devices: $(npubs "$CONFIG/member-nodes" | wc -l)"
+  [[ -e "$CONFIG/paused" ]] && echo "paused: yes (torii-teams resume)"
   echo "last backup: $(ls -1t "$BACKUPS"/torii-teams-*.tar.gz 2>/dev/null | head -1 || true)"
 }
 
+# Global, not local: the EXIT trap runs after cmd_backup's scope is gone, and
+# a local list there was "unbound", so a failed backup left chat stopped
+# (2026-11-11, full disk; Suite ADR 0005).
+BACKUP_STOPPED=()
+BACKUP_PART=""
+backup_restore() {
+  [[ -n "$BACKUP_PART" ]] && rm -f -- "$BACKUP_PART"
+  if ((${#BACKUP_STOPPED[@]})); then systemctl start "${BACKUP_STOPPED[@]}" || true; fi
+  BACKUP_STOPPED=(); BACKUP_PART=""
+}
+
 cmd_backup() {
-  local keep="${TEAMS_BACKUP_KEEP:-7}" ts out u
+  local keep="${TEAMS_BACKUP_KEEP:-7}" ts out u need free
   [[ "$keep" =~ ^[0-9]+$ ]] && ((keep >= 1)) || die "TEAMS_BACKUP_KEEP must be >= 1"
   install -d -m 0700 -o root -g root "$BACKUPS"
+  exec 9>"$LOCK"; flock -w 300 9 || die "another backup or watch holds $LOCK"
+  # Room first: never stop the services for a copy that cannot be written.
+  need=$(( $(du -sk "$CONFIG" "$STATE" 2>/dev/null | awk '{s+=$1} END {print s+0}') + 65536 ))
+  free="$(df -Pk "$BACKUPS" | awk 'END { print $4 }')"
+  [[ "$free" =~ ^[0-9]+$ ]] || die "backup skipped: cannot read free space for $BACKUPS"
+  if ((free < need)); then
+    logger -t torii-teams "backup skipped: ${free} KiB free, needs ${need} KiB; services left running" || true
+    die "backup skipped: not enough disk space (${free} KiB free, needs ${need} KiB)"
+  fi
   ts="$(date -u +%Y%m%dT%H%M%SZ)"; out="$BACKUPS/torii-teams-$ts.tar.gz"
-  # Brief stop for a consistent sqlite/git snapshot; restart whatever ran.
-  local -a was=()
+  # Brief stop for a consistent sqlite/git snapshot; restart whatever ran,
+  # whether or not the copy succeeds.
   for u in torii-teams-git torii-teams-coord; do
-    systemctl is-active -q "$u" && was+=("$u")
+    systemctl is-active -q "$u" && BACKUP_STOPPED+=("$u")
   done
-  ((${#was[@]})) && systemctl stop "${was[@]}"
-  trap '((${#was[@]})) && systemctl start "${was[@]}"' EXIT
-  ( umask 077; tar -C / -czf "$out.part" etc/torii/teams "${STATE#/}" )
-  mv -- "$out.part" "$out"
-  ((${#was[@]})) && systemctl start "${was[@]}"
+  trap backup_restore EXIT
+  if ((${#BACKUP_STOPPED[@]})); then systemctl stop "${BACKUP_STOPPED[@]}"; fi
+  BACKUP_PART="$out.part"
+  ( umask 077; tar -C / -czf "$BACKUP_PART" "${CONFIG#/}" "${STATE#/}" )
+  mv -- "$BACKUP_PART" "$out"; BACKUP_PART=""
+  backup_restore
   trap - EXIT
   ls -1t "$BACKUPS"/torii-teams-*.tar.gz | tail -n +"$((keep + 1))" | xargs -r rm -f --
   echo "backup: $out"
+}
+
+# Start a service again if it is enabled and not running (or starting).
+watch_one() {
+  local u="$1" state
+  systemctl is-enabled -q "$u" 2>/dev/null || return 0
+  state="$(systemctl is-active "$u" 2>/dev/null || true)"
+  case "$state" in active|activating|reloading|deactivating) return 0 ;; esac
+  logger -t torii-teams-watch "$u was $state; starting it" || true
+  systemctl start "$u" || logger -t torii-teams-watch "$u failed to start" || true
+}
+
+cmd_watch() {
+  [[ -e "$CONFIG/paused" ]] && return 0
+  exec 9>"$LOCK"; flock -n 9 || return 0   # a backup is running
+  watch_one torii-teams-coord.service
+  # Git only once configured; its ExecCondition skips it until then.
+  if MESH_IP="${MESH_IP:-}" "$RUN_GIT" --check >/dev/null 2>&1; then
+    watch_one torii-teams-git.service
+  fi
+  local free; free="$(df -Pk "$STATE" 2>/dev/null | awk 'END { print $4 }')"
+  if [[ "$free" =~ ^[0-9]+$ ]] && ((free < 262144)); then
+    logger -t torii-teams-watch "low disk: ${free} KiB free for Teams data" || true
+  fi
+  return 0
+}
+
+cmd_pause() {
+  install -m 0644 /dev/null "$CONFIG/paused"
+  systemctl stop torii-teams-git.service torii-teams-coord.service
+  echo "Teams paused: chat and git stopped; torii-teams resume starts them again"
+}
+
+cmd_resume() {
+  rm -f -- "$CONFIG/paused"
+  systemctl start torii-teams-coord.service
+  systemctl start torii-teams-git.service || true
+  echo "Teams resumed"
 }
 
 case "${1:-status}" in
@@ -112,5 +177,8 @@ case "${1:-status}" in
   apply) cmd_apply ;;
   sync) cmd_sync "${2:-}" ;;
   backup) cmd_backup ;;
-  *) die "usage: torii-teams status|apply|sync [--files-only]|backup" ;;
+  watch) cmd_watch ;;
+  pause) cmd_pause ;;
+  resume) cmd_resume ;;
+  *) die "usage: torii-teams status|apply|sync [--files-only]|backup|watch|pause|resume" ;;
 esac

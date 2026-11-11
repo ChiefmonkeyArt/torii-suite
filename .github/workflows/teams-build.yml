@@ -59,6 +59,25 @@ jobs:
           sudo torii-teams status
           sudo env PATH="$PATH" bash test/install-teams.test.sh
           bash test/install-fips.test.sh
+      - name: Chat stays up (Suite ADR 0005)
+        run: |
+          set -euo pipefail
+          sudo systemctl is-active -q torii-teams-watch.timer
+          # A clean exit is restarted too (Restart=always).
+          pid="$(systemctl show -p MainPID --value torii-teams-coord)"
+          sudo systemctl kill -s SIGTERM torii-teams-coord
+          until [ "$(systemctl show -p MainPID --value torii-teams-coord)" != "$pid" ] && systemctl is-active -q torii-teams-coord; do sleep 1; done
+          # A plain stop (what the old backup trap left behind) is undone by watch.
+          sudo systemctl stop torii-teams-coord torii-teams-git
+          sudo torii-teams watch
+          sudo systemctl is-active torii-teams-coord torii-teams-git
+          sudo journalctl -t torii-teams-watch --no-pager | grep -q 'torii-teams-coord.service was inactive; starting it'
+          # Pause is respected; resume undoes it.
+          sudo torii-teams pause
+          sudo torii-teams watch
+          if systemctl is-active -q torii-teams-coord; then echo "watch ignored pause"; exit 1; fi
+          sudo torii-teams resume
+          sudo systemctl is-active torii-teams-coord torii-teams-git
       - name: Members from Continuum's signed mesh file (ADR 0016)
         run: |
           set -euo pipefail

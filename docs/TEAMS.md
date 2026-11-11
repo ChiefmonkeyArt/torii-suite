@@ -12,6 +12,7 @@ opt-in installer (see "The app" below).
 | `torii-teams-coord` | Cordn coordinator ([cordn-rs](https://github.com/Cordn-msg/cordn-rs) `v0.5.1-next.3`, MIT) | Talks only to the node relay on `127.0.0.1:${NOSTR_RELAY_PORT}`. Members chat through the existing public `wss://relay.<domain>`; messages are MLS-encrypted end to end. |
 | `torii-teams-git` | Private [ngit-grasp](https://ngit.dev/ngit-grasp.git) `v3.0.10` (MIT) | The FIPS mesh only: bound to this node's `fd..` address, port 7334, private mode. |
 | `torii-teams-backup.timer` | Daily tarball of keys, member lists and both data directories | Root only, `/var/backups/torii-teams` (0700), keeps `TEAMS_BACKUP_KEEP` (7). |
+| `torii-teams-watch.timer` | Every minute: starts chat or git again if they are enabled but not running, and logs it | Root only; journal tag `torii-teams-watch`. Warns below 256 MiB free. |
 
 The owner chose "chat public, git mesh" on 2026-10-31. Git has no public
 nginx route; `NGIT_BASE_PATH` stays `/` and is reserved for a later public option.
@@ -218,6 +219,17 @@ sudo torii-teams status
 sudo torii-teams sync      # rebuild both member files from Continuum now
 sudo torii-teams apply     # after editing git-members or member-nodes by hand
 sudo torii-teams backup
+sudo torii-teams pause     # stop chat and git on purpose; the watch leaves them
+sudo torii-teams resume
+```
+
+Chat stays up (ADR 0005): the coordinator restarts after any exit, and the
+one-minute watch starts anything that was stopped without `pause`. The backup
+skips (and stops nothing) when there is not room for the copy plus 64 MiB, and
+always starts again what it stopped. See what the watch did:
+
+```bash
+sudo journalctl -t torii-teams-watch -t torii-teams --since today
 ```
 
 `apply` validates the whole firewall with `nft -c` before reloading, then
@@ -231,9 +243,9 @@ Members map the shortname to this node in their own FIPS hosts file
 ## Restore
 
 ```bash
-sudo systemctl stop torii-teams-git torii-teams-coord
+sudo torii-teams pause
 sudo tar -C / -xzf /var/backups/torii-teams/torii-teams-<stamp>.tar.gz
-sudo systemctl start torii-teams-coord torii-teams-git
+sudo torii-teams resume
 ```
 
 ## Migrating from the FIPS trial

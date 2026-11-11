@@ -119,7 +119,7 @@ printf 'RELAY_PORT=%s\nGIT_HOST=%s\nGIT_PORT=%s\nMESH_IP=%s\nTEAMS_MESH_FILE=%s\
   "$RELAY_PORT" "$GIT_HOST" "$GIT_PORT" "$MESH_IP" "$MESH_FILE" > "$CONFIG/teams.env"
 chmod 0644 "$CONFIG/teams.env"
 
-install -m 0644 "$ROOT"/teams/torii-teams-*.service "$ROOT"/teams/torii-teams-backup.timer /etc/systemd/system/
+install -m 0644 "$ROOT"/teams/torii-teams-*.service "$ROOT"/teams/torii-teams-backup.timer "$ROOT"/teams/torii-teams-watch.timer /etc/systemd/system/
 printf '[Unit]\nDescription=Torii Teams: watch Continuum'"'"'s signed mesh file\n\n[Path]\nPathChanged=%s\nUnit=torii-teams-sync.service\n\n[Install]\nWantedBy=paths.target\n' \
   "$MESH_FILE" > /etc/systemd/system/torii-teams-sync.path
 systemctl daemon-reload
@@ -127,6 +127,8 @@ systemctl enable -q torii-teams-coord.service torii-teams-git.service torii-team
 systemctl enable -q --now torii-teams-sync.path
 systemctl restart torii-teams-coord.service
 systemctl start torii-teams-backup.timer
+# Suite ADR 0005: a stopped chat is started again within a minute.
+systemctl enable -q --now torii-teams-watch.timer
 # Member lists from Continuum when it has written one; otherwise the files as they are.
 # apply always runs: a reinstall must restart git even when the lists did not change.
 if [[ -s "$CONFIG/owner.npub" ]]; then
