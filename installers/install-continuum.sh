@@ -359,6 +359,18 @@ PY
     die "failed to update ollama config in ${CONFIG_FILE}"
   fi
   unset _ollama_mode _ollama_target
+else
+  # Local model not wanted (the default since v0.9.64-alpha, ADR 0003): make
+  # sure the agent does not try it, even on an install that had it before.
+  # shellcheck source=../lib/ollama-config.sh
+  source "${SUITE_DIR}/lib/ollama-config.sh"
+  set +e; ollama_config_set_enabled "$CONFIG_FILE" false; _rc=$?; set -e
+  case $_rc in
+    0) log "INSTALL_OLLAMA=0: ollama.enabled -> false in agent/config.yaml" ;;
+    2) : ;;
+    *) die "failed to update ollama config in ${CONFIG_FILE}" ;;
+  esac
+  unset _rc
 fi
 
 # --------------------------------------------------------------------------- #

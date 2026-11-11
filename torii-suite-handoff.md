@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## Ollama optional: v0.9.64-alpha
+
+ADR 0003 (Accepted, owner 2026-11-11). `INSTALL_OLLAMA` defaults to 0 (`.env.example`, `bootstrap.sh`). `install-continuum.sh` §4b now sets `ollama.enabled: false` when INSTALL_OLLAMA=0 (`lib/ollama-config.sh`, ollama block only, mode/owner kept, symlink refused). New `installers/remove-ollama.sh`: flip config off + restart agent, stop/disable `ollama.service`, remove unit/drop-in, `/usr/local/bin/ollama`, `/usr/local/lib/ollama`, `/usr/share/ollama`, user/group; warns if `hermes-npc` exists (greeter used the model). Run by Continuum v0.2.209-alpha's `suite-stages-vps.yml` stage `ollama_remove`, which also writes `INSTALL_OLLAMA=0` to the operator `.env`. Test: `test/remove-ollama.test.sh` (11 as root). Pairs with Continuum v0.2.209-alpha (Routstr falls back automatically).
+
 ## Teams torii.20 pin: v0.9.63-alpha
 
 Pin only: torii-teams `0.6.1-torii.20` (aadc9e1), SHA-256 `aba58dd2b25647071f8358ab0ce901cce61c0e7da4f2e848514fab4ed21d7f76` (checked against the release and its `.sha256`). Teams ADR 0019: while a teammate waits, the owner checks every 15 s for up to 15 minutes (amends ADR 0006's 60 s poll); two-person e2e add 58 s -> 13 s. Session key not needed: after first sign-in, 4 reloads and 70 s open made 0 signer calls. Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only.

@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.64-alpha: the local AI model is optional (2026-11-11)
+
+Ollama is no longer installed by default, saving about 2 GB of disk. Continuum now falls back across Routstr providers and models instead. A new `ollama_remove` stage takes it off a server that has it and keeps it off. ADR 0003.
+
 ## Release v0.9.63-alpha: Teammates are added in seconds (2026-11-11)
 
 Pins torii-teams 0.6.1-torii.20 (aadc9e1, SHA-256 `aba58dd2b25647071f8358ab0ce901cce61c0e7da4f2e848514fab4ed21d7f76`). Teams ADR 0019: a quick 15 s owner check while someone waits to join; two-person test 58 s -> 13 s. No session key needed (0 signer calls after first sign-in). No installer logic change.

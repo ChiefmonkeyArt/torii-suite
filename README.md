@@ -161,7 +161,7 @@ Seven stages, each idempotent (safe to re-run):
    agent under the `continuum` system user at `/apps/continuum/agent/repo/`,
    generates a session secret, writes `continuum-agent.service`, and drops an
    nginx fragment that mounts `/continuum/` (static) and `/agent/` (proxy).
-2b. **Ollama** *(opt-in, on by default when Continuum is installed)* — installs
+2b. **Ollama** *(opt-in, off by default since v0.9.64-alpha; `INSTALL_OLLAMA=1`)* — installs
    the official Ollama daemon, writes a systemd override binding it to
    `127.0.0.1:11434` with `OLLAMA_ORIGINS` restricted to localhost, pulls the
    default model (`qwen3:0.6b`, ~500 MB on disk / ~3.3 GB resident once
@@ -282,6 +282,15 @@ the node file's `continuum` entry are set up.
 `INSTALL_CONTINUUM_HOST=1` serves Continuum on `https://continuum.<domain>/continuum/`
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
+
+### New in v0.9.64-alpha: the local AI model is optional
+
+Ollama is no longer installed by default (`INSTALL_OLLAMA=0`), saving about
+2 GB of disk. Continuum v0.2.209-alpha falls back across Routstr providers and
+models on its own and says which one answered. On a server that already has
+Ollama, the `ollama_remove` stage turns it off in Continuum, removes it and its
+models, and writes `INSTALL_OLLAMA=0` so no later deploy brings it back.
+`INSTALL_OLLAMA=1` still installs it. See `docs/adr-0003-ollama-optional.md`.
 
 ### New in v0.9.63-alpha: Teammates are added in seconds
 
