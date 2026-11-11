@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.68-alpha: GLiClass Edge on plain x86-64 CPUs (2026-11-11)
+
+The v0.9.67-alpha run (Continuum run 43038733666) got past pip and the download, then stopped at conversion: NumPy 2.5.4 needs x86-64-v2 and the server's virtual CPU has no SSE4.2/POPCNT. NumPy is pinned at 2.3.5 (plain x86-64). Checked under emulation of such a CPU: every library loads, the conversion works and the self-test passes. The installer reports the CPU level and warns without AVX2.
+
 ## Release v0.9.67-alpha: GLiClass Edge installs without apt (2026-11-11)
 
 The v0.9.66-alpha retry (Continuum run 43037247696) passed the new DNS check but apt still could not resolve archive.ubuntu.com or security.ubuntu.com, so `python3-venv` failed again; nothing was installed. The installer no longer uses apt: `python3 -m venv --without-pip`, then pip 26.3 from a SHA-256-pinned wheel.

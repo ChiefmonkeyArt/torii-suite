@@ -73,6 +73,19 @@ as an optional install and benchmark it on the server CPU"). Target: Suite
    `gliclass_remove`) deletes `/opt/gliclass-edge`, reports the space freed,
    and the stage writes `INSTALL_GLICLASS=0`.
 
+## Amendment (v0.9.67/v0.9.68-alpha, 2026-11-11): plain x86-64 CPUs
+
+- The first install on chiefmonkey.art failed twice in apt (the host could
+  not resolve the Ubuntu mirrors), so the installer no longer uses apt: the
+  venv is made `--without-pip` and pip 26.3 comes from a SHA-256-pinned
+  wheel (v0.9.67-alpha).
+- The third run reached the conversion and stopped: the server's virtual CPU
+  is plain x86-64 (no SSE4.2 or POPCNT), and NumPy 2.4 and later need
+  x86-64-v2. NumPy is pinned at **2.3.5**. Under emulation of a CPU without
+  SSSE3, SSE4.1, SSE4.2 or POPCNT, onnxruntime 1.28.0, tokenizers, onnx and
+  ml_dtypes all load, conversion works and the self-test passes. The installer
+  logs the CPU's x86-64 level and warns when there is no AVX2.
+
 ## Consequences
 
 - A later Continuum decision can wire choice questions to this model behind a

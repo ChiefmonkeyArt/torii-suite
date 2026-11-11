@@ -7,9 +7,11 @@
 onnxruntime==1.28.0 \
     --hash=sha256:54fa221d669282bd8f582708ce4c96010a7e9fb0661f9006b37fe2fedafb73fe \
     --hash=sha256:6afdc83f1317c136e92fc29f5ee9f058de59d87c0b22cee3fdbfbaa0ccc2098a
-numpy==2.5.4 \
-    --hash=sha256:6ffa07666f8da0eef81d149934a626d0d95fbd6838432a33e66245423a9062c0 \
-    --hash=sha256:d549420b8858885cea8838a727842249218b9c1da24dd517e25c9c7a948310a3
+# numpy stays at 2.3.5: 2.4+ wheels need x86-64-v2 (SSE4.2, POPCNT), which
+# some virtual CPUs (chiefmonkey.art) do not offer. 2.3.5 runs on plain x86-64.
+numpy==2.3.5 \
+    --hash=sha256:11e06aa0af8c0f05104d56450d6093ee639e15f24ecf62d417329d06e522e017 \
+    --hash=sha256:fffe29a1ef00883599d1dc2c51aa2e5d80afe49523c261a74933df395c15c520
 flatbuffers==25.12.19 \
     --hash=sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4
 packaging==26.3 \

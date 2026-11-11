@@ -78,6 +78,14 @@ free_mb="$(df --output=avail -m "$GL_ROOT" | tail -1 | tr -d ' ')"
 mem_mb="$(awk '/^MemAvailable:/ {print int($2/1024)}' /proc/meminfo)"
 (( mem_mb >= NEED_MEM_MB )) || die "needs about ${NEED_MEM_MB} MB of free memory to convert the model once, has ${mem_mb} MB"
 log "disk ${free_mb} MB free, memory ${mem_mb} MB free, Python ${PYV}"
+# The pinned wheels run on plain x86-64 (v1). Say what this CPU offers, since
+# a CPU without AVX2 answers several times slower.
+flags=" $(awk -F': ' '/^flags/ {print $2; exit}' /proc/cpuinfo) "
+level=1
+[[ "$flags" == *" sse4_2 "* && "$flags" == *" popcnt "* && "$flags" == *" ssse3 "* ]] && level=2
+[[ $level == 2 && "$flags" == *" avx2 "* && "$flags" == *" fma "* && "$flags" == *" bmi2 "* ]] && level=3
+log "CPU: $(awk -F': ' '/^model name/ {print $2; exit}' /proc/cpuinfo), $(nproc) cores, x86-64-v${level}"
+(( level >= 3 )) || log "no AVX2 on this CPU: expect answers several times slower than on a recent CPU"
 
 # Every download below needs name lookups; say so plainly instead of failing
 # halfway through apt or pip.

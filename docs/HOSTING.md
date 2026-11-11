@@ -28,7 +28,8 @@ Every path needs the same three things:
    **4 GB RAM** and about 2 GB more disk; the bootstrap script refuses it on
    hosts below 3 GB. The optional GLiClass Edge choice model
    (`INSTALL_GLICLASS=1`, ADR 0004) needs x86_64, Python 3.13 or 3.14, and
-   about 3.5 GB free disk and 4 GB free memory while installing; about
+   about 3.5 GB free disk and 4 GB free memory while installing (any
+   x86-64 CPU works; without AVX2 it answers more slowly); about
    630 MB of disk and 1.5 GB of memory while it answers.
 2. **A domain** with a single `A` record pointing at the VPS's public IP.
    Cheap TLDs work fine; you'll want to control DNS from your registrar.
