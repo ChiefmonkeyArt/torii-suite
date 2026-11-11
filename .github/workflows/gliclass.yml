@@ -1,0 +1,17 @@
+name: GLiClass Edge install
+on:
+  pull_request:
+    paths: ['installers/install-gliclass.sh', 'installers/bench-gliclass.sh', 'installers/remove-gliclass.sh', 'lib/gliclass/**', 'bootstrap.sh', '.env.example', 'test/install-gliclass.test.sh', 'test/gliclass_edge_test.py', '.github/workflows/gliclass.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Contract, removal and logic tests
+        run: sudo bash test/install-gliclass.test.sh

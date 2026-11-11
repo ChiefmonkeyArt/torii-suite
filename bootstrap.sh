@@ -282,6 +282,9 @@ INSTALL_TEAMS_APP="${INSTALL_TEAMS_APP:-0}"
 # Suite ADR 0002: opt-in, team-only Plebeian Auctions (fake sats) on
 # auctions.<domain>; never gets a launcher card.
 INSTALL_AUCTIONS="${INSTALL_AUCTIONS:-0}"
+# Suite ADR 0004: opt-in GLiClass Edge, a small CPU choice model (no service
+# yet; measure it with installers/bench-gliclass.sh).
+INSTALL_GLICLASS="${INSTALL_GLICLASS:-0}"
 # Suite ADR 0001: the FIPS node on every install (needs the node relay + TUN).
 INSTALL_FIPS="${INSTALL_FIPS:-1}"
 if [[ "$INSTALL_FIPS" == "1" && "$INSTALL_NOSTR_GIT" != "1" ]]; then
@@ -453,6 +456,7 @@ fi
 export INSTALL_TEAMS_APP TORII_TEAMS_HOST TEAMS_APP_TAG TEAMS_APP_SHA256
 export INSTALL_AUCTIONS AUCTIONS_HOST AUCTIONS_TAG AUCTIONS_SHA256 AUCTIONS_PORT AUCTIONS_MINT_PORT
 export INSTALL_CONTINUUM_HOST CONTINUUM_HOST
+export INSTALL_GLICLASS
 # Quest skips its own FIPS call when this run has the FIPS stage.
 TORII_FIPS_STAGE="$INSTALL_FIPS"
 export INSTALL_FIPS TORII_FIPS_STAGE
@@ -558,6 +562,7 @@ _STAGES_TOTAL=1  # base
 [[ "$INSTALL_TEAMS"            == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_TEAMS_APP"        == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_AUCTIONS"         == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
+[[ "$INSTALL_GLICLASS"         == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 [[ "$INSTALL_CONTINUUM_HOST"   == "1" ]] && _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))
 _STAGES_TOTAL=$(( _STAGES_TOTAL + 1 ))  # doctor
 
@@ -591,6 +596,7 @@ ui_box_line "FIPS node   $(_plan_row "$INSTALL_FIPS" "install ${UI_DIM}(no peers
 ui_box_line "Teams       $(_plan_row "$INSTALL_TEAMS" "install ${UI_DIM}(chat coordinator + mesh git)${UI_RESET}")"
 ui_box_line "Teams app   $(_plan_row "$INSTALL_TEAMS_APP" "install ${UI_DIM}(teams.<domain>)${UI_RESET}")"
 ui_box_line "Auctions    $(_plan_row "$INSTALL_AUCTIONS" "install ${UI_DIM}(auctions.<domain>, team-only)${UI_RESET}")"
+ui_box_line "GLiClass    $(_plan_row "$INSTALL_GLICLASS" "install ${UI_DIM}(CPU choice model, no service)${UI_RESET}")"
 if [[ "$SKIP_CERTBOT" == "1" ]]; then
   ui_box_line "HTTPS       ${UI_YELLOW}skip${UI_RESET}"
 else
@@ -653,6 +659,7 @@ _stage_fips()           { "${SCRIPT_DIR}/installers/install-fips.sh"; }
 _stage_teams()          { "${SCRIPT_DIR}/installers/install-teams.sh"; }
 _stage_teams_app()      { "${SCRIPT_DIR}/installers/install-teams-app.sh"; }
 _stage_auctions()       { "${SCRIPT_DIR}/installers/install-auctions.sh"; }
+_stage_gliclass()       { "${SCRIPT_DIR}/installers/install-gliclass.sh"; }
 
 # Doctor is a status readout — never fatal.
 _stage_doctor() {
@@ -866,6 +873,11 @@ fi
 if [[ "$INSTALL_AUCTIONS" == "1" ]]; then
   stage_header "Plebeian Auctions (auctions.<domain>, fake sats)"
   run_stage "install Plebeian Auctions" _stage_auctions
+fi
+# Suite ADR 0004: no service, nothing listens; installs and self-tests only.
+if [[ "$INSTALL_GLICLASS" == "1" ]]; then
+  stage_header "GLiClass Edge (CPU choice model)"
+  run_stage "install GLiClass Edge" _stage_gliclass
 fi
 
 stage_header "Doctor"

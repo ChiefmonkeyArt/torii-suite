@@ -42,6 +42,9 @@
 - [x] Deploy v0.9.63-alpha (stage teams_app) on chiefmonkey.art (owner approved, 2026-11-11; Continuum run 43008685267); MANIFEST reports 0.6.1-torii.20.
 - [x] v0.9.64-alpha: Ollama optional (INSTALL_OLLAMA=0 default, config follows, `remove-ollama.sh`; ADR 0003).
 - [x] Deploy v0.9.64-alpha on chiefmonkey.art: Continuum v0.2.209-alpha deploy, then stage `ollama_remove` (owner approval). Done 2026-11-11; ~1.8 GB freed.
+- [x] v0.9.65-alpha: GLiClass Edge optional (`INSTALL_GLICLASS`, install/bench/remove, ADR 0004).
+- [ ] Deploy v0.9.65-alpha on chiefmonkey.art: Continuum v0.2.210-alpha deploy, then stages `gliclass,gliclass_bench` (owner approval).
+- [ ] Later: decide whether Continuum asks GLiClass Edge its choice questions (after the VPS benchmark).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
 

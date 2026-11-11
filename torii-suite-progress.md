@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.65-alpha: an optional choice model on the CPU (2026-11-11)
+
+`INSTALL_GLICLASS=1` installs GLiClass Edge in `/opt/gliclass-edge`: a 4-bit copy made on the server from the pinned upstream file, self-tested, no service. Sandbox (2 cores): 28/30 tool-routing cases (Jev 1.13 29/30), 11/12 obvious questions (Jev 12/12), median 0.9 s and 0.25 s, 1.5 GB memory; 4-bit answers match full precision. ONNX Runtime pinned at 1.28.0 because 1.29+ sends telemetry to Microsoft by default. Stages `gliclass`, `gliclass_bench`, `gliclass_remove` (Continuum v0.2.210-alpha). ADR 0004.
+
 ## Release v0.9.64-alpha: the local AI model is optional (2026-11-11)
 
 Ollama is no longer installed by default, saving about 2 GB of disk. Continuum now falls back across Routstr providers and models instead. A new `ollama_remove` stage takes it off a server that has it and keeps it off. ADR 0003.
