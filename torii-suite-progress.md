@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.62-alpha: Auctions stays smooth on phones (2026-11-11)
+
+Pins plebeian-arena-auctions v0.4.2 (0d03078, SHA-256 `b3d538a3fef6bbd77525e6ffc0c4798b071da1f6a3eff770425cc7096241aa46`). Front end only: at 4x CPU throttle with the bots bidding, main-thread busy time fell from 18.5 s to 9.3 s per 19 s and long tasks from 33 (4.7 s) to 11 (0.86 s); the main script is 73 kB instead of 398 kB. Chain format 4 is unchanged, so the chain is kept.
+
 ## Release v0.9.61-alpha: Auctions upgrades make room first (2026-11-11)
 
 The v0.9.59-alpha deploy to chiefmonkey.art failed (Continuum run 42934429730) with "No space left on device" while copying the new release. The live site kept running v0.3.4. The installer now clears older release downloads, half-copied release folders and a chain of the old format before it copies, and refuses early with a disk report if there is still not enough room. Same pin (Auctions v0.4.1). Tests: contract 65/65; live 33/33 (new: a half-copied release, an old tarball and a format-3 chain are cleared on re-install, the current release kept) with e2e 55/55 over HTTPS.

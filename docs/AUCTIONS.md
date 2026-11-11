@@ -13,7 +13,7 @@ sudo INSTALL_AUCTIONS=1 TORII_DOMAIN=<domain> bash /opt/torii-suite/checkout/ins
 ```
 
 The release repo is public, so the VPS downloads the pinned tarball itself
-(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.4.1.tar.gz` installs a local copy).
+(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.4.2.tar.gz` installs a local copy).
 
 Escrow (v0.2.0+): bids lock to one FROST 3-of-4 group key; each validator keeps
 its share in `/var/lib/plebeian-auctions/chain/vN/config/frost_key.json` (0600).
