@@ -32,6 +32,8 @@
 - [x] Deploy v0.9.58-alpha (stage auctions) on chiefmonkey.art (owner approved, 2026-11-10); restart from snapshot measured at 5.7 s.
 - [x] v0.9.59-alpha: Auctions v0.4.1 live chain (arena ADR 0003 §1, §4, ADR 0007): push, void bids, on-time close, pruning, ledger; chain FORMAT 4 (re-created).
 - [ ] Deploy v0.9.59-alpha (stage auctions) on chiefmonkey.art (ask first; wipes the fake-sats chain).
+- [x] v0.9.60-alpha: pin torii-teams 0.6.1-torii.19 (ADR 0018) alongside Continuum v0.2.208-alpha.
+- [ ] Deploy v0.9.60-alpha (stage teams_app) on chiefmonkey.art (ask first).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
 

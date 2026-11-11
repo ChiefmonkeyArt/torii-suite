@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.60-alpha: Teams loads lighter and quieter (2026-11-11)
+
+Pins torii-teams 0.6.1-torii.19 (0f0d212, SHA-256 `f22e1619bfd828ee5b4165e0d7a0a5a581be761ce2958b67927b6d467383325e`). Teams ADR 0018: the unused Cordn News feed is left out of node builds (JS 2,496,354 → 2,419,934 bytes), reloads no longer sign a welcome check (was 2 signer calls per reload), and action history reads through a by-kind IndexedDB index. No installer logic change.
+
 ## Release v0.9.59-alpha: Auctions update live (2026-11-10)
 
 Pins plebeian-arena-auctions v0.4.1 (818b7e1, SHA-256 `8255e5142258247d48b95e73d42ad8eb819fa5942d02bd03694d45394c0dca41`), chain format 4, so the fake-sats chain starts fresh on this upgrade. The page now gets a push when a block lands instead of polling every second; bids appear on chain in under a second and lots close within about a second of their end (they used to wait for the next empty block). A bid that loses a race is recorded as void and refundable at once instead of locked for a day. While idle the chain makes one block a minute instead of one a second, keeps only its last 100,000 blocks and archives every transaction to a per-validator ledger file. The Network drawer times your last bids. v0.4.1 fixes a stale first push message found by this release's live test. Vhost: `/api/events` gets its own unbuffered, ungzipped location with the per-address connection cap. Arena tests: Go -race, e2e 55/55. Suite: contract 56/56; live 31/31 (new: event stream through nginx, four ledgers) with e2e 55/55 over HTTPS.
