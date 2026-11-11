@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.62-alpha: Auctions stays smooth on phones
+
+Pins Auctions v0.4.2. The wallet's ecash maths now runs in the background
+(a Web Worker), and the page redraws ten times a second instead of sixty, so
+taps and clocks stay smooth on slower phones. The page script is about 80%
+smaller. The fake-sats chain is kept (same format).
+
 ### New in v0.9.61-alpha: Auctions upgrades make room first
 
 Before copying a new Auctions release, the installer removes older release

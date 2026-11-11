@@ -52,14 +52,14 @@ if [[ "${AUCTIONS_REMOVE:-0}" == 1 ]]; then
   exit 0
 fi
 
-# Pinned release (v0.4.1 = plebeian-arena-auctions 818b7e1; SHA-256 of the CI-built
+# Pinned release (v0.4.2 = plebeian-arena-auctions 0d03078; SHA-256 of the CI-built
 # release asset). Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-AUCTIONS_TAG="${AUCTIONS_TAG:-v0.4.1}"
-AUCTIONS_SHA256="${AUCTIONS_SHA256:-8255e5142258247d48b95e73d42ad8eb819fa5942d02bd03694d45394c0dca41}"
+AUCTIONS_TAG="${AUCTIONS_TAG:-v0.4.2}"
+AUCTIONS_SHA256="${AUCTIONS_SHA256:-b3d538a3fef6bbd77525e6ffc0c4798b071da1f6a3eff770425cc7096241aa46}"
 # Chain FORMAT of the pinned release. Known only for the pin; for another tag
 # set AUCTIONS_CHAIN_FORMAT too, or the old chain is left to "arena init".
-[[ "$AUCTIONS_TAG" == v0.4.1 ]] && AUCTIONS_CHAIN_FORMAT="${AUCTIONS_CHAIN_FORMAT:-4}"
+[[ "$AUCTIONS_TAG" == v0.4.2 ]] && AUCTIONS_CHAIN_FORMAT="${AUCTIONS_CHAIN_FORMAT:-4}"
 AUCTIONS_CHAIN_FORMAT="${AUCTIONS_CHAIN_FORMAT:-}"
 [[ "$AUCTIONS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "bad AUCTIONS_TAG"
 [[ -z "$AUCTIONS_CHAIN_FORMAT" || "$AUCTIONS_CHAIN_FORMAT" =~ ^[0-9]{1,3}$ ]] || die "bad AUCTIONS_CHAIN_FORMAT"
