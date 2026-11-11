@@ -1,6 +1,6 @@
 # ADR 0005 (Suite): Teams chat stays up
 
-Date: 2026-11-11. Status: **Proposed** (owner, 2026-11-11: "do all the
+Date: 2026-11-11. Status: **Accepted** (owner, 2026-11-11: "Accept, ship and deploy"; asked by owner, 2026-11-11: "do all the
 things", after a live test with a second person where messages never reached
 the other screen). Target: Suite `v0.9.69-alpha` (stage `teams`), with Teams
 `0.6.1-torii.21` (torii-teams ADR 0020).

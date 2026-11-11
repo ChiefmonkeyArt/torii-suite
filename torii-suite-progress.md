@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.69-alpha: Teams chat stays up (2026-11-11)
+
+On 2026-11-11 the Teams chat server was stopped from 04:22 to about 16:45 UTC. The nightly backup stopped it, the copy failed (the disk was full), and a bug in the backup's clean-up meant nothing was started again. Messages looked sent but were not delivered. Now the backup always starts again what it stopped and skips (stopping nothing) when there is no room; the chat server restarts after any exit; a check every minute starts anything that was stopped without `torii-teams pause`. Teams 0.6.1-torii.21 shows "Chat server is down" when the server does not answer.
+
 ## GLiClass Edge measured on chiefmonkey.art (2026-11-11)
 
 Installed from v0.9.68-alpha and benchmarked on the server's 2 plain x86-64 cores (no AVX2): 28/30 tool-routing cases (Jev 1.13: 29/30) and 11/12 obvious questions (Jev: 12/12), the same answers as in the sandbox. A routing decision takes about 3.8 s and a short question about 1.9 s; memory 1.5 GB; disk 632 MB.

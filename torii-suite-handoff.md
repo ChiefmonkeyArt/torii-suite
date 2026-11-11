@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## Teams chat stays up: v0.9.69-alpha (ADR 0005)
+
+Outage 2026-11-11 04:22-16:45 UTC: `torii-teams backup` (timer 04:20 + up to 30 min) stopped git + coord, tar failed (full disk), `set -e` exit, and the EXIT trap read a function-local array ("unbound variable"), so nothing restarted; a clean stop is not covered by `Restart=on-failure`. Fix: global `BACKUP_STOPPED`, `.part` removed, `du`+64 MiB vs `df` pre-check (logged skip, nothing stopped), `flock /run/torii-teams.lock`. Coord `Restart=always`, `StartLimitIntervalSec=0`; git stays `on-failure` (its ExecCondition skip would loop). `torii-teams-watch.timer` (1 min) starts enabled-but-inactive coord, and git only if `run-git.sh --check` passes; skips while the lock is held or `/etc/torii/teams/paused` exists; warns below 256 MiB. `torii-teams pause|resume`; restore uses them. Pins torii-teams 0.6.1-torii.21 (fc7a4bd, ADR 0020 banner). Logs: `journalctl -t torii-teams-watch -t torii-teams`.
+
 ## GLiClass Edge live on chiefmonkey.art (2026-11-11)
 
 Run 43043337336 (owner approved), Suite v0.9.68-alpha, Continuum v0.2.210-alpha. CPU "Common KVM processor", 2 cores, x86-64-v1 (no SSE4.2, no AVX2). Install ok (632 MB in `/opt/gliclass-edge`; `INSTALL_GLICLASS=1` in .env). Bench (systemd-run sandbox worked): load 4.9 s, peak 1529 MB; obvious 11/12 (Jev 12/12), median 1904 ms, p95 2326 ms; routing 28/30 (Jev 29/30; tools 20/20, no-tool 8/10), median 3785 ms, p95 5587 ms; same wrong cases as the sandbox. JSON `/var/lib/gliclass-edge/bench-20261111T145813Z.json`. About 4x (routing) to 8x (short questions) slower than the 2-core AVX2 sandbox; Jev's 263 ms includes the network. Not wired into Continuum.

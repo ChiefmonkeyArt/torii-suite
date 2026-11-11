@@ -1,5 +1,11 @@
 # Torii Suite - Master TODO
 
+## Teams chat stays up v0.9.69-alpha (ADR 0005)
+
+- [x] Backup: global stopped list (trap works), `.part` removed, free-space check, shared lock; coordinator `Restart=always`; `torii-teams watch` every minute; `pause`/`resume`. Tests: `test/install-teams.test.sh`, CI real systemd.
+- [x] Pin torii-teams 0.6.1-torii.21 (Teams ADR 0020, "Chat server is down" banner).
+- [ ] Deploy v0.9.69-alpha (stages `teams,teams_app`) on chiefmonkey.art (owner approved, 2026-11-11).
+
 ## FIPS peers up to 8 v0.9.51-alpha (torii-quest ADR-0151)
 
 - [x] `fips/render-config.mjs` cap 8, duplicates refused, 8 KiB; `docs/FIPS.md`; test case.
