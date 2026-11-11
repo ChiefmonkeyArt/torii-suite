@@ -4,6 +4,8 @@
 
 Pin only: torii-teams `0.6.1-torii.20` (aadc9e1), SHA-256 `aba58dd2b25647071f8358ab0ce901cce61c0e7da4f2e848514fab4ed21d7f76` (checked against the release and its `.sha256`). Teams ADR 0019: while a teammate waits, the owner checks every 15 s for up to 15 minutes (amends ADR 0006's 60 s poll); two-person e2e add 58 s -> 13 s. Session key not needed: after first sign-in, 4 reloads and 70 s open made 0 signer calls. Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only.
 
+Deployed to chiefmonkey.art 2026-11-11 (owner approved; Continuum run 43008685267): `https://teams.<domain>/MANIFEST.json` reports `0.6.1-torii.20` (aadc9e1).
+
 ## Auctions v0.4.2 light page: v0.9.62-alpha
 
 Pin only: plebeian-arena-auctions v0.4.2 (0d03078), SHA-256 `b3d538a3fef6bbd77525e6ffc0c4798b071da1f6a3eff770425cc7096241aa46`; MANIFEST commit checked. Arena ADR 0008: Coco wallets and proof maths in a module Web Worker (CSP `worker-src 'self'` already allows it), 10 Hz redraw plus an immediate frame after a tap or new block, memoised public keys, cached formatters. Chain FORMAT stays 4 (`AUCTIONS_CHAIN_FORMAT` default follows the pin), so the live chain is kept. Deploy: stage `auctions` only.
