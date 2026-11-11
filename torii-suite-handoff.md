@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## GLiClass Edge without apt: v0.9.67-alpha
+
+Run 43037247696: root `getent` worked for huggingface.co/pypi.org/files.pythonhosted.org/raw.githubusercontent.com, but apt failed to resolve archive.ubuntu.com and security.ubuntu.com (apt fetches as the `_apt` user; cause not yet diagnosed — worth checking resolver/egress rules for `_apt` or the Ubuntu mirror names). `install-gliclass.sh` now uses `python3 -m venv --without-pip` and bootstraps pip 26.3 from `files.pythonhosted.org` (SHA-256 `f3b60b20…`), running pip from the wheel itself. No apt anywhere in this installer (test enforces it).
+
 ## GLiClass Edge apt fix: v0.9.66-alpha
 
 `install-gliclass.sh`: `getent ahosts` precheck for huggingface.co, pypi.org, files.pythonhosted.org, raw.githubusercontent.com; `apt-get update -qq` before `apt-get install --no-install-recommends python3-venv`. Cause: run 43036830421 (stale list + "Temporary failure resolving archive.ubuntu.com"). Nothing installed by that run except `INSTALL_GLICLASS=1` in the operator .env.

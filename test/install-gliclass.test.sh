@@ -25,7 +25,7 @@ grep -qx 'GL_REV=885af1af8a07edf4ed34df83ca0d995ed8201283' installers/install-gl
 grep -qx 'GL_MODEL_SHA=0943dc2b2ab697915af029e04c2233be2d5c4c16224c7fe833551fdc22b78f69' installers/install-gliclass.sh || fail "model hash"; ok
 grep -qx 'OS1_REV=842dcfc4209083f16d7e379cbf071dfa0233fc80' installers/install-gliclass.sh || fail "bench pin"; ok
 [[ "$(grep -c '^  "[a-z]*/[a-z-]*\.json [0-9a-f]\{64\}"$' installers/install-gliclass.sh)" == 3 ]] || fail "bench file hashes"; ok
-[[ "$(grep -c '^ *fetch "' installers/install-gliclass.sh)" == 3 ]] || fail "every download goes through fetch()"; ok
+[[ "$(grep -c '^ *fetch "' installers/install-gliclass.sh)" == 4 ]] || fail "every download goes through fetch()"; ok
 grep -q -- '--require-hashes --only-binary=:all:' installers/install-gliclass.sh || fail "pip hash mode"; ok
 
 # Telemetry: pinned runtime has none; the switch is set everywhere ORT loads.
@@ -35,9 +35,11 @@ grep -q 'events.data.microsoft.com' installers/install-gliclass.sh || fail "tele
 grep -q -- '-E ORT_DISABLE_TELEMETRY=1' installers/bench-gliclass.sh || fail "bench sandbox telemetry switch"; ok
 grep -q 'os.environ\["ORT_DISABLE_TELEMETRY"\] = "1"' lib/gliclass/convert.py || fail "convert telemetry switch"; ok
 grep -q 'PrivateNetwork=yes' installers/bench-gliclass.sh || fail "bench offline"; ok
-# v0.9.66: refresh the package list before installing python3-venv (the
-# v0.9.65 stage failed on a stale list), and check name lookups first.
-awk '/apt-get update -qq/{u=NR} /apt-get install .*python3-venv/{i=NR} END{exit !(u && i && u<i)}' installers/install-gliclass.sh || fail "apt-get update before install"; ok
+# v0.9.67: no apt (it could not reach the Ubuntu mirrors on chiefmonkey.art);
+# pip comes from a hash-pinned wheel. Name lookups are checked first.
+! grep -q 'apt-get' installers/install-gliclass.sh || fail "installer must not need apt"; ok
+grep -q 'venv --without-pip' installers/install-gliclass.sh || fail "venv without pip"; ok
+grep -qx 'PIP_SHA=[0-9a-f]\{64\}' installers/install-gliclass.sh || fail "pip wheel hash"; ok
 grep -q 'getent ahosts' installers/install-gliclass.sh || fail "DNS precheck"; ok
 
 if [[ $EUID -eq 0 ]]; then

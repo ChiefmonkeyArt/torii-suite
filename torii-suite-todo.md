@@ -45,7 +45,10 @@
 - [x] v0.9.65-alpha: GLiClass Edge optional (`INSTALL_GLICLASS`, install/bench/remove, ADR 0004).
 - [x] Deploy Continuum v0.2.210-alpha (owner approved, 2026-11-11, run 43036613732). Stage `gliclass` from v0.9.65-alpha failed before installing (stale apt list, DNS).
 - [x] v0.9.66-alpha: `apt-get update` first, DNS precheck.
-- [ ] Run stages `gliclass,gliclass_bench` from v0.9.66-alpha (owner approval).
+- [x] Retry from v0.9.66-alpha (owner approved, run 43037247696): failed again in apt (Ubuntu mirrors not resolvable); nothing installed.
+- [x] v0.9.67-alpha: no apt; pip from a hash-pinned wheel.
+- [ ] Run stages `gliclass,gliclass_bench` from v0.9.67-alpha (owner approval).
+- [ ] Find out why apt on chiefmonkey.art cannot resolve the Ubuntu mirrors (security updates depend on it).
 - [ ] Later: decide whether Continuum asks GLiClass Edge its choice questions (after the VPS benchmark).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
