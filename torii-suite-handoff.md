@@ -1,5 +1,9 @@
 # Torii Suite - Session Handover
 
+## GLiClass Edge live on chiefmonkey.art (2026-11-11)
+
+Run 43043337336 (owner approved), Suite v0.9.68-alpha, Continuum v0.2.210-alpha. CPU "Common KVM processor", 2 cores, x86-64-v1 (no SSE4.2, no AVX2). Install ok (632 MB in `/opt/gliclass-edge`; `INSTALL_GLICLASS=1` in .env). Bench (systemd-run sandbox worked): load 4.9 s, peak 1529 MB; obvious 11/12 (Jev 12/12), median 1904 ms, p95 2326 ms; routing 28/30 (Jev 29/30; tools 20/20, no-tool 8/10), median 3785 ms, p95 5587 ms; same wrong cases as the sandbox. JSON `/var/lib/gliclass-edge/bench-20261111T145813Z.json`. About 4x (routing) to 8x (short questions) slower than the 2-core AVX2 sandbox; Jev's 263 ms includes the network. Not wired into Continuum.
+
 ## GLiClass Edge on x86-64-v1: v0.9.68-alpha
 
 Run 43038733666: `RuntimeError: NumPy was built with baseline optimizations: (X86_V2) but your machine doesn't support: (X86_V2)` in convert.py. numpy 2.5.4 → 2.3.5 (cp313/cp314 hashes). Verified with `qemu-x86_64 -cpu qemu64,-ssse3,-sse4.1,-sse4.2,-popcnt`: numpy 2.4.0 SIGILL, 2.3.5 ok; onnxruntime 1.28.0, onnx 1.23.2, ml_dtypes 0.6.0, tokenizers load; self-test ok (356 s emulated); convert.py ok. Installer logs `x86-64-vN` from /proc/cpuinfo flags. Left on the VPS by run 43038733666: `/opt/gliclass-edge/venv` only (the next run rebuilds it).
