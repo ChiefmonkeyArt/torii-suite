@@ -35,7 +35,7 @@
 - [ ] Deploy v0.9.60-alpha (stage teams_app) on chiefmonkey.art (ask first).
 - [x] Deploy v0.9.59-alpha attempted (owner approved): failed, disk full while copying; site unchanged on v0.3.4.
 - [x] v0.9.61-alpha: the installer makes room before copying (old tarballs, half-copied releases, old-format chain) and checks free space.
-- [ ] Deploy v0.9.61-alpha (stage auctions) on chiefmonkey.art (ask first; wipes the fake-sats chain).
+- [x] Deploy v0.9.61-alpha (stage auctions) on chiefmonkey.art (owner approved, 2026-11-11; the owner first freed disk space from the SHC console).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.
 - [ ] Later: a sign-in gate (an unlisted address is not access control).
 
