@@ -11,6 +11,12 @@ The v0.9.59-alpha deploy (Continuum run 42934429730) failed with ENOSPC in `cp -
 
 Live test: re-install scenario for all three; waits for height ≥1 before the snapshot restart (a fresh chain had none); cleanup `pkill`s leftovers.
 
+Deployed to chiefmonkey.art 2026-11-11 (owner approved; Continuum run 42999835935).
+- The first retry (run 42940450699) failed earlier, at the Suite checkout's `git fetch`: the disk was at 0 bytes, so the installer's make-room step could not run. Any install step needs a few MB free to start.
+- The owner freed space from the SHC web console (stopped the units, removed the old chain and the half release, vacuumed the journal).
+- Result: arena v0.4.1, a fresh chain (FORMAT 4, new group key 0221c569…), 4/4 validators on the same app hash, idle at height 2; `/api/events` 200 `text/event-stream`; bundle `index-uhtTDFao.js`.
+- Headless on live: pending shown at once, on chain in 0.8-1.4 s, 9/9 tx 200, the outbid refund signed by V1-V3, no console errors.
+
 ## Teams torii.19 pin: v0.9.60-alpha
 
 Pin only: torii-teams `0.6.1-torii.19` (0f0d212), SHA-256 `f22e1619bfd828ee5b4165e0d7a0a5a581be761ce2958b67927b6d467383325e` (checked against the release and its `.sha256`). Teams ADR 0018: no News chunk in Torii builds (gzip −25.7 KB), no welcome poll on reload (0 welcome signatures), IndexedDB v7 by-kind index for action history. Continuum v0.2.208-alpha ships alongside (Routstr turns, no Teams dependency). Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only.
