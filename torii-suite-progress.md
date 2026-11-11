@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.66-alpha: GLiClass Edge install fix (2026-11-11)
+
+The first `gliclass` stage on chiefmonkey.art (Continuum run 43036830421) stopped before changing anything: `apt-get install python3-venv` used a stale package list and the host also failed to resolve archive.ubuntu.com. The installer now runs `apt-get update` first (like the other installers) and checks DNS for every download host up front.
+
 ## Release v0.9.65-alpha: an optional choice model on the CPU (2026-11-11)
 
 `INSTALL_GLICLASS=1` installs GLiClass Edge in `/opt/gliclass-edge`: a 4-bit copy made on the server from the pinned upstream file, self-tested, no service. Sandbox (2 cores): 28/30 tool-routing cases (Jev 1.13 29/30), 11/12 obvious questions (Jev 12/12), median 0.9 s and 0.25 s, 1.5 GB memory; 4-bit answers match full precision. ONNX Runtime pinned at 1.28.0 because 1.29+ sends telemetry to Microsoft by default. Stages `gliclass`, `gliclass_bench`, `gliclass_remove` (Continuum v0.2.210-alpha). ADR 0004.

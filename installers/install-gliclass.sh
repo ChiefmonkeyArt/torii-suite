@@ -79,9 +79,16 @@ mem_mb="$(awk '/^MemAvailable:/ {print int($2/1024)}' /proc/meminfo)"
 (( mem_mb >= NEED_MEM_MB )) || die "needs about ${NEED_MEM_MB} MB of free memory to convert the model once, has ${mem_mb} MB"
 log "disk ${free_mb} MB free, memory ${mem_mb} MB free, Python ${PYV}"
 
+# Every download below needs name lookups; say so plainly instead of failing
+# halfway through apt or pip.
+for h in huggingface.co pypi.org files.pythonhosted.org raw.githubusercontent.com; do
+  getent ahosts "$h" >/dev/null || die "cannot look up ${h} (DNS); nothing was changed, try again when lookups work"
+done
 if ! python3 -c 'import ensurepip, venv' 2>/dev/null; then
   log "installing python3-venv"
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv >/dev/null
+  apt-get update -qq || die "apt-get update failed; nothing was changed"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3-venv >/dev/null \
+    || die "could not install python3-venv"
 fi
 
 work="$(mktemp -d /var/tmp/gliclass-install.XXXXXX)"
