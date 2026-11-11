@@ -25,14 +25,14 @@
 - [x] v0.9.55-alpha: Auctions v0.3.2 slim pre-bid check, burst polling, mint WebSocket through nginx (arena ADR 0005).
 - [x] Deploy v0.9.55-alpha on chiefmonkey.art (owner approved, 2026-11-10).
 - [x] v0.9.56-alpha: pin torii-teams 0.6.1-torii.18 (ADR 0017) with Continuum v0.2.205-alpha.
-- [ ] Deploy v0.9.56-alpha (stage teams_app) on chiefmonkey.art (ask first).
+- [x] Deploy v0.9.56-alpha (stage teams_app): superseded; torii.18 was live before v0.9.60.
 - [x] v0.9.57-alpha: Auctions v0.3.3 state snapshots (arena ADR 0003 §2); a restart no longer replays from genesis.
 - [x] Deploy v0.9.57-alpha (stage auctions) on chiefmonkey.art (owner approved, 2026-11-10).
 - [x] v0.9.58-alpha: Auctions v0.3.4 instant bid feedback and one-tap bids (arena ADR 0006).
 - [x] Deploy v0.9.58-alpha (stage auctions) on chiefmonkey.art (owner approved, 2026-11-10); restart from snapshot measured at 5.7 s.
 - [x] v0.9.59-alpha: Auctions v0.4.1 live chain (arena ADR 0003 §1, §4, ADR 0007): push, void bids, on-time close, pruning, ledger; chain FORMAT 4 (re-created).
 - [x] v0.9.60-alpha: pin torii-teams 0.6.1-torii.19 (ADR 0018) alongside Continuum v0.2.208-alpha.
-- [ ] Deploy v0.9.60-alpha (stage teams_app) on chiefmonkey.art (ask first).
+- [x] Deploy v0.9.60-alpha (stage teams_app) on chiefmonkey.art (owner approved, 2026-11-11); MANIFEST reports 0.6.1-torii.19.
 - [x] Deploy v0.9.59-alpha attempted (owner approved): failed, disk full while copying; site unchanged on v0.3.4.
 - [x] v0.9.61-alpha: the installer makes room before copying (old tarballs, half-copied releases, old-format chain) and checks free space.
 - [x] Deploy v0.9.61-alpha (stage auctions) on chiefmonkey.art (owner approved, 2026-11-11; the owner first freed disk space from the SHC console).
