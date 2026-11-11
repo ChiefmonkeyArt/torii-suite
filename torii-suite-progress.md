@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.63-alpha: Teammates are added in seconds (2026-11-11)
+
+Pins torii-teams 0.6.1-torii.20 (aadc9e1, SHA-256 `aba58dd2b25647071f8358ab0ce901cce61c0e7da4f2e848514fab4ed21d7f76`). Teams ADR 0019: a quick 15 s owner check while someone waits to join; two-person test 58 s -> 13 s. No session key needed (0 signer calls after first sign-in). No installer logic change.
+
 ## Release v0.9.62-alpha: Auctions stays smooth on phones (2026-11-11)
 
 Pins plebeian-arena-auctions v0.4.2 (0d03078, SHA-256 `b3d538a3fef6bbd77525e6ffc0c4798b071da1f6a3eff770425cc7096241aa46`). Front end only: at 4x CPU throttle with the bots bidding, main-thread busy time fell from 18.5 s to 9.3 s per 19 s and long tasks from 33 (4.7 s) to 11 (0.86 s); the main script is 73 kB instead of 398 kB. Chain format 4 is unchanged, so the chain is kept.
