@@ -57,7 +57,12 @@ fi
 # another release by setting BOTH (the checksum is never fetched from the release).
 AUCTIONS_TAG="${AUCTIONS_TAG:-v0.4.1}"
 AUCTIONS_SHA256="${AUCTIONS_SHA256:-8255e5142258247d48b95e73d42ad8eb819fa5942d02bd03694d45394c0dca41}"
+# Chain FORMAT of the pinned release. Known only for the pin; for another tag
+# set AUCTIONS_CHAIN_FORMAT too, or the old chain is left to "arena init".
+[[ "$AUCTIONS_TAG" == v0.4.1 ]] && AUCTIONS_CHAIN_FORMAT="${AUCTIONS_CHAIN_FORMAT:-4}"
+AUCTIONS_CHAIN_FORMAT="${AUCTIONS_CHAIN_FORMAT:-}"
 [[ "$AUCTIONS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "bad AUCTIONS_TAG"
+[[ -z "$AUCTIONS_CHAIN_FORMAT" || "$AUCTIONS_CHAIN_FORMAT" =~ ^[0-9]{1,3}$ ]] || die "bad AUCTIONS_CHAIN_FORMAT"
 [[ "$AUCTIONS_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "bad AUCTIONS_SHA256"
 # Lock margin: seconds after an auction's hard end before a bidder can reclaim
 # escrow alone; the seller must collect within it. Demo controls expose the
@@ -115,20 +120,49 @@ printf '%s  %s\n' "$AUCTIONS_SHA256" "$TARBALL" | sha256sum --check --status \
 # 3. Unpack and sanity-check before anything live changes.
 mkdir "$TMP/x"
 tar -xzf "$TARBALL" -C "$TMP/x" --no-same-owner --no-same-permissions
-for f in MANIFEST.json bin/arena bin/arena-frost web/index.html runtime/python/bin/python3; do
-  [[ -e "$TMP/x/$f" ]] || die "artifact is missing $f"
-done
+auctions_release_complete "$TMP/x" || die "artifact is missing one of: ${AUCTIONS_RELEASE_FILES[*]}"
 auctions_safe_tree "$TMP/x" || die "artifact has a symlink that leaves the release"
 MANIFEST_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tag"])' "$TMP/x/MANIFEST.json")"
 [[ "$MANIFEST_TAG" == "$AUCTIONS_TAG" ]] || die "artifact is ${MANIFEST_TAG}, expected ${AUCTIONS_TAG}"
 "$TMP/x/runtime/python/bin/python3" -c 'import cashu.mint.main' || die "bundled mint runtime does not load"
 CSP="$(auctions_csp "$TMP/x/web/index.html")" || die "could not derive the Content-Security-Policy"
 
+# 3b. Make room before copying (a full disk once stopped an upgrade half way):
+#     older release tarballs; release folders an interrupted install left
+#     half-copied (never the one "current" points at); and a chain of another
+#     FORMAT, which "arena init -if-needed" would replace on start anyway.
+mkdir -p "${APP_DIR}/releases"
+[[ -d "$CACHE" ]] && find "$CACHE" -maxdepth 1 -type f -name 'plebeian-auctions-v*.tar.gz' ! -name "${NAME}.tar.gz" -delete
+CUR="$(readlink -f "${APP_DIR}/current" 2>/dev/null || true)"
+for d in "${APP_DIR}"/releases/*/; do
+  d="${d%/}"; [[ -d "$d" && ! -L "$d" && "$d" != "$CUR" ]] || continue
+  if ! auctions_release_complete "$d"; then warn "removing an incomplete release: ${d##*/}"; rm -rf -- "$d"; fi
+done
+STOPPED=0
+CHAIN=/var/lib/plebeian-auctions/chain
+if [[ -n "$AUCTIONS_CHAIN_FORMAT" && -f "$CHAIN/FORMAT" && ! -L "$CHAIN" ]] && [[ "$(head -c 8 "$CHAIN/FORMAT")" != "$AUCTIONS_CHAIN_FORMAT" ]]; then
+  warn "chain format $(head -c 8 "$CHAIN/FORMAT") -> ${AUCTIONS_CHAIN_FORMAT}: removing the old fake-sats chain now"
+  [[ "$SKIP_SYSTEMD" == 1 ]] || { systemctl stop "${UNITS[@]}" >/dev/null 2>&1 || true; STOPPED=1; }
+  rm -rf -- "$CHAIN"
+fi
+NEED_K=$(( $(du -sk "$TMP/x" | cut -f1) * 2 + 524288 ))   # copy + gzip/bytecode, plus 512 MiB
+FREE_K="$(df -Pk "${APP_DIR}/releases" | awk 'NR==2 {print $4}')"
+if (( FREE_K < NEED_K )); then
+  warn "disk: $(df -Ph "${APP_DIR}/releases" | awk 'NR==2 {print $4" free of "$2}'); largest:"
+  du -xsh /var/lib/private/plebeian-auctions /var/lib/plebeian-auctions-mint /apps/plebeian-auctions \
+    /var/log /var/lib/docker "$CACHE" 2>/dev/null | sort -h | tail -6 >&2 || true
+  (( STOPPED == 0 )) || systemctl start "${UNITS[@]}" >/dev/null 2>&1 || true
+  die "not enough disk space for ${NAME}: need $(( NEED_K / 1024 )) MiB, have $(( FREE_K / 1024 )) MiB"
+fi
+
 # 4. Release snapshot (bytecode compiled once, gzip copies for gzip_static).
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)-${AUCTIONS_TAG}"
 RELEASE="${APP_DIR}/releases/${STAMP}"
-mkdir -p "${APP_DIR}/releases"
-cp -a "$TMP/x/." "$RELEASE/"
+cp -a "$TMP/x/." "$RELEASE/" || {
+  rm -rf -- "$RELEASE"
+  (( STOPPED == 0 )) || systemctl start "${UNITS[@]}" >/dev/null 2>&1 || true
+  die "could not copy the release (disk full?): $(df -Ph "${APP_DIR}/releases" | awk 'NR==2 {print $4" free"}')"
+}
 "$RELEASE/runtime/python/bin/python3" -m compileall -q -j 0 "$RELEASE/runtime/python/lib" >/dev/null 2>&1 || true
 find "$RELEASE/web" -type f -size +1k \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' \
   -o -name '*.json' -o -name '*.txt' \) -exec gzip -9 -k -n -f {} +

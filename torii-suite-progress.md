@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.61-alpha: Auctions upgrades make room first (2026-11-11)
+
+The v0.9.59-alpha deploy to chiefmonkey.art failed (Continuum run 42934429730) with "No space left on device" while copying the new release. The live site kept running v0.3.4. The installer now clears older release downloads, half-copied release folders and a chain of the old format before it copies, and refuses early with a disk report if there is still not enough room. Same pin (Auctions v0.4.1). Tests: contract 65/65; live 33/33 (new: a half-copied release, an old tarball and a format-3 chain are cleared on re-install, the current release kept) with e2e 55/55 over HTTPS.
+
 ## Release v0.9.60-alpha: Teams loads lighter and quieter (2026-11-11)
 
 Pins torii-teams 0.6.1-torii.19 (0f0d212, SHA-256 `f22e1619bfd828ee5b4165e0d7a0a5a581be761ce2958b67927b6d467383325e`). Teams ADR 0018: the unused Cordn News feed is left out of node builds (JS 2,496,354 → 2,419,934 bytes), reloads no longer sign a welcome check (was 2 signer calls per reload), and action history reads through a by-kind IndexedDB index. No installer logic change.

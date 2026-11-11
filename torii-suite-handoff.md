@@ -1,5 +1,16 @@
 # Torii Suite - Session Handover
 
+## Make room before copying: v0.9.61-alpha
+
+The v0.9.59-alpha deploy (Continuum run 42934429730) failed with ENOSPC in `cp -a` into `/apps/plebeian-auctions/releases/20261111T005020Z-v0.4.1`. Services were untouched (still v0.3.4, height ~65k). The likely cause is v0.3.4's unpruned block store, which grows about 1 block/s on each of the 4 validators, with tx index and ABCI responses kept (fixed in v0.4.x). New step 3b in `installers/install-auctions.sh`, after verify and unpack, before copy:
+- delete other `plebeian-auctions-v*.tar.gz` in the artifact cache;
+- delete release dirs other than `current` failing `auctions_release_complete` (new in `lib/auctions.sh`, same file list as the artifact check);
+- if `AUCTIONS_CHAIN_FORMAT` is set (defaults to `4` only for the pinned `v0.4.1`) and `chain/FORMAT` differs, stop the units and `rm -rf` the chain;
+- require 2× the unpacked size plus 512 MiB free, else restart stopped units, print `du` of the largest dirs and die;
+- if `cp -a` fails, remove the partial release, restart and die.
+
+Live test: re-install scenario for all three; waits for height ≥1 before the snapshot restart (a fresh chain had none); cleanup `pkill`s leftovers.
+
 ## Teams torii.19 pin: v0.9.60-alpha
 
 Pin only: torii-teams `0.6.1-torii.19` (0f0d212), SHA-256 `f22e1619bfd828ee5b4165e0d7a0a5a581be761ce2958b67927b6d467383325e` (checked against the release and its `.sha256`). Teams ADR 0018: no News chunk in Torii builds (gzip −25.7 KB), no welcome poll on reload (0 welcome signatures), IndexedDB v7 by-kind index for action history. Continuum v0.2.208-alpha ships alongside (Routstr turns, no Teams dependency). Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only.

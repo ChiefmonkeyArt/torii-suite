@@ -79,7 +79,20 @@ u2="$(auctions_chain_unit /apps/plebeian-auctions 8795 13338 600 1)"
 refuse "gateway unit refuses a bad margin" auctions_chain_unit /apps/plebeian-auctions 8795 13338 '1;x' 0
 refuse "gateway unit refuses a bad demo flag" auctions_chain_unit /apps/plebeian-auctions 8795 13338 600 yes
 has 'AUCTIONS_DEMO_CONTROLS:-1' "$I" "installer keeps the team demo controls on unless set to 0"
-has 'bin/arena bin/arena-frost' "$I" "artifact must carry the FROST helper"
+has 'bin/arena bin/arena-frost' "$L" "artifact must carry the FROST helper"
+has 'auctions_release_complete "$TMP/x"' "$I" "artifact checked for every release file"
+# Make room before copying (v0.9.61): old tarballs, half-copied releases, an old-format chain.
+has "! -name \"\${NAME}.tar.gz\" -delete" "$I" "older release tarballs removed"
+has 'removing an incomplete release' "$I" "half-copied releases removed"
+has '"$d" != "$CUR"' "$I" "never removes the current release"
+has 'removing the old fake-sats chain now' "$I" "an old-format chain is removed before the copy"
+has 'not enough disk space' "$I" "fails before copying when the disk is too full"
+has 'rm -rf -- "$RELEASE"' "$I" "a failed copy leaves no half release"
+d="$(mktemp -d)"; mkdir -p "$d/ok/bin" "$d/ok/web" "$d/ok/runtime/python/bin" "$d/half/bin"
+touch "$d/ok/MANIFEST.json" "$d/ok/bin/arena" "$d/ok/bin/arena-frost" "$d/ok/web/index.html" "$d/ok/runtime/python/bin/python3" "$d/half/bin/arena"
+check "a full release is complete" auctions_release_complete "$d/ok"
+refuse "a half-copied release is incomplete" auctions_release_complete "$d/half"
+rm -rf "$d"
 refuse "gateway unit refuses a bad path" auctions_chain_unit 'x;y' 8795 13338
 echo "install-auctions: ${pass} passed, ${fail} failed"
 (( fail == 0 ))

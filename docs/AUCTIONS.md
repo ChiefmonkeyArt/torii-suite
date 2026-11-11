@@ -24,6 +24,15 @@ chain; upgrading to v0.4.0 re-creates it (lots, bids and block history go; fake-
 wallet balances stay in the browser, and a bid still locked to the old group key
 can be reclaimed alone once its lock time passes).
 
+Making room (Suite v0.9.61+): after the new release is verified and unpacked, and
+before it is copied, the installer deletes older `plebeian-auctions-v*.tar.gz`
+downloads and any release folder (other than `current`) missing a file every release
+has. If the chain's FORMAT differs from the pinned release's
+(`AUCTIONS_CHAIN_FORMAT`, known for the pinned tag), it stops the services and
+deletes the old chain now instead of on start. It then needs twice the release's
+size plus 512 MiB free; otherwise it restarts anything it stopped, prints the
+largest directories and exits without changing the install.
+
 State snapshots (v0.3.3+, arena ADR 0003 §2): each validator writes its app state to
 `chain/vN/data/app-state/<height>.json` (mode 0600, the newest 2 kept) every 1,000
 blocks and on a clean stop, and starts from the newest one instead of replaying every
