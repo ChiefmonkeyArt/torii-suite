@@ -1,0 +1,21 @@
+# Runtime for lib/gliclass/gliclass_edge.py (Suite ADR 0004). Installed with
+# pip --no-deps --require-hashes --only-binary=:all: (CPython 3.13/3.14, x86_64).
+# tokenizers needs no huggingface-hub here: files are read locally.
+# onnxruntime stays at 1.28.0: 1.29+ Linux wheels send telemetry to Microsoft
+# by default (mobile.events.data.microsoft.com); 1.28.0 has no telemetry code.
+# The installer refuses any onnxruntime build that contains that address.
+onnxruntime==1.28.0 \
+    --hash=sha256:54fa221d669282bd8f582708ce4c96010a7e9fb0661f9006b37fe2fedafb73fe \
+    --hash=sha256:6afdc83f1317c136e92fc29f5ee9f058de59d87c0b22cee3fdbfbaa0ccc2098a
+numpy==2.5.4 \
+    --hash=sha256:6ffa07666f8da0eef81d149934a626d0d95fbd6838432a33e66245423a9062c0 \
+    --hash=sha256:d549420b8858885cea8838a727842249218b9c1da24dd517e25c9c7a948310a3
+flatbuffers==25.12.19 \
+    --hash=sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4
+packaging==26.3 \
+    --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
+protobuf==7.36.2 \
+    --hash=sha256:89f23aa53c24553a2416fd4fd1ec06f74fa42b14b546d8883128813f775bbfd2 \
+    --hash=sha256:bdb3a345d48db958e6ce1f18e508beb0cc981d64f24088427549c866cd039f1e
+tokenizers==0.23.3 \
+    --hash=sha256:376851d22bcf9d650a5c3090bb83e6cf9e895fbf0595369fa4cd43c1f69b5f87

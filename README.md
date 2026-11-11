@@ -283,6 +283,17 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.65-alpha: an optional choice model on the CPU
+
+`INSTALL_GLICLASS=1` installs GLiClass Edge (Apache-2.0), a small model that
+picks one of several options (which tool, approve or deny, yes or no) offline
+on the CPU. The installer makes a 4-bit copy of the pinned upstream file
+(about 630 MB stays) and self-tests it. Nothing uses it yet: run the
+`gliclass_bench` stage to measure it on your server against Jev 1.13's
+recorded answers. ONNX Runtime is pinned at 1.28.0, the last version with no
+Microsoft telemetry. `gliclass_remove` takes it off. See
+`docs/adr-0004-gliclass-edge-optional.md`.
+
 ### New in v0.9.64-alpha: the local AI model is optional
 
 Ollama is no longer installed by default (`INSTALL_OLLAMA=0`), saving about
