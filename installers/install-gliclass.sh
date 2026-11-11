@@ -81,15 +81,16 @@ log "disk ${free_mb} MB free, memory ${mem_mb} MB free, Python ${PYV}"
 
 # Every download below needs name lookups; say so plainly instead of failing
 # halfway through apt or pip.
-for h in huggingface.co pypi.org files.pythonhosted.org raw.githubusercontent.com; do
+for h in huggingface.co files.pythonhosted.org raw.githubusercontent.com; do
   getent ahosts "$h" >/dev/null || die "cannot look up ${h} (DNS); nothing was changed, try again when lookups work"
 done
-if ! python3 -c 'import ensurepip, venv' 2>/dev/null; then
-  log "installing python3-venv"
-  apt-get update -qq || die "apt-get update failed; nothing was changed"
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends python3-venv >/dev/null \
-    || die "could not install python3-venv"
-fi
+# No apt: Ubuntu's python3-venv only adds pip's own wheel, so the venv is made
+# without it and pip comes from this hash-pinned wheel (v0.9.67; on
+# chiefmonkey.art apt could not reach the Ubuntu mirrors).
+python3 -c 'import venv' 2>/dev/null || die "this Python has no venv module"
+PIP_WHL=pip-26.3-py3-none-any.whl
+PIP_URL="https://files.pythonhosted.org/packages/07/25/ee8c38ae72d66b844ce8eb9711ba905dba21ca1a8a0c960057c41cd23337/${PIP_WHL}"
+PIP_SHA=f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13
 
 work="$(mktemp -d /var/tmp/gliclass-install.XXXXXX)"
 trap 'rm -rf -- "$work"' EXIT
@@ -106,7 +107,10 @@ pipi() { "${GL_ROOT}/venv/bin/python" -m pip -q --disable-pip-version-check --no
 # 2. Runtime libraries (kept) and conversion libraries (temporary, same Python).
 log "runtime libraries -> ${GL_ROOT}/venv"
 rm -rf -- "${GL_ROOT}/venv"
-python3 -m venv "${GL_ROOT}/venv"
+python3 -m venv --without-pip "${GL_ROOT}/venv" || die "could not make ${GL_ROOT}/venv"
+fetch "$PIP_URL" "$PIP_SHA" "$work/$PIP_WHL"
+"${GL_ROOT}/venv/bin/python" "$work/$PIP_WHL/pip" -q --disable-pip-version-check install --no-index --no-cache-dir "$work/$PIP_WHL" \
+  || die "could not set up pip in ${GL_ROOT}/venv"
 pipi -r "$SRC/requirements-runtime.txt" || die "runtime libraries failed to install"
 if grep -rlaqF -e events.data.microsoft.com -e OneCollector "${GL_ROOT}/venv/lib"; then
   rm -rf -- "${GL_ROOT}/venv"

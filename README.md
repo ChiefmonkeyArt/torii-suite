@@ -283,10 +283,11 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
-### New in v0.9.66-alpha: GLiClass Edge install fix
+### New in v0.9.67-alpha: GLiClass Edge installs without apt
 
-The GLiClass Edge installer refreshes the package list before installing
-`python3-venv` and checks name lookups first, with a plain message if they fail.
+The GLiClass Edge installer no longer needs apt or `python3-venv`: it makes
+its Python environment without pip and sets pip up from a hash-pinned wheel.
+It checks name lookups first, with a plain message if they fail.
 
 ### New in v0.9.65-alpha: an optional choice model on the CPU
 

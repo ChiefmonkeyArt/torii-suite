@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## Release v0.9.67-alpha: GLiClass Edge installs without apt (2026-11-11)
+
+The v0.9.66-alpha retry (Continuum run 43037247696) passed the new DNS check but apt still could not resolve archive.ubuntu.com or security.ubuntu.com, so `python3-venv` failed again; nothing was installed. The installer no longer uses apt: `python3 -m venv --without-pip`, then pip 26.3 from a SHA-256-pinned wheel.
+
 ## Release v0.9.66-alpha: GLiClass Edge install fix (2026-11-11)
 
 The first `gliclass` stage on chiefmonkey.art (Continuum run 43036830421) stopped before changing anything: `apt-get install python3-venv` used a stale package list and the host also failed to resolve archive.ubuntu.com. The installer now runs `apt-get update` first (like the other installers) and checks DNS for every download host up front.
