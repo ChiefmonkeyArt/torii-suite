@@ -49,7 +49,7 @@
 - [x] v0.9.67-alpha: no apt; pip from a hash-pinned wheel.
 - [x] Run from v0.9.67-alpha (owner approved, run 43038733666): stopped at conversion, NumPy needs x86-64-v2, the VPS CPU is plain x86-64.
 - [x] v0.9.68-alpha: NumPy 2.3.5; CPU level logged.
-- [ ] Run stages `gliclass,gliclass_bench` from v0.9.68-alpha (owner approval).
+- [x] Run stages `gliclass,gliclass_bench` from v0.9.68-alpha (owner approved, run 43043337336): installed (632 MB), self-test ok; routing 28/30 (Jev 29/30), obvious 11/12 (Jev 12/12); median 3.8 s / 1.9 s on 2 x86-64-v1 cores without AVX2.
 - [ ] Find out why apt on chiefmonkey.art cannot resolve the Ubuntu mirrors (security updates depend on it).
 - [ ] Later: decide whether Continuum asks GLiClass Edge its choice questions (after the VPS benchmark).
 - [ ] Before real sats: `AUCTIONS_DEMO_CONTROLS=0`, validators on separate servers, independent audit.

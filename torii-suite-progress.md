@@ -1,5 +1,9 @@
 # Torii Suite Progress
 
+## GLiClass Edge measured on chiefmonkey.art (2026-11-11)
+
+Installed from v0.9.68-alpha and benchmarked on the server's 2 plain x86-64 cores (no AVX2): 28/30 tool-routing cases (Jev 1.13: 29/30) and 11/12 obvious questions (Jev: 12/12), the same answers as in the sandbox. A routing decision takes about 3.8 s and a short question about 1.9 s; memory 1.5 GB; disk 632 MB.
+
 ## Release v0.9.68-alpha: GLiClass Edge on plain x86-64 CPUs (2026-11-11)
 
 The v0.9.67-alpha run (Continuum run 43038733666) got past pip and the download, then stopped at conversion: NumPy 2.5.4 needs x86-64-v2 and the server's virtual CPU has no SSE4.2/POPCNT. NumPy is pinned at 2.3.5 (plain x86-64). Checked under emulation of such a CPU: every library loads, the conversion works and the self-test passes. The installer reports the CPU level and warns without AVX2.
