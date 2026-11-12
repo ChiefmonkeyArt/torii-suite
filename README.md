@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.73-alpha: the team chat feels like part of Continuum
+
+The Teams app (0.6.1-torii.25) opens a project's Team tab at the latest
+message, reports unread counts and has search and voice notes. The Teams host
+allows the microphone for itself, and the Continuum host delegates it to the
+Teams origin only (ADR 0006). Needs the `continuum_host` and `teams_app` stages.
+
 ### New in v0.9.72-alpha: softer own messages inside Continuum
 
 The Teams app (0.6.1-torii.24) draws your own messages in a project's Team tab

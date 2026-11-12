@@ -3,6 +3,10 @@
 
 
 
+## v0.9.73-alpha: the team chat feels like part of Continuum (2026-11-12)
+
+Pins torii-teams 0.6.1-torii.25 (commit 4eec247, SHA-256 `467658bfc1d4b49979784f170cad5c4e8d7aa95aa25cae52e4b635168ec939dd`, attestation verified): opens at the latest message, unread counts, search, voice notes (Teams ADR 0023). Suite ADR 0006: `lib/teams-app.sh` sends `microphone=(self)`; `lib/continuum-host.sh` sends `microphone=("https://<teams host>")` when a Teams host is set. Deploy with stages `continuum_host,teams_app` after Continuum v0.2.212-alpha.
+
 ## v0.9.72-alpha: softer own messages inside Continuum (2026-11-12)
 
 Pins torii-teams 0.6.1-torii.24 (commit ede3346, SHA-256 `f2b3e93f78983cb5bd0d2f5de8762b65e5df7daf674b11914551aa430087a75c`, attestation verified): inside Continuum your own messages are a soft amber tint (Teams ADR 0022). Installer change is the pin only.

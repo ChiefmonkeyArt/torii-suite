@@ -84,7 +84,7 @@ grep -q '<title>continuum</title>' "$T/b" && ok "it is the Continuum index" || b
 expect "index: no-store" "$(hdr cache-control)" "no-store"
 expect "index: frame-ancestors none" "$(hdr content-security-policy)" "frame-ancestors 'none'"
 expect "index: X-Frame-Options DENY" "$(hdr x-frame-options)" "DENY"
-expect "index: no microphone for any origin" "$(hdr permissions-policy)" "geolocation=(), camera=(), payment=(), microphone=()"
+expect "index: microphone for the Teams origin only" "$(hdr permissions-policy)" 'geolocation=(), camera=(), payment=(), microphone=("https://teams.example.org")'
 expect "deep link falls back to the app" "$(c $HOST /continuum/projects/x)" 200
 expect "deep link: frame-ancestors none" "$(hdr content-security-policy)" "frame-ancestors 'none'"
 expect "asset is served" "$(c $HOST /continuum/assets/app-abc.js)" 200
