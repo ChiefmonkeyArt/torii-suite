@@ -5,7 +5,7 @@
 - [x] Pin plebeian-arena-auctions v0.5.0 (sha256 and MANIFEST commit checked); chain FORMAT 5.
 - [x] Format change keeps the old ledgers in `chain-archive/` and clears `settle-journal.jsonl`.
 - [x] CSP: `connect-src 'self' wss:`, `img-src ... https:` for the Nostr login (tests: install-auctions 69/69; auctions-live expects the new policy).
-- [ ] Deploy stage `auctions` on chiefmonkey.art (needs owner approval).
+- [x] Deployed 2026-11-12 (owner approved; `auctions` from Suite v0.9.74-alpha, run 43321926933). Live: CSP checked, chain FORMAT 5 (format 4 ledgers in `chain-archive/format4-1794523188`), outbid refunds pushed, a fixed lot paid the seller within 1 s of zero.
 
 ## The team chat feels like part of Continuum v0.9.73-alpha (Teams ADR 0023, Suite ADR 0006)
 
