@@ -3,7 +3,7 @@
 ## Team names show inside Continuum v0.9.71-alpha (Teams ADR 0021 fix)
 
 - [x] Pin torii-teams 0.6.1-torii.23 (sha256 and build attestation checked).
-- [ ] Deploy with owner approval: stage `teams_app` from v0.9.71-alpha.
+- [x] Deployed 2026-11-12 (owner approved): stage `teams_app` from v0.9.71-alpha (run 43137508498); MANIFEST torii.23.
 
 ## Project chat looks like Continuum v0.9.70-alpha (Teams ADR 0021)
 
