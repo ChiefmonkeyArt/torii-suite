@@ -1,5 +1,10 @@
 # Torii Suite - Master TODO
 
+## Softer own messages inside Continuum v0.9.72-alpha (Teams ADR 0022)
+
+- [x] Pin torii-teams 0.6.1-torii.24 (sha256 and build attestation checked).
+- [ ] Deploy with owner approval: stage `teams_app` from v0.9.72-alpha.
+
 ## Team names show inside Continuum v0.9.71-alpha (Teams ADR 0021 fix)
 
 - [x] Pin torii-teams 0.6.1-torii.23 (sha256 and build attestation checked).
