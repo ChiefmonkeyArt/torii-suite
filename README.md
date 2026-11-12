@@ -283,6 +283,12 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.70-alpha: the project chat looks like Continuum
+
+The Teams app (0.6.1-torii.22) uses Continuum's colours and light or dark mode
+inside a project's Team tab, with a single header. Pairs with Continuum
+v0.2.211-alpha.
+
 ### New in v0.9.69-alpha: Teams chat stays up
 
 The Teams chat server is started again within a minute if anything stops it,

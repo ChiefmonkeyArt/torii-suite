@@ -1,5 +1,10 @@
 # Torii Suite Progress
 
+
+## v0.9.70-alpha: the project chat looks like Continuum (2026-11-12)
+
+Pins torii-teams 0.6.1-torii.22 (commit 1a2db5c, SHA-256 `e8ad2fb2b0e9ff51857f55c67eeaea98ba1ce86bd89af31185de0e69e4a13515`, attestation verified): inside Continuum the chat uses Continuum's theme and mode, with one header (Teams ADR 0021). Pairs with Continuum v0.2.211-alpha. Installer change is the pin only.
+
 ## Release v0.9.69-alpha: Teams chat stays up (2026-11-11)
 
 On 2026-11-11 the Teams chat server was stopped from 04:22 to about 16:45 UTC. The nightly backup stopped it, the copy failed (the disk was full), and a bug in the backup's clean-up meant nothing was started again. Messages looked sent but were not delivered. Now the backup always starts again what it stopped and skips (stopping nothing) when there is no room; the chat server restarts after any exit; a check every minute starts anything that was stopped without `torii-teams pause`. Teams 0.6.1-torii.21 shows "Chat server is down" when the server does not answer.
