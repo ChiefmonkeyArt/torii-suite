@@ -52,20 +52,21 @@ if [[ "${AUCTIONS_REMOVE:-0}" == 1 ]]; then
   exit 0
 fi
 
-# Pinned release (v0.4.2 = plebeian-arena-auctions 0d03078; SHA-256 of the CI-built
+# Pinned release (v0.5.0 = plebeian-arena-auctions b41193f; SHA-256 of the CI-built
 # release asset). Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-AUCTIONS_TAG="${AUCTIONS_TAG:-v0.4.2}"
-AUCTIONS_SHA256="${AUCTIONS_SHA256:-b3d538a3fef6bbd77525e6ffc0c4798b071da1f6a3eff770425cc7096241aa46}"
+AUCTIONS_TAG="${AUCTIONS_TAG:-v0.5.0}"
+AUCTIONS_SHA256="${AUCTIONS_SHA256:-c1c95f2c7e5ca66ded6e4abf305a269907bc43a513ba19a91989bef9ce4a636b}"
 # Chain FORMAT of the pinned release. Known only for the pin; for another tag
 # set AUCTIONS_CHAIN_FORMAT too, or the old chain is left to "arena init".
-[[ "$AUCTIONS_TAG" == v0.4.2 ]] && AUCTIONS_CHAIN_FORMAT="${AUCTIONS_CHAIN_FORMAT:-4}"
+[[ "$AUCTIONS_TAG" == v0.5.0 ]] && AUCTIONS_CHAIN_FORMAT="${AUCTIONS_CHAIN_FORMAT:-5}"
 AUCTIONS_CHAIN_FORMAT="${AUCTIONS_CHAIN_FORMAT:-}"
 [[ "$AUCTIONS_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "bad AUCTIONS_TAG"
 [[ -z "$AUCTIONS_CHAIN_FORMAT" || "$AUCTIONS_CHAIN_FORMAT" =~ ^[0-9]{1,3}$ ]] || die "bad AUCTIONS_CHAIN_FORMAT"
 [[ "$AUCTIONS_SHA256" =~ ^[0-9a-f]{64}$ ]] || die "bad AUCTIONS_SHA256"
-# Lock margin: seconds after an auction's hard end before a bidder can reclaim
-# escrow alone; the seller must collect within it. Demo controls expose the
+# Lock margin: seconds after a fixed lot's end (or after the bid, for an
+# anti-snipe lot, whose leading escrow the validators re-lock) before a bidder
+# can reclaim escrow alone. Since v0.5.0 the validators push refunds and payouts. Demo controls expose the
 # unauthenticated validator stop/start route; on for the team demo only, and
 # must be 0 before real sats.
 AUCTIONS_LOCK_MARGIN="${AUCTIONS_LOCK_MARGIN:-86400}"
@@ -143,7 +144,17 @@ CHAIN=/var/lib/plebeian-auctions/chain
 if [[ -n "$AUCTIONS_CHAIN_FORMAT" && -f "$CHAIN/FORMAT" && ! -L "$CHAIN" ]] && [[ "$(head -c 8 "$CHAIN/FORMAT")" != "$AUCTIONS_CHAIN_FORMAT" ]]; then
   warn "chain format $(head -c 8 "$CHAIN/FORMAT") -> ${AUCTIONS_CHAIN_FORMAT}: removing the old fake-sats chain now"
   [[ "$SKIP_SYSTEMD" == 1 ]] || { systemctl stop "${UNITS[@]}" >/dev/null 2>&1 || true; STOPPED=1; }
+  # keep the old chain's transaction ledgers, as "arena init" does
+  # (chain-archive/format<N>-<unix>/vN-ledger.jsonl), then drop the chain and
+  # the settler's journal for it
+  ARCH="/var/lib/plebeian-auctions/chain-archive/format$(head -c 8 "$CHAIN/FORMAT" | tr -cd '0-9')-$(date +%s)"
+  for v in 1 2 3 4; do
+    [[ -s "$CHAIN/v$v/data/ledger.jsonl" && ! -L "$CHAIN/v$v/data/ledger.jsonl" ]] || continue
+    mkdir -p -m 0700 "$ARCH" && mv -- "$CHAIN/v$v/data/ledger.jsonl" "$ARCH/v$v-ledger.jsonl"
+  done
+  if [[ -d "$ARCH" ]]; then warn "old chain's transactions kept in $ARCH"; fi
   rm -rf -- "$CHAIN"
+  rm -f -- /var/lib/plebeian-auctions/settle-journal.jsonl
 fi
 NEED_K=$(( $(du -sk "$TMP/x" | cut -f1) * 2 + 524288 ))   # copy + gzip/bytecode, plus 512 MiB
 FREE_K="$(df -Pk "${APP_DIR}/releases" | awk 'NR==2 {print $4}')"
