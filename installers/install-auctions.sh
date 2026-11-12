@@ -150,7 +150,7 @@ if [[ -n "$AUCTIONS_CHAIN_FORMAT" && -f "$CHAIN/FORMAT" && ! -L "$CHAIN" ]] && [
   ARCH="/var/lib/plebeian-auctions/chain-archive/format$(head -c 8 "$CHAIN/FORMAT" | tr -cd '0-9')-$(date +%s)"
   for v in 1 2 3 4; do
     [[ -s "$CHAIN/v$v/data/ledger.jsonl" && ! -L "$CHAIN/v$v/data/ledger.jsonl" ]] || continue
-    mkdir -p -m 0700 "$ARCH" && mv -- "$CHAIN/v$v/data/ledger.jsonl" "$ARCH/v$v-ledger.jsonl"
+    install -d -m 0700 /var/lib/plebeian-auctions/chain-archive "$ARCH" && mv -- "$CHAIN/v$v/data/ledger.jsonl" "$ARCH/v$v-ledger.jsonl"
   done
   if [[ -d "$ARCH" ]]; then warn "old chain's transactions kept in $ARCH"; fi
   rm -rf -- "$CHAIN"
