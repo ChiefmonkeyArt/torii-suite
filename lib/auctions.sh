@@ -56,7 +56,9 @@ auctions_safe_tree() {
 }
 
 # auctions_csp <index.html> → the Content-Security-Policy for this build: every
-# inline <script> gets a sha256 hash; the app may reach only its own origin.
+# inline <script> gets a sha256 hash. Fetches stay on its own origin; v0.5.0
+# (arena ADR 0010) adds wss: for Nostr relays (login profile, NIP-46) and
+# https: images for the logged-in user's profile picture.
 auctions_csp() {
   local index="$1" hashes
   [[ -f "$index" ]] || return 1
@@ -67,7 +69,7 @@ for body in re.findall(r"<script>(.*?)</script>", html, re.S):
     print("'sha256-%s'" % base64.b64encode(hashlib.sha256(body.encode()).digest()).decode())
 PY
 )" || return 1
-  printf "default-src 'self'; script-src 'self'%s; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'\n" \
+  printf "default-src 'self'; script-src 'self'%s; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self'; connect-src 'self' wss:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'\n" \
     "$(printf '%s\n' "$hashes" | sed '/^$/d; s/^/ /' | tr -d '\n')"
 }
 

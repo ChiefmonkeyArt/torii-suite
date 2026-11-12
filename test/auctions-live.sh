@@ -86,8 +86,8 @@ get(){ curl -sk --resolve "$H:443:127.0.0.1" -D "$W/h" -o "$W/b" -w '%{http_code
 [[ ! -s /tmp/torii-register.log ]] && ok "no launcher card (never registered with the sidecar)" || fail "registered a launcher tile"
 [[ -z "$(find /opt/torii/nginx-fragments -iname '*auction*' 2>/dev/null)" ]] && ok "no main-domain fragment" || fail "wrote a main-domain fragment"
 [[ "$(get "https://$H/")" == 200 ]] && grep -q 'Plebeian Auctions' "$W/b" && ok "app served on its own host" || fail "index"
-grep -qi "^content-security-policy: default-src 'self'; script-src 'self' 'sha256-" "$W/h" && grep -qi "connect-src 'self';" "$W/h" \
-  && ok "CSP: inline script hashed, own origin only" || fail "CSP"
+grep -qi "^content-security-policy: default-src 'self'; script-src 'self' 'sha256-" "$W/h" && grep -qi "connect-src 'self' wss:;" "$W/h" \
+  && ok "CSP: inline script hashed, own origin plus Nostr relays" || fail "CSP"
 grep -qi '^x-robots-tag: noindex' "$W/h" && grep -qi '^strict-transport-security:' "$W/h" && grep -qi '^x-frame-options: DENY' "$W/h" \
   && ok "noindex, HSTS, no framing" || fail "headers"
 [[ "$(get "https://$H/robots.txt")" == 200 ]] && grep -q 'Disallow: /' "$W/b" && ok "robots.txt disallows all" || fail "robots"

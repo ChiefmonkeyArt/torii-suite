@@ -1,5 +1,12 @@
 # Torii Suite - Master TODO
 
+## Auctions v0.5.0 push settlement v0.9.74-alpha (arena ADR 0009, 0010)
+
+- [x] Pin plebeian-arena-auctions v0.5.0 (sha256 and MANIFEST commit checked); chain FORMAT 5.
+- [x] Format change keeps the old ledgers in `chain-archive/` and clears `settle-journal.jsonl`.
+- [x] CSP: `connect-src 'self' wss:`, `img-src ... https:` for the Nostr login (tests: install-auctions 69/69; auctions-live expects the new policy).
+- [ ] Deploy stage `auctions` on chiefmonkey.art (needs owner approval).
+
 ## The team chat feels like part of Continuum v0.9.73-alpha (Teams ADR 0023, Suite ADR 0006)
 
 - [x] Pin torii-teams 0.6.1-torii.25 (sha256 and build attestation checked).

@@ -283,6 +283,15 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.74-alpha: Auctions pays out by itself
+
+Pins Auctions v0.5.0. The validators now send every refund and payout
+themselves: an outbid bidder gets their sats back at once and the seller is
+paid the moment the clock hits zero, with nobody needing the page open. Lots
+are fixed time or anti-snipe. You can log in with Nostr and list a random
+parody lot in one tap. The fake-sats chain starts again (new format); the old
+one's transactions are kept on disk.
+
 ### New in v0.9.73-alpha: the team chat feels like part of Continuum
 
 The Teams app (0.6.1-torii.25) opens a project's Team tab at the latest

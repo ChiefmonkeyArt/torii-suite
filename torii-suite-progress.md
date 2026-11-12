@@ -3,6 +3,10 @@
 
 
 
+## v0.9.74-alpha: Auctions v0.5.0, validators push every refund and payout (2026-11-12)
+
+Pins plebeian-arena-auctions v0.5.0 (b41193f, SHA-256 `c1c95f2c7e5ca66ded6e4abf305a269907bc43a513ba19a91989bef9ce4a636b`; MANIFEST commit checked). Arena ADR 0009: the validators sign and push every refund and payout (3 of 4, all four asked), fixed-time and anti-snipe lots, chain FORMAT 5 (the installer keeps the old chain's ledgers in `chain-archive/` and clears the settler journal). Arena ADR 0010: Nostr login (NIP-07, NIP-46) and one-click parody lots; CSP adds `connect-src wss:` and `img-src https:`. Tests: install-auctions 69/69. Deploy: stage `auctions` only.
+
 ## v0.9.73-alpha: the team chat feels like part of Continuum (2026-11-12)
 
 Pins torii-teams 0.6.1-torii.25 (commit 4eec247, SHA-256 `467658bfc1d4b49979784f170cad5c4e8d7aa95aa25cae52e4b635168ec939dd`, attestation verified): opens at the latest message, unread counts, search, voice notes (Teams ADR 0023). Suite ADR 0006: `lib/teams-app.sh` sends `microphone=(self)`; `lib/continuum-host.sh` sends `microphone=("https://<teams host>")` when a Teams host is set. Deploy with stages `continuum_host,teams_app` after Continuum v0.2.212-alpha.
