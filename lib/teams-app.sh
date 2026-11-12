@@ -84,13 +84,13 @@ teams_security_headers() {
   local csp="$1"
   [[ "$csp" =~ ^[A-Za-z0-9\ \;:/\'+=._*-]+$ ]] || return 1
   cat <<NGINX
-# written by torii-suite (lib/teams-app.sh); no microphone (0.6.1-torii.4 has no voice notes).
+# written by torii-suite (lib/teams-app.sh); microphone for this origin only: voice notes (ADR 0006).
 # No X-Frame-Options: CSP frame-ancestors names the Continuum hosts (ADR 0002).
 add_header Content-Security-Policy "${csp}" always;
 add_header Strict-Transport-Security "max-age=31536000" always;
 add_header X-Content-Type-Options "nosniff" always;
 add_header Referrer-Policy "no-referrer" always;
-add_header Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()" always;
+add_header Permissions-Policy "geolocation=(), microphone=(self), camera=(), payment=()" always;
 add_header Cross-Origin-Opener-Policy "same-origin" always;
 NGINX
 }

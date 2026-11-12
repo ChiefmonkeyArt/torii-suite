@@ -82,7 +82,7 @@ FCSP="$(teams_csp "$T/index.html" continuum.example.com example.com example.com)
 refuse "a bad frame host is refused" teams_csp "$T/index.html" "evil.com; script-src *"
 check "headers snippet accepts the framed CSP" teams_security_headers "$FCSP"
 [[ "$(teams_security_headers "$FCSP")" != *"add_header X-Frame-Options"* ]] && ok "no X-Frame-Options (frame-ancestors rules)" || bad "X-Frame-Options still set"
-[[ "$(teams_security_headers "$FCSP")" == *"microphone=(), camera=()"* ]] && ok "no microphone or camera (no voice notes, v0.9.34)" || bad "Permissions-Policy still allows the microphone"
+[[ "$(teams_security_headers "$FCSP")" == *"microphone=(self), camera=()"* ]] && ok "microphone for this origin only, no camera (voice notes, ADR 0006)" || bad "Permissions-Policy microphone"
 refuse "headers snippet refuses an injected CSP" teams_security_headers "default-src 'self'\"; return 200"
 printf '<html></html>' > "$T/empty.html"; refuse "CSP needs the start-up script" teams_csp "$T/empty.html"
 

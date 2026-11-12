@@ -12,13 +12,15 @@ continuum_valid_host() { [[ "${1:-}" =~ $CONTINUUM_HOST_RE ]]; }
 
 # continuum_host_headers <teams host|""> → nginx add_header lines. Included in
 # every Continuum location (an add_header in a location drops the server's).
-# The Team view frames the Teams app (Continuum v0.2.195-alpha: iframe
-# allow="clipboard-write" only), so no origin gets the microphone; nothing may
-# frame Continuum itself. A Teams host is still validated when given.
+# The Team view frames the Teams app with allow="clipboard-write; microphone"
+# (Continuum v0.2.212-alpha): voice notes, so the microphone is delegated to
+# the Teams origin only, never to Continuum itself (ADR 0006). No Teams host:
+# no origin. Nothing may frame Continuum itself.
 continuum_host_headers() {
   local teams="${1:-}" mic='()'
   if [[ -n "$teams" ]]; then
     continuum_valid_host "$teams" || return 1
+    mic="(\"https://$teams\")"
   fi
   cat <<NGINX
 # written by torii-suite (lib/continuum-host.sh)

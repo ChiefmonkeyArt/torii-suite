@@ -1,5 +1,11 @@
 # Torii Suite - Master TODO
 
+## The team chat feels like part of Continuum v0.9.73-alpha (Teams ADR 0023, Suite ADR 0006)
+
+- [x] Pin torii-teams 0.6.1-torii.25 (sha256 and build attestation checked).
+- [x] Microphone: Teams `microphone=(self)`; Continuum host delegates it to the Teams origin only (tests: install-teams-app, install-continuum-host, continuum-host-live).
+- [ ] Deploy (owner approval): Continuum v0.2.212-alpha, then stages `continuum_host,teams_app` from v0.9.73-alpha.
+
 ## Softer own messages inside Continuum v0.9.72-alpha (Teams ADR 0022)
 
 - [x] Pin torii-teams 0.6.1-torii.24 (sha256 and build attestation checked).
