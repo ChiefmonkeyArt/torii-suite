@@ -3,7 +3,7 @@
 ## Project chat looks like Continuum v0.9.70-alpha (Teams ADR 0021)
 
 - [x] Pin torii-teams 0.6.1-torii.22 (sha256 and build attestation checked).
-- [ ] Deploy with owner approval: Continuum v0.2.211-alpha, then stage `teams_app` from v0.9.70-alpha.
+- [x] Deployed 2026-11-12 (owner approved): Continuum v0.2.211-alpha (run 43135791810), stage `teams_app` from v0.9.70-alpha (run 43135883878); MANIFEST torii.22.
 
 ## Teams chat stays up v0.9.69-alpha (ADR 0005)
 
