@@ -2,6 +2,11 @@
 
 
 
+
+## v0.9.72-alpha: softer own messages inside Continuum (2026-11-12)
+
+Pins torii-teams 0.6.1-torii.24 (commit ede3346, SHA-256 `f2b3e93f78983cb5bd0d2f5de8762b65e5df7daf674b11914551aa430087a75c`, attestation verified): inside Continuum your own messages are a soft amber tint (Teams ADR 0022). Installer change is the pin only.
+
 ## v0.9.71-alpha: team names show inside Continuum (2026-11-12)
 
 Pins torii-teams 0.6.1-torii.23 (commit 195ba49, SHA-256 `f86bdbebaf0aa77bdefe4290e26077a0e1a6019a4af5d9c6583728cbe3e4904e`, attestation verified): framed, the hidden header still loads the team's profiles, so names show. Installer change is the pin only.
