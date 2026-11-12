@@ -1,5 +1,10 @@
 # Torii Suite - Master TODO
 
+## Team names show inside Continuum v0.9.71-alpha (Teams ADR 0021 fix)
+
+- [x] Pin torii-teams 0.6.1-torii.23 (sha256 and build attestation checked).
+- [ ] Deploy with owner approval: stage `teams_app` from v0.9.71-alpha.
+
 ## Project chat looks like Continuum v0.9.70-alpha (Teams ADR 0021)
 
 - [x] Pin torii-teams 0.6.1-torii.22 (sha256 and build attestation checked).
