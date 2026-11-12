@@ -283,6 +283,11 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.71-alpha: team names show inside Continuum
+
+The Teams app (0.6.1-torii.23) shows everyone's name and avatar in a project's
+Team tab again; torii.22 showed a short key for some people.
+
 ### New in v0.9.70-alpha: the project chat looks like Continuum
 
 The Teams app (0.6.1-torii.22) uses Continuum's colours and light or dark mode

@@ -1,6 +1,11 @@
 # Torii Suite Progress
 
 
+
+## v0.9.71-alpha: team names show inside Continuum (2026-11-12)
+
+Pins torii-teams 0.6.1-torii.23 (commit 195ba49, SHA-256 `f86bdbebaf0aa77bdefe4290e26077a0e1a6019a4af5d9c6583728cbe3e4904e`, attestation verified): framed, the hidden header still loads the team's profiles, so names show. Installer change is the pin only.
+
 ## v0.9.70-alpha: the project chat looks like Continuum (2026-11-12)
 
 Pins torii-teams 0.6.1-torii.22 (commit 1a2db5c, SHA-256 `e8ad2fb2b0e9ff51857f55c67eeaea98ba1ce86bd89af31185de0e69e4a13515`, attestation verified): inside Continuum the chat uses Continuum's theme and mode, with one header (Teams ADR 0021). Pairs with Continuum v0.2.211-alpha. Installer change is the pin only.
