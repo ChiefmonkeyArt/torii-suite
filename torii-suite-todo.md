@@ -1,5 +1,10 @@
 # Torii Suite - Master TODO
 
+## Project chat looks like Continuum v0.9.70-alpha (Teams ADR 0021)
+
+- [x] Pin torii-teams 0.6.1-torii.22 (sha256 and build attestation checked).
+- [ ] Deploy with owner approval: Continuum v0.2.211-alpha, then stage `teams_app` from v0.9.70-alpha.
+
 ## Teams chat stays up v0.9.69-alpha (ADR 0005)
 
 - [x] Backup: global stopped list (trap works), `.part` removed, free-space check, shared lock; coordinator `Restart=always`; `torii-teams watch` every minute; `pause`/`resume`. Tests: `test/install-teams.test.sh`, CI real systemd.

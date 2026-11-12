@@ -1,5 +1,10 @@
 # Torii Suite - Session Handover
 
+
+## v0.9.70-alpha: the project chat looks like Continuum (2026-11-12)
+
+Pins torii-teams 0.6.1-torii.22 (commit 1a2db5c, SHA-256 `e8ad2fb2b0e9ff51857f55c67eeaea98ba1ce86bd89af31185de0e69e4a13515`, attestation verified): inside Continuum the chat uses Continuum's theme and mode, with one header (Teams ADR 0021). Pairs with Continuum v0.2.211-alpha. Installer change is the pin only.
+
 ## Teams chat stays up: v0.9.69-alpha (ADR 0005)
 
 Outage 2026-11-11 04:22-16:45 UTC: `torii-teams backup` (timer 04:20 + up to 30 min) stopped git + coord, tar failed (full disk), `set -e` exit, and the EXIT trap read a function-local array ("unbound variable"), so nothing restarted; a clean stop is not covered by `Restart=on-failure`. Fix: global `BACKUP_STOPPED`, `.part` removed, `du`+64 MiB vs `df` pre-check (logged skip, nothing stopped), `flock /run/torii-teams.lock`. Coord `Restart=always`, `StartLimitIntervalSec=0`; git stays `on-failure` (its ExecCondition skip would loop). `torii-teams-watch.timer` (1 min) starts enabled-but-inactive coord, and git only if `run-git.sh --check` passes; skips while the lock is held or `/etc/torii/teams/paused` exists; warns below 256 MiB. `torii-teams pause|resume`; restore uses them. Pins torii-teams 0.6.1-torii.21 (fc7a4bd, ADR 0020 banner). Logs: `journalctl -t torii-teams-watch -t torii-teams`. Deployed 2026-11-11 (Continuum run 43068335115, stages teams,teams_app); MANIFEST 0.6.1-torii.21; live CLI round trip on the coordinator ok.
