@@ -5,7 +5,7 @@
 
 ## v0.9.75-alpha: Auctions v0.5.1, wallets repair themselves (2026-11-13)
 
-Pins plebeian-arena-auctions v0.5.1 (6d39d78, SHA-256 `eb78414caa3d754a22f51657eb6785e28031d280bcaf29b0c7670e85d4b23d72`; MANIFEST commit checked). Fixes the bidding stall the owner hit on his phone. The browser had dropped the Coco store but kept the seed, so the mint refused every output as "already signed"; the wallet now restores with NUT-09 and retries (arena ADR 0011). Also: the photo and gallery follow the next lot, the outcome panel no longer covers the page, and the demo Seller doesn't bid. Chain FORMAT stays 5 (no reset). Tests: install-auctions 69/69. Deploy: stage `auctions` only.
+Pins plebeian-arena-auctions v0.5.1 (6d39d78, SHA-256 `eb78414caa3d754a22f51657eb6785e28031d280bcaf29b0c7670e85d4b23d72`; MANIFEST commit checked). Fixes the bidding stall the owner hit on his phone. The browser had dropped the Coco store but kept the seed, so the mint refused every output as "already signed"; the wallet now restores with NUT-09 and retries (arena ADR 0011). Also: the photo and gallery follow the next lot, the outcome panel no longer covers the page, and the demo Seller doesn't bid. Chain FORMAT stays 5 (no reset). Tests: install-auctions 69/69. Deploy: stage `auctions` only. Deployed 2026-11-13 (owner approved, run 43398336428); live checks passed: the served bundle has the wallet repair, chain kept (height 851, no reset).
 
 ## v0.9.74-alpha: Auctions v0.5.0, validators push every refund and payout (2026-11-12)
 
