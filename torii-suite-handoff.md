@@ -65,7 +65,7 @@ ADR 0003 (Accepted, owner 2026-11-11). `INSTALL_OLLAMA` defaults to 0 (`.env.exa
 
 ## Teams torii.20 pin: v0.9.63-alpha
 
-Pin only: torii-teams `0.6.1-torii.20` (aadc9e1), SHA-256 `aba58dd2b25647071f8358ab0ce901cce61c0e7da4f2e848514fab4ed21d7f76` (checked against the release and its `.sha256`). Teams ADR 0019: while a teammate waits, the owner checks every 15 s for up to 15 minutes (amends ADR 0006's 60 s poll); two-person e2e add 58 s -> 13 s. Session key not needed: after first sign-in, 4 reloads and 70 s open made 0 signer calls. Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only. Deployed 2026-11-13 (owner approved, run 43478868363); live MANIFEST torii.26 and the served logo match the release.
+Pin only: torii-teams `0.6.1-torii.20` (aadc9e1), SHA-256 `aba58dd2b25647071f8358ab0ce901cce61c0e7da4f2e848514fab4ed21d7f76` (checked against the release and its `.sha256`). Teams ADR 0019: while a teammate waits, the owner checks every 15 s for up to 15 minutes (amends ADR 0006's 60 s poll); two-person e2e add 58 s -> 13 s. Session key not needed: after first sign-in, 4 reloads and 70 s open made 0 signer calls. Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only.
 
 Deployed to chiefmonkey.art 2026-11-11 (owner approved; Continuum run 43008685267): `https://teams.<domain>/MANIFEST.json` reports `0.6.1-torii.20` (aadc9e1).
 
@@ -94,7 +94,7 @@ Deployed to chiefmonkey.art 2026-11-11 (owner approved; Continuum run 4299983593
 
 ## Teams torii.19 pin: v0.9.60-alpha
 
-Pin only: torii-teams `0.6.1-torii.19` (0f0d212), SHA-256 `f22e1619bfd828ee5b4165e0d7a0a5a581be761ce2958b67927b6d467383325e` (checked against the release and its `.sha256`). Teams ADR 0018: no News chunk in Torii builds (gzip −25.7 KB), no welcome poll on reload (0 welcome signatures), IndexedDB v7 by-kind index for action history. Continuum v0.2.208-alpha ships alongside (Routstr turns, no Teams dependency). Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only. Deployed 2026-11-13 (owner approved, run 43478868363); live MANIFEST torii.26 and the served logo match the release.
+Pin only: torii-teams `0.6.1-torii.19` (0f0d212), SHA-256 `f22e1619bfd828ee5b4165e0d7a0a5a581be761ce2958b67927b6d467383325e` (checked against the release and its `.sha256`). Teams ADR 0018: no News chunk in Torii builds (gzip −25.7 KB), no welcome poll on reload (0 welcome signatures), IndexedDB v7 by-kind index for action history. Continuum v0.2.208-alpha ships alongside (Routstr turns, no Teams dependency). Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only.
 
 ## Auctions v0.4.1 live chain: v0.9.59-alpha
 
@@ -110,7 +110,7 @@ Pin: plebeian-arena-auctions `v0.3.3` (5a37ad6), SHA-256 `e9654fd94bda7b01de0a5e
 
 ## Teams torii.18 pin: v0.9.56-alpha
 
-Pin only: torii-teams `0.6.1-torii.18` (c434c40), SHA-256 `c72caff2a063318cbfbe258ec47033794990bcabf811f693e9d2a6bdc4ade3fa` (checked against the release and its `.sha256`). Teams ADR 0017: framed in Continuum, no project list, Your computers in the chat header. Ships with Continuum v0.2.205-alpha (`docs/adr-project-team-chat.md`). Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only. Deployed 2026-11-13 (owner approved, run 43478868363); live MANIFEST torii.26 and the served logo match the release.
+Pin only: torii-teams `0.6.1-torii.18` (c434c40), SHA-256 `c72caff2a063318cbfbe258ec47033794990bcabf811f693e9d2a6bdc4ade3fa` (checked against the release and its `.sha256`). Teams ADR 0017: framed in Continuum, no project list, Your computers in the chat header. Ships with Continuum v0.2.205-alpha (`docs/adr-project-team-chat.md`). Files: `installers/install-teams-app.sh`, `.env.example`, `docs/TEAMS.md`, `VERSION`, README. Deploy: stage `teams_app` only.
 
 ## Auctions v0.3.2 live feel: v0.9.55-alpha
 
