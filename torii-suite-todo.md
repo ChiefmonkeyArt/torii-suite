@@ -3,7 +3,7 @@
 ## Auctions v0.5.2 worker handshake v0.9.76-alpha (arena ADR 0011 addendum)
 
 - [x] Pin plebeian-arena-auctions v0.5.2 (sha256 and MANIFEST commit checked); chain FORMAT stays 5.
-- [ ] Deploy stage `auctions` on chiefmonkey.art (needs owner approval).
+- [x] Deploy stage `auctions` on chiefmonkey.art (owner approved; run 43404614994, 2026-11-13).
 - [ ] Owner retest on the phone: no "unknown op" toast, sats arrive, bots bid.
 
 ## Auctions v0.5.1 wallet repair v0.9.75-alpha (arena ADR 0011)
