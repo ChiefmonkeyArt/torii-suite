@@ -1,11 +1,17 @@
 # Torii Suite - Master TODO
 
+## Auctions v0.5.2 worker handshake v0.9.76-alpha (arena ADR 0011 addendum)
+
+- [x] Pin plebeian-arena-auctions v0.5.2 (sha256 and MANIFEST commit checked); chain FORMAT stays 5.
+- [ ] Deploy stage `auctions` on chiefmonkey.art (needs owner approval).
+- [ ] Owner retest on the phone: no "unknown op" toast, sats arrive, bots bid.
+
 ## Auctions v0.5.1 wallet repair v0.9.75-alpha (arena ADR 0011)
 
 - [x] Pin plebeian-arena-auctions v0.5.1 (sha256 and MANIFEST commit checked); chain FORMAT stays 5.
 - [x] Root cause found: a lost browser wallet store made the mint refuse every output as "already signed". Fix: NUT-09 restore and retry.
 - [x] Deploy stage `auctions` on chiefmonkey.art (owner approved; run 43398336428, 2026-11-13).
-- [ ] Owner retest on the phone: balance comes back, bots bid, photo follows the lot.
+- [x] Owner retest on the phone: failed with "wallet worker: unknown op faucet"; fixed in v0.5.2.
 
 ## Auctions v0.5.0 push settlement v0.9.74-alpha (arena ADR 0009, 0010)
 
