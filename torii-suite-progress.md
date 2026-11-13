@@ -3,6 +3,10 @@
 
 
 
+## v0.9.76-alpha: Auctions v0.5.2, bidding works on iPhone (2026-11-13)
+
+Pins plebeian-arena-auctions v0.5.2 (3b83d33, SHA-256 `f91bfbc5788f0052f3d6df3b19015b5d05c3a68e3d05c3dffdd7acf797051e76`; MANIFEST commit checked). The owner's retest of v0.5.1 on Brave iOS showed "wallet worker: unknown op faucet": iOS dropped the page's `init` message to the wallet worker because it was posted before the module worker had loaded, so every top-up and bid failed. The worker now says `ready` first, every message carries the API base, and the wallet falls back to the page if `ready` never comes (arena ADR 0011 addendum). Chain FORMAT stays 5 (no reset). Tests: arena worker-ready 9/9, e2e 64/64; install-auctions 69/69. Deploy: stage `auctions` only.
+
 ## v0.9.75-alpha: Auctions v0.5.1, wallets repair themselves (2026-11-13)
 
 Pins plebeian-arena-auctions v0.5.1 (6d39d78, SHA-256 `eb78414caa3d754a22f51657eb6785e28031d280bcaf29b0c7670e85d4b23d72`; MANIFEST commit checked). Fixes the bidding stall the owner hit on his phone. The browser had dropped the Coco store but kept the seed, so the mint refused every output as "already signed"; the wallet now restores with NUT-09 and retries (arena ADR 0011). Also: the photo and gallery follow the next lot, the outcome panel no longer covers the page, and the demo Seller doesn't bid. Chain FORMAT stays 5 (no reset). Tests: install-auctions 69/69. Deploy: stage `auctions` only. Deployed 2026-11-13 (owner approved, run 43398336428); live checks passed: the served bundle has the wallet repair, chain kept (height 851, no reset).

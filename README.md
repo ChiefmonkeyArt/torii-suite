@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.76-alpha: Auctions bidding works on iPhone
+
+Pins Auctions v0.5.2. On iPhone browsers the wallet's background helper could
+miss its start-up message, so top-ups and bids failed ("wallet worker: unknown
+op"). The page now waits until the helper says it is ready, and runs the
+wallet itself if the helper never starts.
+
 ### New in v0.9.75-alpha: Auctions wallets repair themselves
 
 Pins Auctions v0.5.1. When a phone browser clears the wallet's stored data,

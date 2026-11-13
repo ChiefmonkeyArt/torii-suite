@@ -13,7 +13,7 @@ sudo INSTALL_AUCTIONS=1 TORII_DOMAIN=<domain> bash /opt/torii-suite/checkout/ins
 ```
 
 The release repo is public, so the VPS downloads the pinned tarball itself
-(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.5.1.tar.gz` installs a local copy).
+(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.5.2.tar.gz` installs a local copy).
 
 Escrow (v0.2.0+): bids lock to one FROST 3-of-4 group key; each validator keeps
 its share in `/var/lib/plebeian-auctions/chain/vN/config/frost_key.json` (0600).
@@ -123,3 +123,7 @@ journalctl -u plebeian-auctions -n 50
 - The photo and gallery follow the next lot at once. The outcome panel closes when the next lot starts. The demo Seller no longer bids.
 - No chain change: FORMAT stays 5, so the chain is not reset.
 
+## v0.5.2 (Suite v0.9.76-alpha)
+
+- iOS WebKit dropped the page's `init` message to the wallet worker when it was posted before the module worker had loaded, so every wallet operation failed with "wallet worker: unknown op faucet". The worker now posts `ready` first, the page queues calls until then, every message carries the API base, and with no `ready` in 8 s the wallet runs in the page (arena ADR 0011 addendum).
+- No chain change: FORMAT stays 5, so the chain is not reset.
