@@ -3,6 +3,10 @@
 
 
 
+## v0.9.75-alpha: Auctions v0.5.1, wallets repair themselves (2026-11-13)
+
+Pins plebeian-arena-auctions v0.5.1 (6d39d78, SHA-256 `eb78414caa3d754a22f51657eb6785e28031d280bcaf29b0c7670e85d4b23d72`; MANIFEST commit checked). Fixes the bidding stall the owner hit on his phone. The browser had dropped the Coco store but kept the seed, so the mint refused every output as "already signed"; the wallet now restores with NUT-09 and retries (arena ADR 0011). Also: the photo and gallery follow the next lot, the outcome panel no longer covers the page, and the demo Seller doesn't bid. Chain FORMAT stays 5 (no reset). Tests: install-auctions 69/69. Deploy: stage `auctions` only.
+
 ## v0.9.74-alpha: Auctions v0.5.0, validators push every refund and payout (2026-11-12)
 
 Pins plebeian-arena-auctions v0.5.0 (b41193f, SHA-256 `c1c95f2c7e5ca66ded6e4abf305a269907bc43a513ba19a91989bef9ce4a636b`; MANIFEST commit checked). Arena ADR 0009: the validators sign and push every refund and payout (3 of 4, all four asked), fixed-time and anti-snipe lots, chain FORMAT 5 (the installer keeps the old chain's ledgers in `chain-archive/` and clears the settler journal). Arena ADR 0010: Nostr login (NIP-07, NIP-46) and one-click parody lots; CSP adds `connect-src wss:` and `img-src https:`. Tests: install-auctions 69/69. Deploy: stage `auctions` only. Deployed 2026-11-12 (owner approved, run 43321926933); live checks passed: CSP, params `minWindowSec` 15, pushed refunds, payout within 1 s of the end.

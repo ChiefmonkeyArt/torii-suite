@@ -1,5 +1,12 @@
 # Torii Suite - Master TODO
 
+## Auctions v0.5.1 wallet repair v0.9.75-alpha (arena ADR 0011)
+
+- [x] Pin plebeian-arena-auctions v0.5.1 (sha256 and MANIFEST commit checked); chain FORMAT stays 5.
+- [x] Root cause found: a lost browser wallet store made the mint refuse every output as "already signed". Fix: NUT-09 restore and retry.
+- [ ] Deploy stage `auctions` on chiefmonkey.art (needs owner approval).
+- [ ] Owner retest on the phone: balance comes back, bots bid, photo follows the lot.
+
 ## Auctions v0.5.0 push settlement v0.9.74-alpha (arena ADR 0009, 0010)
 
 - [x] Pin plebeian-arena-auctions v0.5.0 (sha256 and MANIFEST commit checked); chain FORMAT 5.

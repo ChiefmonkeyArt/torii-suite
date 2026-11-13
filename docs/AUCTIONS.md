@@ -13,7 +13,7 @@ sudo INSTALL_AUCTIONS=1 TORII_DOMAIN=<domain> bash /opt/torii-suite/checkout/ins
 ```
 
 The release repo is public, so the VPS downloads the pinned tarball itself
-(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.5.0.tar.gz` installs a local copy).
+(`AUCTIONS_TARBALL=/path/plebeian-auctions-v0.5.1.tar.gz` installs a local copy).
 
 Escrow (v0.2.0+): bids lock to one FROST 3-of-4 group key; each validator keeps
 its share in `/var/lib/plebeian-auctions/chain/vN/config/frost_key.json` (0600).
@@ -116,4 +116,10 @@ journalctl -u plebeian-auctions -n 50
 
 - Validators push every refund and payout (arena ADR 0009); fixed-time and anti-snipe lots; chain FORMAT 5, so the old fake-sats chain is re-created. Its transaction ledgers are kept in `/var/lib/plebeian-auctions/chain-archive/format4-<unix>/`, and the settler journal (`settle-journal.jsonl`) is cleared with it.
 - Nostr login (arena ADR 0010). The CSP adds `connect-src wss:` (Nostr relays for the logged-in user's profile and NIP-46 signers) and `img-src https:` (their profile picture, loaded with no referrer). Scripts, styles, fonts and workers stay same-site.
+
+## v0.5.1 (Suite v0.9.75-alpha)
+
+- A browser whose wallet store was cleared (iOS can drop IndexedDB but keep localStorage) had its Coco counters back at 0, so the mint refused every new output as "already signed". Top-ups, refunds and bot bids then failed without a message. The wallet now runs Cashu restore (NUT-09) and retries, which also brings back its unspent ecash (arena ADR 0011). Failures show as toasts.
+- The photo and gallery follow the next lot at once. The outcome panel closes when the next lot starts. The demo Seller no longer bids.
+- No chain change: FORMAT stays 5, so the chain is not reset.
 
