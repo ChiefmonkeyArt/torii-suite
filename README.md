@@ -283,6 +283,13 @@ the node file's `continuum` entry are set up.
 and redirects the main-domain `/continuum/` there, so its sign-in is no longer
 shared with the other apps on the main domain. See `docs/CONTINUUM-HOST.md`.
 
+### New in v0.9.75-alpha: Auctions wallets repair themselves
+
+Pins Auctions v0.5.1. When a phone browser clears the wallet's stored data,
+the wallet now recovers its fake sats by itself, so bidding no longer stops.
+Problems now show on screen instead of failing silently. The picture follows
+the next lot straight away, and the results panel no longer covers the page.
+
 ### New in v0.9.74-alpha: Auctions pays out by itself
 
 Pins Auctions v0.5.0. The validators now send every refund and payout
