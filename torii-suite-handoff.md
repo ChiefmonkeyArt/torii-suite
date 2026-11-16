@@ -5,7 +5,7 @@
 
 ## v0.9.78-alpha: Teams torii.27, the human shisa uses a laptop (2026-11-16)
 
-Pins torii-teams 0.6.1-torii.27 (dfb6cdd, SHA-256 `220a741f5402bd898a6e75cbd296fee3c921b738c4f78b8deae54d684df8172f`; checksum, MANIFEST commit and the GitHub attestation record checked; local Sigstore verify could not start in this sandbox). The sign-in logo's orange-red shisa types on a laptop instead of wearing headphones (Teams ADR 0014 amendment 2). No header or chat change. Deploy: stage `teams_app` only.
+Pins torii-teams 0.6.1-torii.27 (dfb6cdd, SHA-256 `220a741f5402bd898a6e75cbd296fee3c921b738c4f78b8deae54d684df8172f`; checksum, MANIFEST commit and the GitHub attestation record checked; local Sigstore verify could not start in this sandbox). The sign-in logo's orange-red shisa types on a laptop instead of wearing headphones (Teams ADR 0014 amendment 2). No header or chat change. Deploy: stage `teams_app` only. Deployed 2026-11-16 (owner approved, run 43785846791); live MANIFEST torii.27 and the served logo match the release.
 
 ## v0.9.77-alpha: Teams torii.26, cleaner logo (2026-11-13)
 
