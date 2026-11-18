@@ -3,6 +3,10 @@
 
 
 
+## v0.9.79-alpha: Teams torii.28, Continuum's project AI member (2026-11-18)
+
+ADR 0007 (Accepted). `install-teams-app.sh` step 5 also writes `teams.coordinator` (from `coord.pub`) and `teams.relay` (`ws://127.0.0.1:<RELAY_PORT>` from `teams.env`, default 7777) into Continuum's config, so Continuum v0.2.214-alpha's AI member can join project chats; `teams_continuum_config` takes them as optional arguments (64-hex key; loopback `ws://` or `wss://` only; replaced in place, idempotent). Pins torii-teams 0.6.1-torii.28 (3fdf899, SHA-256 `be4f083de127697f0af5ccfab3d6da5a3d80f6e8a1ac8a7859042355a23bacd5`; checksum, MANIFEST commit and the GitHub attestation record checked): the AI's "AI · model" label, the who-can-ask hint, and the +N badge clear of the chat name (Teams ADR 0024). Deploy: Continuum v0.2.214-alpha, then stage `teams_app`.
+
 ## v0.9.78-alpha: Teams torii.27, the human shisa uses a laptop (2026-11-16)
 
 Pins torii-teams 0.6.1-torii.27 (dfb6cdd, SHA-256 `220a741f5402bd898a6e75cbd296fee3c921b738c4f78b8deae54d684df8172f`; checksum, MANIFEST commit and the GitHub attestation record checked; local Sigstore verify could not start in this sandbox). The sign-in logo's orange-red shisa types on a laptop instead of wearing headphones (Teams ADR 0014 amendment 2). No header or chat change. Deploy: stage `teams_app` only. Deployed 2026-11-16 (owner approved, run 43785846791); live MANIFEST torii.27 and the served logo match the release.

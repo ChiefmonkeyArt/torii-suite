@@ -27,7 +27,7 @@ has 'artifact contains symlinks' "$I" "refuses symlinks in the artifact"
 has 'rm -rf -- "$TMP/x/.well-known"' "$I" "drops upstream Cordn identity files"
 has 'location /.well-known/ { return 404; }' "$I" "no .well-known on the app host"
 has 'never served over plain HTTP' "$I" "no app over plain HTTP"
-has 'teams_continuum_config' "$I" "sets Continuum cors_origins and teams.app_url"
+has 'teams_continuum_config' "$I" "sets Continuum cors_origins, teams.app_url and the AI coordinator + relay"
 has 'torii register teams' "$I" "registers a launcher tile"
 has 'gzip_static on;' "$I" "serves pre-compressed assets"
 has "-exec gzip -9 -k -n -f {} +" "$I" "compresses the release once at install"
@@ -143,6 +143,23 @@ assert d["teams"] == {"app_url": "https://teams.example.com", "other": 1} and d[
 assert open(sys.argv[2]).read().count("app_url") == 1
 PY
 refuse "Continuum edit refuses a non-https origin" teams_continuum_config "$T/c.yaml" 'http://x"'
+
+# Project AI (ADR 0007): coordinator + loopback relay, added then replaced, idempotent.
+CK="$(printf 'a%.0s' {1..64})"; CK2="$(printf 'b%.0s' {1..64})"
+[[ "$(teams_continuum_config "$T/d.yaml" https://teams.example.com "$CK" ws://127.0.0.1:7777)" == changed ]] && ok "AI coordinator + relay are written" || bad "AI coordinator + relay are written"
+[[ "$(teams_continuum_config "$T/d.yaml" https://teams.example.com "$CK" ws://127.0.0.1:7777)" == unchanged ]] && ok "AI config edit is idempotent" || bad "AI config edit is idempotent"
+teams_continuum_config "$T/d.yaml" https://teams.example.com "$CK2" ws://127.0.0.1:7001 >/dev/null
+python3 - "$T/d.yaml" "$CK2" <<'PY' && ok "AI keys replaced in place, YAML valid" || bad "AI keys replaced in place, YAML valid"
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+assert d["teams"] == {"app_url": "https://teams.example.com", "coordinator": sys.argv[2], "relay": "ws://127.0.0.1:7001", "other": 1}, d
+text = open(sys.argv[1]).read()
+assert text.count("coordinator:") == 1 and text.count("relay:") == 1
+PY
+refuse "AI config refuses a bad coordinator key" teams_continuum_config "$T/d.yaml" https://teams.example.com 'xyz' ws://127.0.0.1:7777
+refuse "AI config refuses ws:// off loopback" teams_continuum_config "$T/d.yaml" https://teams.example.com "$CK" ws://relay.example.com
+has '"$PK" "ws://127.0.0.1:${RELAY_PORT}"' "$I" "installer passes the coordinator key and loopback relay"
+has "s/^RELAY_PORT=//p" "$I" "installer reads the relay port from teams.env"
 
 echo "install-teams-app.test.sh: $pass passed, $fail failed"
 (( fail == 0 ))

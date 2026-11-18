@@ -52,6 +52,10 @@ provenance. No compiler runs on the VPS.
   `continuum` is `https://$CONTINUUM_HOST` when set (v0.9.31), else
   `https://<domain>`; with it, the app's sidebar is one channel per project. The agent restarts only
   when the config changed.
+- With Continuum (v0.9.79-alpha, ADR 0007) it also writes `teams.coordinator`
+  (the `coord.pub` key) and `teams.relay` (`ws://127.0.0.1:<RELAY_PORT>`), so
+  Continuum's project AI member can join the node's chats. The owner adds it
+  per project on the Team page.
 - Headers on every location: a per-build Content-Security-Policy (hashes of the
   inline start-up scripts). With the node file server (default with Continuum,
   v0.9.37-alpha) the app may connect only to itself, Continuum and the node
@@ -176,8 +180,8 @@ with its data in `/var/lib/torii-teams-files` and settings in
 - `TEAMS_FILES=0` keeps the old behaviour (public Blossom, wide CSP). Without
   Continuum it is always off.
 
-Pinned release (v0.9.78-alpha): torii-teams `0.6.1-torii.27` (commit dfb6cdd),
-SHA-256 `220a741f5402bd898a6e75cbd296fee3c921b738c4f78b8deae54d684df8172f`. An operator can pin another one with both `TEAMS_APP_TAG` and
+Pinned release (v0.9.79-alpha): torii-teams `0.6.1-torii.28` (commit 3fdf899),
+SHA-256 `be4f083de127697f0af5ccfab3d6da5a3d80f6e8a1ac8a7859042355a23bacd5`. An operator can pin another one with both `TEAMS_APP_TAG` and
 `TEAMS_APP_SHA256`.
 
 Tests: `bash test/install-teams-app.test.sh` (any user) and
