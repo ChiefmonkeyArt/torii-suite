@@ -26,10 +26,10 @@ die() { printf '\033[31mxx  install-teams-app: %s\033[0m\n' "$*" >&2; exit 1; }
 
 # Pinned release. Bumped together with the Suite version; an operator may pin
 # another release by setting BOTH (the checksum is never fetched from the release).
-# 0.6.1-torii.27 = torii-teams dfb6cdd; SHA-256 checked against the GitHub release
+# 0.6.1-torii.28 = torii-teams 3fdf899; SHA-256 checked against the GitHub release
 # and its build-provenance attestation.
-TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.27}"
-TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-220a741f5402bd898a6e75cbd296fee3c921b738c4f78b8deae54d684df8172f}"
+TEAMS_APP_TAG="${TEAMS_APP_TAG:-0.6.1-torii.28}"
+TEAMS_APP_SHA256="${TEAMS_APP_SHA256:-be4f083de127697f0af5ccfab3d6da5a3d80f6e8a1ac8a7859042355a23bacd5}"
 [[ -n "$TEAMS_APP_TAG" && -n "$TEAMS_APP_SHA256" ]] \
   || die "no Torii Teams release pinned yet (set TEAMS_APP_TAG and TEAMS_APP_SHA256)"
 [[ "$TEAMS_APP_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+-torii\.[0-9]+$ ]] || die "bad TEAMS_APP_TAG"
@@ -44,7 +44,10 @@ teams_valid_host "$TORII_DOMAIN" || die "bad TORII_DOMAIN"
 teams_valid_host "$APP_HOST" || die "bad TORII_TEAMS_HOST (the app needs its own host name)"
 teams_valid_host "$RELAY_HOST" || die "the app needs the relay subdomain (TORII_RELAY_HOST)"
 GIT_URL=""
+RELAY_PORT=7777
 if [[ -f "$CONFIG/teams.env" ]]; then
+  RELAY_PORT="$(sed -n 's/^RELAY_PORT=//p' "$CONFIG/teams.env")"
+  [[ "$RELAY_PORT" =~ ^[0-9]{1,5}$ ]] || RELAY_PORT=7777
   GIT_HOST="$(sed -n 's/^GIT_HOST=//p' "$CONFIG/teams.env")"
   GIT_PORT="$(sed -n 's/^GIT_PORT=//p' "$CONFIG/teams.env")"
   MESH_IP="$(sed -n 's/^MESH_IP=//p' "$CONFIG/teams.env")"
@@ -134,15 +137,17 @@ teams_node_json "$PK" "$TORII_DOMAIN" "$RELAY_HOST" "$GIT_URL" "$CONTINUUM" "${C
   || die "could not write node settings"
 install -m 0644 -o root -g root "$TMP/node.json" "$NODE_JSON"
 
-# 5. Continuum: allow the app origin for member sign-in (cross-origin) and set
-#    teams.app_url so the Team view shows "Open team chat".
+# 5. Continuum: allow the app origin for member sign-in (cross-origin), set
+#    teams.app_url so the Team view shows "Open team chat", and give the
+#    project AI member the coordinator key and the node relay on loopback
+#    (ADR 0007).
 if (( CONTINUUM == 1 )); then
   [[ ! -L "$CONTINUUM_CONFIG" ]] || die "refusing symlinked $CONTINUUM_CONFIG"
   # Rewritten in place, so owner (continuum) and mode (0600) are kept.
-  CHANGED="$(teams_continuum_config "$CONTINUUM_CONFIG" "https://${APP_HOST}")" \
+  CHANGED="$(teams_continuum_config "$CONTINUUM_CONFIG" "https://${APP_HOST}" "$PK" "ws://127.0.0.1:${RELAY_PORT}")" \
     || die "could not update the Continuum config"
   if [[ "$CHANGED" == changed ]]; then
-    log "Continuum config: cors_origins + teams.app_url = https://${APP_HOST}"
+    log "Continuum config: cors_origins + teams.app_url = https://${APP_HOST}, teams.coordinator + teams.relay (project AI)"
     [[ "${SKIP_SYSTEMD:-0}" == 1 ]] || systemctl restart continuum-agent.service
   fi
 fi

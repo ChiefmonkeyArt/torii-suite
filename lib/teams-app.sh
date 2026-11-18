@@ -95,28 +95,41 @@ add_header Cross-Origin-Opener-Policy "same-origin" always;
 NGINX
 }
 
-# teams_continuum_config <config.yaml> <app origin> — idempotent edit of the
-# Continuum agent config: the app origin in server.cors_origins (member sign-in
-# is cross-origin) and teams.app_url (Continuum's Team view shows
-# "Open team chat" only when it is set). Prints "changed" or "unchanged".
+# teams_continuum_config <config.yaml> <app origin> [coordinator hex] [relay url]
+# — idempotent edit of the Continuum agent config: the app origin in
+# server.cors_origins (member sign-in is cross-origin), teams.app_url (Continuum's
+# Team view shows "Open team chat" only when it is set) and, when given,
+# teams.coordinator + teams.relay (the project AI member joins the node's chats
+# through them; Continuum docs/adr-team-ai-member.md, Suite ADR 0007). The relay
+# is ws:// on loopback or wss://. Prints "changed" or "unchanged".
 teams_continuum_config() {
-  python3 - "$1" "$2" <<'PY'
+  python3 - "$1" "$2" "${3:-}" "${4:-}" <<'PY'
 import pathlib, re, sys
-path, origin = pathlib.Path(sys.argv[1]), sys.argv[2]
+path, origin, coord, relay = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
 assert re.fullmatch(r"https://[a-z0-9.-]+", origin), origin
+assert coord == "" or re.fullmatch(r"[0-9a-f]{64}", coord), "bad coordinator"
+assert relay == "" or re.fullmatch(r"wss://[a-z0-9.-]+(:[0-9]{1,5})?|ws://127\.0\.0\.1:[0-9]{1,5}", relay), "bad relay"
 text = before = path.read_text()
 if "cors_origins:" in text and f'"{origin}"' not in text:
     text = re.sub(r"(cors_origins:\s*\n(?:\s*-\s+.*\n)*)",
                   lambda m: f'{m.group(1)}    - "{origin}"\n', text, count=1)
-line = f'  app_url: "{origin}"'
-block = re.search(r"(?m)^teams:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n|[ \t]*\n)*)", text)
-if block is None:
-    text = text.rstrip("\n") + f"\n\n# Torii Teams app (written by torii-suite install-teams-app.sh)\nteams:\n{line}\n"
-elif re.search(r"(?m)^[ \t]+app_url:.*$", block.group(1)):
-    body = re.sub(r"(?m)^[ \t]+app_url:.*$", line, block.group(1), count=1)
-    text = text[:block.start(1)] + body + text[block.end(1):]
-else:
-    text = text[:block.start(1)] + line + "\n" + text[block.start(1):]
+
+def set_key(text, key, value):
+    line = f'  {key}: "{value}"'
+    block = re.search(r"(?m)^teams:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n|[ \t]*\n)*)", text)
+    if block is None:
+        return text.rstrip("\n") + f"\n\n# Torii Teams app (written by torii-suite install-teams-app.sh)\nteams:\n{line}\n"
+    pat = rf"(?m)^[ \t]+{key}:.*$"
+    if re.search(pat, block.group(1)):
+        body = re.sub(pat, line, block.group(1), count=1)
+        return text[:block.start(1)] + body + text[block.end(1):]
+    return text[:block.start(1)] + line + "\n" + text[block.start(1):]
+
+text = set_key(text, "app_url", origin)
+if coord:
+    text = set_key(text, "coordinator", coord)
+if relay:
+    text = set_key(text, "relay", relay)
 if text != before:
     path.write_text(text)
     print("changed")

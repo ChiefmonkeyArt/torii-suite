@@ -1,5 +1,11 @@
 # Torii Suite - Master TODO
 
+## Teams torii.28 + project AI config v0.9.79-alpha (ADR 0007)
+
+- [x] Write `teams.coordinator` and `teams.relay` into Continuum's config; pin torii-teams 0.6.1-torii.28.
+- [x] Deploy Continuum v0.2.214-alpha, then stage `teams_app` (owner approved 2026-11-18).
+- [ ] Owner: add Continuum AI to a project on the Team page and @mention it from a phone.
+
 ## Auctions v0.5.2 worker handshake v0.9.76-alpha (arena ADR 0011 addendum)
 
 - [x] Pin plebeian-arena-auctions v0.5.2 (sha256 and MANIFEST commit checked); chain FORMAT stays 5.
