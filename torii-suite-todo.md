@@ -1,5 +1,10 @@
 # Torii Suite - Master TODO
 
+## Teams torii.29 v0.9.80-alpha
+
+- [x] Pin torii-teams 0.6.1-torii.29 (not-joined count clears at once).
+- [x] Deploy stage `teams_app` (owner approved 2026-11-19).
+
 ## Teams torii.28 + project AI config v0.9.79-alpha (ADR 0007)
 
 - [x] Write `teams.coordinator` and `teams.relay` into Continuum's config; pin torii-teams 0.6.1-torii.28.
