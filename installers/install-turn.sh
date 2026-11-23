@@ -92,13 +92,15 @@ if [[ -n "$TEST_PASS" && ! "$TEST_PASS" =~ ^[A-Za-z0-9]{24,64}$ ]]; then
 fi
 
 # Every address a relay may NOT send to (RFC 6890 special-purpose ranges).
+# Never start an IPv6 range at "::": coturn then matches every IPv4 peer too
+# and refuses to relay anything (fixed in v0.9.83-alpha).
 DENY=(
   0.0.0.0-0.255.255.255 10.0.0.0-10.255.255.255 100.64.0.0-100.127.255.255
   127.0.0.0-127.255.255.255 169.254.0.0-169.254.255.255 172.16.0.0-172.31.255.255
   192.0.0.0-192.0.0.255 192.0.2.0-192.0.2.255 192.88.99.0-192.88.99.255
   192.168.0.0-192.168.255.255 198.18.0.0-198.19.255.255 198.51.100.0-198.51.100.255
   203.0.113.0-203.0.113.255 224.0.0.0-255.255.255.255
-  ::-::ffff:ffff:ffff 64:ff9b::-64:ff9b::ffff:ffff 100::-100::ffff:ffff:ffff:ffff
+  ::1 64:ff9b::-64:ff9b::ffff:ffff 100::-100::ffff:ffff:ffff:ffff
   2001::-2001:1ff:ffff:ffff:ffff:ffff:ffff:ffff 2001:db8::-2001:db8:ffff:ffff:ffff:ffff:ffff:ffff
   fc00::-fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff fe80::-febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff
   ff00::-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
