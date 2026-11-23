@@ -38,3 +38,7 @@ public IPv4 address.
 Relays to loopback, private, link-local, CGNAT and other special addresses,
 TCP relays, and more than 10 allocations at once. Logs are kept in memory for
 one day at most.
+
+## Temporary test login
+
+Set `TORII_TURN_TEST_PASSWORD` (24–64 letters and digits) when running the stage to add a second login, `torii-test`, for an end-to-end call test. It is not written to `/etc/torii/turn/credentials` and is never printed. Run the stage again without it to remove the login.

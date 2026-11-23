@@ -26,7 +26,10 @@
 # Listens on the main IPv4 address only (not FIPS, Docker or loopback).
 # Ports: 3478 udp+tcp (TURN/STUN), 49160-49179 udp (relays).
 # Env: TORII_TURN_EXTERNAL_IP (when the VPS sits behind 1:1 NAT),
-#      TORII_TURN_REALM (default TORII_DOMAIN), TORII_TURN_ROTATE=1 (new password).
+#      TORII_TURN_REALM (default TORII_DOMAIN), TORII_TURN_ROTATE=1 (new password),
+#      TORII_TURN_TEST_PASSWORD (adds a temporary "torii-test" login for an
+#      end-to-end call test; never stored in the credentials file or printed.
+#      Re-running the stage without it removes the login).
 # Show the login on the VPS: sudo cat /etc/torii/turn/credentials
 # Re-runs keep the password unless TORII_TURN_ROTATE=1.
 set -euo pipefail
@@ -83,6 +86,11 @@ if [[ ! "$PASS" =~ ^[A-Za-z0-9]{24,64}$ ]]; then
   [[ ${#PASS} == 32 ]] || die "could not make a password"
 fi
 
+TEST_PASS="${TORII_TURN_TEST_PASSWORD:-}"
+if [[ -n "$TEST_PASS" && ! "$TEST_PASS" =~ ^[A-Za-z0-9]{24,64}$ ]]; then
+  die "TORII_TURN_TEST_PASSWORD must be 24-64 letters and digits"
+fi
+
 # Every address a relay may NOT send to (RFC 6890 special-purpose ranges).
 DENY=(
   0.0.0.0-0.255.255.255 10.0.0.0-10.255.255.255 100.64.0.0-100.127.255.255
@@ -108,6 +116,7 @@ TMP="$(mktemp -d)"; trap 'rm -rf -- "$TMP"' EXIT
   echo "fingerprint"
   echo "lt-cred-mech"
   echo "user=torii:$PASS"
+  if [[ -n "$TEST_PASS" ]]; then echo "user=torii-test:$TEST_PASS"; fi
   echo "no-tls"
   echo "no-dtls"
   echo "no-tcp-relay"
@@ -186,5 +195,10 @@ if command -v turnutils_stunclient >/dev/null; then
   log "STUN self-test passed"
 fi
 echo "TURN server running on port $PORT (relays $RELAY_MIN-$RELAY_MAX/udp)."
+if [[ -n "$TEST_PASS" ]]; then
+  echo "Temporary test login torii-test is on. Run the stage again without it to remove it."
+else
+  echo "No test login."
+fi
 echo "Show the login for the Tab5 (Settings > Calls): sudo cat $CRED"
 echo "If your provider has its own firewall, open the same ports there."

@@ -59,6 +59,16 @@ SH
   grep -q 'Cannot complete Allocation' <<< "$r" || fail "wrong password accepted"; ok
   r="$(timeout 15 turnutils_uclient -u torii -w "$pw" -e 127.0.0.1 -r 3480 -n 2 -m 1 "$ip4" 2>&1 || true)"
   grep -q '403 (Forbidden IP)' <<< "$r" || fail "relay to loopback allowed"; ok
+  # Temporary test login: added with TORII_TURN_TEST_PASSWORD, gone on re-run.
+  tp=TestOnly0123456789abcdefABCDEF
+  if env PATH="$fake:$PATH" INSTALL_TURN=1 TORII_DOMAIN=turn.test TORII_TURN_TEST_PASSWORD='bad pw' "${ext[@]}" bash "$S" >/dev/null 2>&1; then fail "bad test password accepted"; fi; ok
+  out="$(env PATH="$fake:$PATH" INSTALL_TURN=1 TORII_DOMAIN=turn.test TORII_TURN_TEST_PASSWORD=$tp "${ext[@]}" bash "$S")" || fail "install with test login"
+  [[ "$out" != *"$tp"* ]] || fail "test password printed"; ok
+  ! grep -q "$tp" /etc/torii/turn/credentials || fail "test password stored in credentials"; ok
+  r="$(timeout 30 turnutils_uclient -y -u torii-test -w "$tp" -r turn.test -n 5 -m 1 -l 170 "$ip4" 2>&1 || true)"
+  grep -q 'Total lost packets 0 ' <<< "$r" || fail "test login relay"; ok
+  env PATH="$fake:$PATH" INSTALL_TURN=1 TORII_DOMAIN=turn.test "${ext[@]}" bash "$S" >/dev/null || fail "re-run without test login"
+  ! grep -q torii-test /etc/turnserver.conf || fail "test login not removed"; ok
   pkill -x turnserver || true; rm -rf "$t"
 fi
 echo "install-turn: $pass checks passed"
