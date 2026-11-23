@@ -1,0 +1,22 @@
+name: TURN server install
+on:
+  pull_request:
+    paths: ['installers/install-turn.sh', 'bootstrap.sh', '.env.example', 'test/install-turn.test.sh', '.github/workflows/turn.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: coturn (test client and server)
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends coturn shellcheck
+          sudo systemctl stop coturn || true
+      - name: Contract, safety and relay tests
+        run: sudo bash test/install-turn.test.sh

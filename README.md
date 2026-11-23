@@ -71,6 +71,7 @@ https://your-domain.com/quest/          — Torii Quest (3D open-world game)
 https://your-domain.com/plebeian/       — Plebeian Market (external tile)
 wss://your-domain.com/relay             — sovereign Nostr relay (strfry)
 https://your-domain.com/git/            — read-only git mirror host (NIP-34)
+turn:your-domain.com:3478               — optional TURN relay for voice calls
 ```
 
 Continuum also gets a **local Ollama daemon** on `127.0.0.1:11434` as an LLM
@@ -270,6 +271,15 @@ values:
 
 Everything else has a sensible default (see the file for opt-ins, ref pins,
 port overrides, staging mode).
+
+### New in v0.9.81-alpha: your own TURN server for voice calls
+
+`INSTALL_TURN=1` (or stage `turn`) installs coturn as a private relay for
+Torii Companion and 0xchat voice calls. Calls connect behind strict routers,
+and the Tab5's "Hide my IP" keeps your home IP from callers, with no outside
+relay service. It refuses relays to private and loopback addresses, keeps logs
+in memory for a day, and opens 3478 udp/tcp plus 49160-49179/udp. See
+[docs/TURN.md](docs/TURN.md) and ADR 0008.
 
 ### New in v0.9.32-alpha: Teams app finds Continuum
 
