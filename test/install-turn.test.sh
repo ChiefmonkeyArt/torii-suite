@@ -22,9 +22,10 @@ for want in lt-cred-mech no-tcp-relay no-multicast-peers no-cli fingerprint no-s
 done
 for r in 10.0.0.0-10.255.255.255 127.0.0.0-127.255.255.255 169.254.0.0-169.254.255.255 \
          172.16.0.0-172.31.255.255 192.168.0.0-192.168.255.255 100.64.0.0-100.127.255.255 \
-         fc00::-fdff fe80::-febf '::-::ffff:ffff:ffff'; do
+         fc00::-fdff fe80::-febf ' ::1 '; do
   grep -qF -- "$r" "$S" || fail "private range $r not denied"; ok
 done
+! grep -qE "^  ::-|[[:space:]]::-" "$S" || fail "an IPv6 deny range starts at :: (blocks all IPv4 in coturn)"; ok
 grep -q 'policy-rc.d' "$S" || fail "coturn must not start before its config"; ok
 grep -q 'force-confold' "$S" || fail "package must keep our config"; ok
 grep -q 'APT::Sandbox::User=root' "$S" || fail "apt fallback"; ok
@@ -69,6 +70,17 @@ SH
   grep -q 'Total lost packets 0 ' <<< "$r" || fail "test login relay"; ok
   env PATH="$fake:$PATH" INSTALL_TURN=1 TORII_DOMAIN=turn.test "${ext[@]}" bash "$S" >/dev/null || fail "re-run without test login"
   ! grep -q torii-test /etc/turnserver.conf || fail "test login not removed"; ok
+  # A public relay address must be able to relay to public IPv4 peers
+  # (v0.9.81/82 denied every IPv4 peer). Uses a test address on lo.
+  if ip addr add 45.10.10.10/32 dev lo 2>/dev/null; then
+    sed -e 's/^listening-ip=.*/listening-ip=45.10.10.10/' -e 's/^relay-ip=.*/relay-ip=45.10.10.10/' \
+      -e '/^external-ip=/d' -e 's/^listening-port=.*/listening-port=3491/' -e 's/^log-file=.*/log-file=\/tmp\/torii-turn-pub.log/' \
+      /etc/turnserver.conf > "$t/pub.conf"
+    (setsid turnserver -c "$t/pub.conf" >/dev/null 2>&1 &); sleep 1.5
+    r="$(timeout 30 turnutils_uclient -y -u torii -w "$pw" -p 3491 -n 5 -m 1 -l 170 45.10.10.10 2>&1 || true)"
+    pkill -f "$t/pub.conf" || true; ip addr del 45.10.10.10/32 dev lo || true
+    grep -q 'Total lost packets 0 ' <<< "$r" || { tail -3 /tmp/torii-turn-pub.log >&2; fail "relay to a public IPv4 peer refused"; }; ok
+  fi
   pkill -x turnserver || true; rm -rf "$t"
 fi
 echo "install-turn: $pass checks passed"
